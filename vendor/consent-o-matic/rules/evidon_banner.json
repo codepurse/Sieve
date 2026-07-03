@@ -1,0 +1,334 @@
+{
+    "$schema": "https://raw.githubusercontent.com/cavi-au/Consent-O-Matic/master/rules.schema.json",
+    "EvidonBanner": {
+        "detectors": [
+            {
+                "presentMatcher": [
+                    {
+                        "type": "css",
+                        "target": {
+                            "selector": "#_evidon_banner"
+                        }
+                    }
+                ],
+                "showingMatcher": [
+                    {
+                        "type": "css",
+                        "target": {
+                            "selector": "#_evidon_banner",
+                            "displayFilter": true
+                        }
+                    }
+                ]
+            }
+        ],
+        "methods": [
+            {
+                "action": {
+                    "type": "list",
+                    "actions": [
+                        {
+                            "type": "click",
+                            "target": {
+                                "selector": "#_evidon_banner #_evidon-message a",
+                                "textFilter": [
+                                    "choices",
+                                    "Cookie Consent Tool",
+                                    "here"
+                                ]
+                            }
+                        },
+                        {
+                            "type": "wait",
+                            "waitTime": 250
+                        },
+                        {
+                            "type": "click",
+                            "target": {
+                                "selector": "#_evidon_banner #_evidon-option-button"
+                            }
+                        }
+                    ]
+                },
+                "name": "OPEN_OPTIONS"
+            },
+            {
+                "action": {
+                    "type": "list",
+                    "actions": [
+                        {
+                            "type": "ifcss",
+                            "target": {
+                                "selector": "#evidon-prefdiag-overlay"
+                            },
+                            "trueAction": {
+                                "type": "click",
+                                "target": {
+                                    "selector": ".evidon-prefdiag-declinebtn"
+                                }
+                            },
+                            "falseAction": {
+                                "type": "list",
+                                "actions": [
+                                    {
+                                        "type": "waitcss",
+                                        "target": {
+                                            "selector": "iframe#_evidon-consent-frame"
+                                        },
+                                        "retries": 10,
+                                        "waitTime": 250
+                                    },
+                                    {
+                                        "type": "waitcss",
+                                        "target": {
+                                            "selector": "iframe#_evidon-consent-frame"
+                                        },
+                                        "retries": 10,
+                                        "waitTime": 250,
+                                        "negated": true
+                                    },
+                                    {
+                                        "type": "click",
+                                        "target": {
+                                            "selector": "button#_evidon-accept-button"
+                                        }
+                                    }
+                                ]
+                            }
+                        }
+                    ]
+                },
+                "name": "SAVE_CONSENT"
+            },
+            {
+                "action": {
+                    "type": "list",
+                    "actions": [
+                        {
+                            "type": "hide",
+                            "target": {
+                                "selector": "#evidon-prefdiag-background"
+                            }
+                        },
+                        {
+                            "type": "hide",
+                            "target": {
+                                "selector": "#evidon-prefdiag-overlay"
+                            }
+                        },
+                        {
+                            "type": "hide",
+                            "target": {
+                                "selector": "#_evidon_banner"
+                            }
+                        }
+                    ]
+                },
+                "name": "HIDE_CMP"
+            },
+            {
+                "action": {
+                    "type": "ifcss",
+                    "target": {
+                        "selector": "#evidon-prefdiag-overlay"
+                    },
+                    "trueAction": {
+                        "type": "list",
+                        "actions": [
+                            {
+                                "type": "click",
+                                "target": {
+                                    "selector": ".evidon-prefdiag-sidebarlink",
+                                    "textFilter": [
+                                        "Purposes"
+                                    ]
+                                }
+                            },
+                            {
+                                "type": "foreach",
+                                "target": {
+                                    "selector": "#iab-purpose-container [id*='iab-purpose'], #prc-tp-cat-container div"
+                                },
+                                "action": {
+                                    "type": "list",
+                                    "actions": [
+                                        {
+                                            "type": "ifcss",
+                                            "target": {
+                                                "selector": "[id*=iab-purpose-name], .evidon-prefdiag-link",
+                                                "textFilter": [
+                                                    "Information storage and access"
+                                                ]
+                                            },
+                                            "trueAction": {
+                                                "type": "consent",
+                                                "consents": [
+                                                    {
+                                                        "matcher": {
+                                                            "type": "checkbox",
+                                                            "target": {
+                                                                "selector": "input"
+                                                            }
+                                                        },
+                                                        "toggleAction": {
+                                                            "type": "click",
+                                                            "target": {
+                                                                "selector": "label"
+                                                            }
+                                                        },
+                                                        "type": "D"
+                                                    }
+                                                ]
+                                            }
+                                        },
+                                        {
+                                            "type": "ifcss",
+                                            "target": {
+                                                "selector": "[id*=iab-purpose-name], .evidon-prefdiag-link",
+                                                "textFilter": [
+                                                    "Personalisation"
+                                                ]
+                                            },
+                                            "trueAction": {
+                                                "type": "consent",
+                                                "consents": [
+                                                    {
+                                                        "matcher": {
+                                                            "type": "checkbox",
+                                                            "target": {
+                                                                "selector": "input"
+                                                            }
+                                                        },
+                                                        "toggleAction": {
+                                                            "type": "click",
+                                                            "target": {
+                                                                "selector": "label"
+                                                            }
+                                                        },
+                                                        "type": "F"
+                                                    }
+                                                ]
+                                            }
+                                        },
+                                        {
+                                            "type": "ifcss",
+                                            "target": {
+                                                "selector": "[id*=iab-purpose-name], .evidon-prefdiag-link",
+                                                "textFilter": [
+                                                    "Content selection, delivery, reporting"
+                                                ]
+                                            },
+                                            "trueAction": {
+                                                "type": "consent",
+                                                "consents": [
+                                                    {
+                                                        "matcher": {
+                                                            "type": "checkbox",
+                                                            "target": {
+                                                                "selector": "input"
+                                                            }
+                                                        },
+                                                        "toggleAction": {
+                                                            "type": "click",
+                                                            "target": {
+                                                                "selector": "label"
+                                                            }
+                                                        },
+                                                        "type": "E"
+                                                    }
+                                                ]
+                                            }
+                                        },
+                                        {
+                                            "type": "ifcss",
+                                            "target": {
+                                                "selector": "[id*=iab-purpose-name], .evidon-prefdiag-link",
+                                                "textFilter": [
+                                                    "Ad selection, delivery, reporting",
+                                                    "Marketing and Personalization"
+                                                ]
+                                            },
+                                            "trueAction": {
+                                                "type": "consent",
+                                                "consents": [
+                                                    {
+                                                        "matcher": {
+                                                            "type": "checkbox",
+                                                            "target": {
+                                                                "selector": "input"
+                                                            }
+                                                        },
+                                                        "toggleAction": {
+                                                            "type": "click",
+                                                            "target": {
+                                                                "selector": "label"
+                                                            }
+                                                        },
+                                                        "type": "F"
+                                                    }
+                                                ]
+                                            }
+                                        },
+                                        {
+                                            "type": "ifcss",
+                                            "target": {
+                                                "selector": "[id*=iab-purpose-name], .evidon-prefdiag-link",
+                                                "textFilter": [
+                                                    "Measurement",
+                                                    "Analytics",
+                                                    "Functional and Performance"
+                                                ]
+                                            },
+                                            "trueAction": {
+                                                "type": "consent",
+                                                "consents": [
+                                                    {
+                                                        "matcher": {
+                                                            "type": "checkbox",
+                                                            "target": {
+                                                                "selector": "input"
+                                                            }
+                                                        },
+                                                        "toggleAction": {
+                                                            "type": "click",
+                                                            "target": {
+                                                                "selector": "label"
+                                                            }
+                                                        },
+                                                        "type": "B"
+                                                    }
+                                                ]
+                                            }
+                                        }
+                                    ]
+                                }
+                            },
+                            {
+                                "type": "click",
+                                "target": {
+                                    "selector": ".evidon-prefdiag-acceptbtn",
+                                    "textFilter": [
+                                        "Save Preferences"
+                                    ]
+                                }
+                            },
+                            {
+                                "type": "click",
+                                "target": {
+                                    "selector": ".evidon-prefdiag-sidebarlink",
+                                    "textFilter": [
+                                        "Vendors"
+                                    ]
+                                }
+                            }
+                        ]
+                    }
+                },
+                "name": "DO_CONSENT"
+            },
+            {
+                "name": "UTILITY"
+            }
+        ]
+    }
+}

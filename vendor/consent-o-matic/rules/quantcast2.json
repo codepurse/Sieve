@@ -1,0 +1,294 @@
+{
+    "$schema": "https://raw.githubusercontent.com/cavi-au/Consent-O-Matic/master/rules.schema.json",
+    "quantcast2": {
+        "detectors": [
+            {
+                "presentMatcher": [
+                    {
+                        "type": "css",
+                        "target": {
+                            "selector": "[data-tracking-opt-in-overlay]"
+                        }
+                    }
+                ],
+                "showingMatcher": [
+                    {
+                        "type": "css",
+                        "target": {
+                            "selector": "[data-tracking-opt-in-overlay] [data-tracking-opt-in-learn-more]"
+                        }
+                    }
+                ]
+            }
+        ],
+        "methods": [
+            {
+                "action": {
+                    "type": "list",
+                    "actions": [
+                        {
+                            "type": "click",
+                            "target": {
+                                "selector": "[data-tracking-opt-in-overlay] [data-tracking-opt-in-learn-more]"
+                            }
+                        },
+                        {
+                            "type": "wait",
+                            "waitTime": 500
+                        },
+                        {
+                            "type": "multiclick",
+                            "target": {
+                                "selector": "._1hNWKDVJf2Z0Wsp4jQFbmV"
+                            }
+                        }
+                    ]
+                },
+                "name": "OPEN_OPTIONS"
+            },
+            {
+                "action": {
+                    "type": "list",
+                    "actions": [
+                        {
+                            "type": "foreach",
+                            "target": {
+                                "childFilter": {
+                                    "target": {
+                                        "selector": "input"
+                                    }
+                                },
+                                "selector": ":scope > div"
+                            },
+                            "parent": {
+                                "childFilter": {
+                                    "target": {
+                                        "selector": "input"
+                                    }
+                                },
+                                "selector": "[data-tracking-opt-in-overlay] > div > div"
+                            },
+                            "action": {
+                                "type": "list",
+                                "actions": [
+                                    {
+                                        "type": "ifcss",
+                                        "target": {
+                                            "selector": "div",
+                                            "textFilter": [
+                                                "Information storage and access",
+                                                "Opbevare og/eller tilgå oplysninger på en enhed",
+                                                "Actively scan device characteristics for identification",
+                                                "Store and/or access information on a device"
+                                            ]
+                                        },
+                                        "trueAction": {
+                                            "type": "consent",
+                                            "consents": [
+                                                {
+                                                    "matcher": {
+                                                        "type": "checkbox",
+                                                        "target": {
+                                                            "selector": "input"
+                                                        }
+                                                    },
+                                                    "toggleAction": {
+                                                        "type": "click",
+                                                        "target": {
+                                                            "selector": "label"
+                                                        }
+                                                    },
+                                                    "type": "D"
+                                                }
+                                            ]
+                                        }
+                                    },
+                                    {
+                                        "type": "ifcss",
+                                        "target": {
+                                            "selector": "div",
+                                            "textFilter": [
+                                                "Personalization",
+                                                "Vælge tilpassede annoncer",
+                                                "Oprette en tilpasset annonceprofil",
+                                                "Create a personalised ads profile",
+                                                "Select personalised ads"
+                                            ]
+                                        },
+                                        "trueAction": {
+                                            "type": "consent",
+                                            "consents": [
+                                                {
+                                                    "matcher": {
+                                                        "type": "checkbox",
+                                                        "target": {
+                                                            "selector": "input"
+                                                        }
+                                                    },
+                                                    "toggleAction": {
+                                                        "type": "click",
+                                                        "target": {
+                                                            "selector": "label"
+                                                        }
+                                                    },
+                                                    "type": "F"
+                                                }
+                                            ]
+                                        }
+                                    },
+                                    {
+                                        "type": "ifcss",
+                                        "target": {
+                                            "selector": "div",
+                                            "textFilter": [
+                                                "Ad selection, delivery, reporting",
+                                                "Vælge basisannoncer",
+                                                "Måle annonceeffektivitet",
+                                                "Anvende markedsundersøgelser til at generere målgruppeindsigter"
+                                            ]
+                                        },
+                                        "trueAction": {
+                                            "type": "consent",
+                                            "consents": [
+                                                {
+                                                    "matcher": {
+                                                        "type": "checkbox",
+                                                        "target": {
+                                                            "selector": "input"
+                                                        }
+                                                    },
+                                                    "toggleAction": {
+                                                        "type": "click",
+                                                        "target": {
+                                                            "selector": "label"
+                                                        }
+                                                    },
+                                                    "type": "F"
+                                                }
+                                            ]
+                                        }
+                                    },
+                                    {
+                                        "type": "ifcss",
+                                        "target": {
+                                            "selector": "div",
+                                            "textFilter": [
+                                                "Content selection, delivery, reporting",
+                                                "Oprette en tilpasset indholdsprofil",
+                                                "Vælge tilpasset indhold",
+                                                "Content personalization",
+                                                "Select personalised content",
+                                                "Create a personalised content profile"
+                                            ]
+                                        },
+                                        "trueAction": {
+                                            "type": "consent",
+                                            "consents": [
+                                                {
+                                                    "matcher": {
+                                                        "type": "checkbox",
+                                                        "target": {
+                                                            "selector": "input"
+                                                        }
+                                                    },
+                                                    "toggleAction": {
+                                                        "type": "click",
+                                                        "target": {
+                                                            "selector": "label"
+                                                        }
+                                                    },
+                                                    "type": "E"
+                                                }
+                                            ]
+                                        }
+                                    },
+                                    {
+                                        "type": "ifcss",
+                                        "target": {
+                                            "selector": "div",
+                                            "textFilter": [
+                                                "Measurement",
+                                                "Måle indholdseffektivitet",
+                                                "Udvikle og forbedre produkter",
+                                                "Aktivt scanne enhedskarakteristika til identifikation",
+                                                "Apply market research to generate audience insights"
+                                            ]
+                                        },
+                                        "trueAction": {
+                                            "type": "consent",
+                                            "consents": [
+                                                {
+                                                    "matcher": {
+                                                        "type": "checkbox",
+                                                        "target": {
+                                                            "selector": "input"
+                                                        }
+                                                    },
+                                                    "toggleAction": {
+                                                        "type": "click",
+                                                        "target": {
+                                                            "selector": "label"
+                                                        }
+                                                    },
+                                                    "type": "B"
+                                                }
+                                            ]
+                                        }
+                                    },
+                                    {
+                                        "type": "ifcss",
+                                        "target": {
+                                            "selector": "div",
+                                            "textFilter": [
+                                                "Other Partners",
+                                                "Bruge præcise geoplaceringsoplysninger",
+                                                "Develop and improve products",
+                                                "Use precise geolocation data"
+                                            ]
+                                        },
+                                        "trueAction": {
+                                            "type": "consent",
+                                            "consents": [
+                                                {
+                                                    "matcher": {
+                                                        "type": "checkbox",
+                                                        "target": {
+                                                            "selector": "input"
+                                                        }
+                                                    },
+                                                    "toggleAction": {
+                                                        "type": "click",
+                                                        "target": {
+                                                            "selector": "label"
+                                                        }
+                                                    },
+                                                    "type": "X"
+                                                }
+                                            ]
+                                        }
+                                    }
+                                ]
+                            }
+                        }
+                    ]
+                },
+                "name": "DO_CONSENT"
+            },
+            {
+                "action": {
+                    "type": "click",
+                    "target": {
+                        "selector": "[data-tracking-opt-in-overlay] [data-tracking-opt-in-save]"
+                    }
+                },
+                "name": "SAVE_CONSENT"
+            },
+            {
+                "name": "HIDE_CMP"
+            },
+            {
+                "name": "UTILITY"
+            }
+        ]
+    }
+}

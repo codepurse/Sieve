@@ -1,0 +1,191 @@
+{
+    "$schema": "https://raw.githubusercontent.com/cavi-au/Consent-O-Matic/master/rules.schema.json",
+    "onetrust-stackoverflow": {
+        "detectors": [
+            {
+                "presentMatcher": [
+                    {
+                        "type": "css",
+                        "target": {
+                            "selector": ".js-consent-banner"
+                        }
+                    }
+                ],
+                "showingMatcher": [
+                    {
+                        "type": "css",
+                        "target": {
+                            "selector": ".js-consent-banner",
+                            "displayFilter": true
+                        }
+                    }
+                ]
+            }
+        ],
+        "methods": [
+            {
+                "action": {
+                    "type": "list",
+                    "actions": [
+                        {
+                            "type": "click",
+                            "target": {
+                                "selector": ".js-consent-banner .js-cookie-settings"
+                            }
+                        },
+                        {
+                            "type": "waitcss",
+                            "target": {
+                                "selector": "#onetrust-banner-sdk .js-consent-save"
+                            },
+                            "retries": 10,
+                            "waitTime": 250
+                        },
+                        {
+                            "type": "waitcss",
+                            "target": {
+                                "selector": "input"
+                            },
+                            "parent": {
+                                "selector": "#onetrust-banner-sdk .s-modal--body .ai-center"
+                            },
+                            "retries": 10,
+                            "waitTime": 250
+                        }
+                    ]
+                },
+                "name": "OPEN_OPTIONS"
+            },
+            {
+                "action": {
+                    "type": "consent",
+                    "consents": [
+                        {
+                            "matcher": {
+                                "type": "checkbox",
+                                "target": {
+                                    "selector": "input"
+                                },
+                                "parent": {
+                                    "selector": "#onetrust-banner-sdk .s-modal--body .ai-center",
+                                    "textFilter": [
+                                        "Performance Cookies"
+                                    ]
+                                }
+                            },
+                            "toggleAction": {
+                                "type": "click",
+                                "target": {
+                                    "selector": "input"
+                                },
+                                "parent": {
+                                    "selector": "#onetrust-banner-sdk .s-modal--body .ai-center",
+                                    "textFilter": [
+                                        "Performance Cookies"
+                                    ]
+                                }
+                            },
+                            "type": "B"
+                        },
+                        {
+                            "matcher": {
+                                "type": "checkbox",
+                                "target": {
+                                    "selector": "input"
+                                },
+                                "parent": {
+                                    "selector": "#onetrust-banner-sdk .s-modal--body .ai-center",
+                                    "textFilter": [
+                                        "Targeting Cookies"
+                                    ]
+                                }
+                            },
+                            "toggleAction": {
+                                "type": "click",
+                                "target": {
+                                    "selector": "input"
+                                },
+                                "parent": {
+                                    "selector": "#onetrust-banner-sdk .s-modal--body .ai-center",
+                                    "textFilter": [
+                                        "Targeting Cookies"
+                                    ]
+                                }
+                            },
+                            "type": "F"
+                        },
+                        {
+                            "matcher": {
+                                "type": "checkbox",
+                                "target": {
+                                    "selector": "input"
+                                },
+                                "parent": {
+                                    "selector": "#onetrust-banner-sdk .s-modal--body .ai-center",
+                                    "textFilter": [
+                                        "Functional Cookies"
+                                    ]
+                                }
+                            },
+                            "toggleAction": {
+                                "type": "click",
+                                "target": {
+                                    "selector": "input"
+                                },
+                                "parent": {
+                                    "selector": "#onetrust-banner-sdk .s-modal--body .ai-center",
+                                    "textFilter": [
+                                        "Functional Cookies"
+                                    ]
+                                }
+                            },
+                            "type": "A"
+                        }
+                    ]
+                },
+                "name": "DO_CONSENT"
+            },
+            {
+                "action": {
+                    "type": "list",
+                    "actions": [
+                        {
+                            "type": "wait",
+                            "waitTime": 500
+                        },
+                        {
+                            "type": "click",
+                            "target": {
+                                "selector": "#onetrust-banner-sdk .js-consent-save"
+                            }
+                        }
+                    ]
+                },
+                "name": "SAVE_CONSENT"
+            },
+            {
+                "action": {
+                    "type": "list",
+                    "actions": [
+                        {
+                            "type": "hide",
+                            "target": {
+                                "selector": "#onetrust-banner-sdk [role=\"dialog\"]"
+                            }
+                        },
+                       {
+                            "type": "hide",
+                            "target": {
+                                "selector": ".js-consent-banner"
+                            }
+                        }
+                    ]
+                },
+                "name": "HIDE_CMP"
+            },
+            {
+                "name": "UTILITY"
+            }
+        ]
+    }
+}

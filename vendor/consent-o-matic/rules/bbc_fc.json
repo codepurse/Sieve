@@ -1,0 +1,357 @@
+{
+    "$schema": "https://raw.githubusercontent.com/cavi-au/Consent-O-Matic/master/rules.schema.json",
+    "bbc_fc": {
+        "detectors": [
+            {
+                "presentMatcher": [
+                    {
+                        "type": "css",
+                        "target": {
+                            "selector": ".fc-consent-root .fc-dialog-container .fc-dialog-restricted-content"
+                        }
+                    }
+                ],
+                "showingMatcher": [
+                    {
+                        "type": "css",
+                        "target": {
+                            "selector": ".fc-consent-root .fc-dialog-container .fc-dialog-restricted-content"
+                        }
+                    }
+                ]
+            }
+        ],
+        "methods": [
+            {
+                "action": {
+                    "type": "list",
+                    "actions": [
+                        {
+                            "type": "hide",
+                            "target": {
+                                "selector": ".fc-consent-root"
+                            }
+                        },
+                        {
+                            "type": "hide",
+                            "target": {
+                                "selector": ".bbccookies-banner"
+                            }
+                        }
+                    ]
+                },
+                "name": "HIDE_CMP"
+            },
+            {
+                "action": {
+                    "type": "click",
+                    "target": {
+                        "selector": ".fc-consent-root .fc-dialog-container .fc-cta-manage-options"
+                    }
+                },
+                "name": "OPEN_OPTIONS"
+            },
+            {
+                "action": {
+                    "type": "list",
+                    "actions": [
+                        {
+                            "type": "foreach",
+                            "target": {
+                                "selector": ".fc-preference-container"
+                            },
+                            "action": {
+                                "type": "list",
+                                "actions": [
+                                    {
+                                        "type": "consent",
+                                        "consents": [
+                                            {
+                                                "matcher": {
+                                                    "type": "checkbox",
+                                                    "target": {
+                                                        "selector": "input.fc-preference-consent"
+                                                    }
+                                                },
+                                                "toggleAction": {
+                                                    "type": "click",
+                                                    "target": {
+                                                        "selector": "input.fc-preference-consent"
+                                                    }
+                                                },
+                                                "type": "X"
+                                            },
+                                            {
+                                                "matcher": {
+                                                    "type": "checkbox",
+                                                    "target": {
+                                                        "selector": "input.fc-preference-legitimate-interest"
+                                                    }
+                                                },
+                                                "toggleAction": {
+                                                    "type": "click",
+                                                    "target": {
+                                                        "selector": "input.fc-preference-legitimate-interest"
+                                                    }
+                                                },
+                                                "type": "X"
+                                            }
+                                        ]
+                                    },
+                                    {
+                                        "type": "ifcss",
+                                        "target": {
+                                            "selector": ".fc-preference-title",
+                                            "textFilter": [
+                                                "Store and/or access information on a device",
+                                                "Tietojen tallennus laitteelle ja/tai laitteella olevien tietojen käyttö"
+                                            ]
+                                        },
+                                        "trueAction": {
+                                            "type": "consent",
+                                            "consents": [
+                                                {
+                                                    "matcher": {
+                                                        "type": "checkbox",
+                                                        "target": {
+                                                            "selector": "input.fc-preference-legitimate-interest"
+                                                        }
+                                                    },
+                                                    "toggleAction": {
+                                                        "type": "click",
+                                                        "target": {
+                                                            "selector": "input.fc-preference-legitimate-interest"
+                                                        }
+                                                    },
+                                                    "type": "D"
+                                                },
+                                                {
+                                                    "matcher": {
+                                                        "type": "checkbox",
+                                                        "target": {
+                                                            "selector": "input.fc-preference-consent"
+                                                        }
+                                                    },
+                                                    "toggleAction": {
+                                                        "type": "click",
+                                                        "target": {
+                                                            "selector": "input.fc-preference-consent"
+                                                        }
+                                                    },
+                                                    "type": "D"
+                                                }
+                                            ]
+                                        }
+                                    },
+                                    {
+                                        "type": "ifcss",
+                                        "target": {
+                                            "selector": ".fc-preference-title",
+                                            "textFilter": [
+                                                "Select basic ads",
+                                                "Tavallisten mainosten valinta",
+                                                "Create a personalised ads profile",
+                                                "Personoidun mainosprofiilin muodostaminen",
+                                                "Select personalised ads",
+                                                "Personoitujen mainosten valinta",
+                                                "Measure ad performance",
+                                                "Mainonnan ja sen tehokkuuden mittaaminen"
+                                            ]
+                                        },
+                                        "trueAction": {
+                                            "type": "consent",
+                                            "consents": [
+                                                {
+                                                    "matcher": {
+                                                        "type": "checkbox",
+                                                        "target": {
+                                                            "selector": "input.fc-preference-legitimate-interest"
+                                                        }
+                                                    },
+                                                    "toggleAction": {
+                                                        "type": "click",
+                                                        "target": {
+                                                            "selector": "input.fc-preference-legitimate-interest"
+                                                        }
+                                                    },
+                                                    "type": "F"
+                                                },
+                                                {
+                                                    "matcher": {
+                                                        "type": "checkbox",
+                                                        "target": {
+                                                            "selector": "input.fc-preference-consent"
+                                                        }
+                                                    },
+                                                    "toggleAction": {
+                                                        "type": "click",
+                                                        "target": {
+                                                            "selector": "input.fc-preference-consent"
+                                                        }
+                                                    },
+                                                    "type": "F"
+                                                }
+                                            ]
+                                        }
+                                    },
+                                    {
+                                        "type": "ifcss",
+                                        "target": {
+                                            "selector": ".fc-preference-title",
+                                            "textFilter": [
+                                                "Create a personalised content profile",
+                                                "Personoidun sisältöprofiilin muodostaminen",
+                                                "Markkinatutkimusten soveltaminen käyttäjäymmärryksen luomiseksi",
+                                                "Select personalised content",
+                                                "Personoidun sisällön valinta",
+                                                "Measure content performance",
+                                                "Sisällön ja sen tehokkuuden mittaaminen"
+                                            ]
+                                        },
+                                        "trueAction": {
+                                            "type": "consent",
+                                            "consents": [
+                                                {
+                                                    "matcher": {
+                                                        "type": "checkbox",
+                                                        "target": {
+                                                            "selector": "input.fc-preference-legitimate-interest"
+                                                        }
+                                                    },
+                                                    "toggleAction": {
+                                                        "type": "click",
+                                                        "target": {
+                                                            "selector": "input.fc-preference-legitimate-interest"
+                                                        }
+                                                    },
+                                                    "type": "E"
+                                                },
+                                                {
+                                                    "matcher": {
+                                                        "type": "checkbox",
+                                                        "target": {
+                                                            "selector": "input.fc-preference-consent"
+                                                        }
+                                                    },
+                                                    "toggleAction": {
+                                                        "type": "click",
+                                                        "target": {
+                                                            "selector": "input.fc-preference-consent"
+                                                        }
+                                                    },
+                                                    "type": "E"
+                                                }
+                                            ]
+                                        }
+                                    },
+                                    {
+                                        "type": "ifcss",
+                                        "target": {
+                                            "selector": ".fc-preference-title",
+                                            "textFilter": [
+                                                "Use precise geolocation data",
+                                                "Tarkkojen sijaintitietojen käyttö"
+                                            ]
+                                        },
+                                        "trueAction": {
+                                            "type": "consent",
+                                            "consents": [
+                                                {
+                                                    "matcher": {
+                                                        "type": "checkbox",
+                                                        "target": {
+                                                            "selector": "input.fc-preference-legitimate-interest"
+                                                        }
+                                                    },
+                                                    "toggleAction": {
+                                                        "type": "click",
+                                                        "target": {
+                                                            "selector": "input.fc-preference-legitimate-interest"
+                                                        }
+                                                    },
+                                                    "type": "D"
+                                                },
+                                                {
+                                                    "matcher": {
+                                                        "type": "checkbox",
+                                                        "target": {
+                                                            "selector": "input.fc-preference-consent"
+                                                        }
+                                                    },
+                                                    "toggleAction": {
+                                                        "type": "click",
+                                                        "target": {
+                                                            "selector": "input.fc-preference-consent"
+                                                        }
+                                                    },
+                                                    "type": "D"
+                                                }
+                                            ]
+                                        }
+                                    },
+                                    {
+                                        "type": "ifcss",
+                                        "target": {
+                                            "selector": ".fc-preference-title",
+                                            "textFilter": [
+                                                "Tuotekehitys"
+                                            ]
+                                        },
+                                        "trueAction": {
+                                            "type": "consent",
+                                            "consents": [
+                                                {
+                                                    "matcher": {
+                                                        "type": "checkbox",
+                                                        "target": {
+                                                            "selector": "input.fc-preference-legitimate-interest"
+                                                        }
+                                                    },
+                                                    "toggleAction": {
+                                                        "type": "click",
+                                                        "target": {
+                                                            "selector": "input.fc-preference-legitimate-interest"
+                                                        }
+                                                    },
+                                                    "type": "B"
+                                                },
+                                                {
+                                                    "matcher": {
+                                                        "type": "checkbox",
+                                                        "target": {
+                                                            "selector": "input.fc-preference-consent"
+                                                        }
+                                                    },
+                                                    "toggleAction": {
+                                                        "type": "click",
+                                                        "target": {
+                                                            "selector": "input.fc-preference-consent"
+                                                        }
+                                                    },
+                                                    "type": "B"
+                                                }
+                                            ]
+                                        }
+                                    }
+                                ]
+                            }
+                        }
+                    ]
+                },
+                "name": "DO_CONSENT"
+            },
+            {
+                "action": {
+                    "type": "click",
+                    "target": {
+                        "selector": ".fc-consent-root .fc-confirm-choices"
+                    }
+                },
+                "name": "SAVE_CONSENT"
+            },
+            {
+                "name": "UTILITY"
+            }
+        ]
+    }
+}

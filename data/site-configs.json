@@ -1,0 +1,38 @@
+[
+  {
+    "id": "twitter",
+    "name": "Twitter / X",
+    "domains": ["twitter.com", "x.com"],
+    "feedSelector": "[aria-label*=\"Timeline\"]"
+  },
+  {
+    "id": "instagram",
+    "name": "Instagram",
+    "domains": ["instagram.com"],
+    "feedSelector": "main[role=\"main\"]"
+  },
+  {
+    "id": "tiktok",
+    "name": "TikTok",
+    "domains": ["tiktok.com"],
+    "feedSelector": "[data-e2e=\"recommend-list-item-container\"]"
+  },
+  {
+    "id": "reddit",
+    "name": "Reddit",
+    "domains": ["reddit.com"],
+    "feedSelector": "shreddit-feed, [data-testid=\"post-container\"], .sitetable"
+  },
+  {
+    "id": "facebook",
+    "name": "Facebook",
+    "domains": ["facebook.com"],
+    "feedSelector": "[role=\"feed\"]"
+  },
+  {
+    "id": "youtube",
+    "name": "YouTube",
+    "domains": ["youtube.com"],
+    "feedSelector": "ytd-rich-grid-renderer"
+  }
+]

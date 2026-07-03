@@ -1,0 +1,122 @@
+{
+    "$schema": "https://raw.githubusercontent.com/cavi-au/Consent-O-Matic/master/rules.schema.json",
+    "google_cwiz": {
+        "detectors": [
+            {
+                "presentMatcher": [
+                    {
+                        "type": "css",
+                        "target": {
+                            "childFilter": {
+                                "target": {
+                                    "selector": "a[href^=\"https://policies.google.com/privacy\"]"
+                                }
+                            },
+                            "selector": "body[jscontroller] c-wiz",
+                            "textFilter": [
+                                "Google Analytics",
+                                "g.co/privacytools"
+                            ]
+                        }
+                    }
+                ],
+                "showingMatcher": [
+                    {
+                        "type": "css",
+                        "target": {
+                            "selector": "a[href^=\"https://policies.google.com/technologies/cookies\"]"
+                        }
+                    }
+                ]
+            }
+        ],
+        "methods": [
+            {
+                "name": "HIDE_CMP"
+            },
+            {
+                "name": "OPEN_OPTIONS"
+            },
+            {
+                "action": {
+                    "type": "list",
+                    "actions": [
+                        {
+                            "type": "foreach",
+                            "target": {
+                                "selector": ".VfPpkd-WsjYwc-OWXEXe-INsAgc"
+                            },
+                            "action": {
+                                "type": "list",
+                                "actions": [
+                                    {
+                                        "type": "ifcss",
+                                        "target": {
+                                            "selector": "img[src*='ads']"
+                                        },
+                                        "parent": {
+                                            "selector": "div"
+                                        },
+                                        "trueAction": {
+                                            "type": "consent",
+                                            "consents": [
+                                                {
+                                                    "trueAction": {
+                                                        "type": "click",
+                                                        "target": {
+                                                            "selector": "div[jsaction]:nth-child(0n+2) button"
+                                                        }
+                                                    },
+                                                    "falseAction": {
+                                                        "type": "click",
+                                                        "target": {
+                                                            "selector": "div[jsaction]:nth-child(0n+1) button"
+                                                        }
+                                                    },
+                                                    "type": "F"
+                                                }
+                                            ]
+                                        },
+                                        "falseAction": {
+                                            "type": "consent",
+                                            "consents": [
+                                                {
+                                                    "trueAction": {
+                                                        "type": "click",
+                                                        "target": {
+                                                            "selector": "div[jsaction]:nth-child(0n+2) button"
+                                                        }
+                                                    },
+                                                    "falseAction": {
+                                                        "type": "click",
+                                                        "target": {
+                                                            "selector": "div[jsaction]:nth-child(0n+1) button"
+                                                        }
+                                                    },
+                                                    "type": "A"
+                                                }
+                                            ]
+                                        }
+                                    }
+                                ]
+                            }
+                        }
+                    ]
+                },
+                "name": "DO_CONSENT"
+            },
+            {
+                "action": {
+                    "type": "click",
+                    "target": {
+                        "selector": "c-wiz form[method=\"POST\"] button"
+                    }
+                },
+                "name": "SAVE_CONSENT"
+            },
+            {
+                "name": "UTILITY"
+            }
+        ]
+    }
+}

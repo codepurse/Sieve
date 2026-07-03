@@ -1,0 +1,495 @@
+{
+    "$schema": "https://raw.githubusercontent.com/cavi-au/Consent-O-Matic/master/rules.schema.json",
+    "SFR": {
+        "detectors": [
+            {
+                "presentMatcher": [
+                    {
+                        "type": "css",
+                        "target": {
+                            "selector": "#CkC"
+                        }
+                    }
+                ],
+                "showingMatcher": [
+                    {
+                        "type": "css",
+                        "target": {
+                            "selector": "#CkC",
+                            "displayFilter": true
+                        }
+                    }
+                ]
+            }
+        ],
+        "methods": [
+            {
+                "action": {
+                    "type": "click",
+                    "target": {
+                        "selector": "#CkC .P",
+                        "textFilter": [
+                            "Je paramètre",
+                            "Personnaliser"
+                        ]
+                    }
+                },
+                "name": "OPEN_OPTIONS"
+            },
+            {
+                "action": {
+                    "type": "list",
+                    "actions": [
+                        {
+                            "type": "multiclick",
+                            "target": {
+                                "selector": ".N"
+                            }
+                        },
+                        {
+                            "type": "waitcss",
+                            "target": {
+                                "selector": "#ac_notice._acc_visible"
+                            },
+                            "retries": 50,
+                            "waitTime": 10
+                        },
+                        {
+                            "type": "consent",
+                            "consents": [
+                                {
+                                    "matcher": {
+                                        "type": "onoff",
+                                        "onMatcher": {
+                                            "target": {
+                                                "selector": "#Z3V1 .A"
+                                            }
+                                        },
+                                        "offMatcher": {
+                                            "target": {
+                                                "selector": "#Z3V1 .R"
+                                            }
+                                        }
+                                    },
+                                    "trueAction": {
+                                        "type": "click",
+                                        "target": {
+                                            "selector": "#Z3V1 .R"
+                                        }
+                                    },
+                                    "falseAction": {
+                                        "type": "click",
+                                        "target": {
+                                            "selector": "#Z3V1 .A"
+                                        }
+                                    },
+                                    "type": "D"
+                                },
+                                {
+                                    "matcher": {
+                                        "type": "onoff",
+                                        "onMatcher": {
+                                            "target": {
+                                                "selector": "#Z3V2 .A"
+                                            }
+                                        },
+                                        "offMatcher": {
+                                            "target": {
+                                                "selector": "#Z3V2 .R"
+                                            }
+                                        }
+                                    },
+                                    "trueAction": {
+                                        "type": "click",
+                                        "target": {
+                                            "selector": "#Z3V2 .R"
+                                        }
+                                    },
+                                    "falseAction": {
+                                        "type": "click",
+                                        "target": {
+                                            "selector": "#Z3V2 .A"
+                                        }
+                                    },
+                                    "type": "F"
+                                },
+                                {
+                                    "matcher": {
+                                        "type": "onoff",
+                                        "onMatcher": {
+                                            "target": {
+                                                "selector": "#Z3V3 .A"
+                                            }
+                                        },
+                                        "offMatcher": {
+                                            "target": {
+                                                "selector": "#Z3V3 .R"
+                                            }
+                                        }
+                                    },
+                                    "trueAction": {
+                                        "type": "click",
+                                        "target": {
+                                            "selector": "#Z3V3 .R"
+                                        }
+                                    },
+                                    "falseAction": {
+                                        "type": "click",
+                                        "target": {
+                                            "selector": "#Z3V3 .A"
+                                        }
+                                    },
+                                    "type": "F"
+                                },
+                                {
+                                    "matcher": {
+                                        "type": "onoff",
+                                        "onMatcher": {
+                                            "target": {
+                                                "selector": "#Z3V4 .A"
+                                            }
+                                        },
+                                        "offMatcher": {
+                                            "target": {
+                                                "selector": "#Z3V4 .R"
+                                            }
+                                        }
+                                    },
+                                    "trueAction": {
+                                        "type": "click",
+                                        "target": {
+                                            "selector": "#Z3V4 .R"
+                                        }
+                                    },
+                                    "falseAction": {
+                                        "type": "click",
+                                        "target": {
+                                            "selector": "#Z3V4 .A"
+                                        }
+                                    },
+                                    "type": "F"
+                                },
+                                {
+                                    "matcher": {
+                                        "type": "onoff",
+                                        "onMatcher": {
+                                            "target": {
+                                                "selector": "#Z3V5 .A"
+                                            }
+                                        },
+                                        "offMatcher": {
+                                            "target": {
+                                                "selector": "#Z3V5 .R"
+                                            }
+                                        }
+                                    },
+                                    "trueAction": {
+                                        "type": "click",
+                                        "target": {
+                                            "selector": "#Z3V5 .R"
+                                        }
+                                    },
+                                    "falseAction": {
+                                        "type": "click",
+                                        "target": {
+                                            "selector": "#Z3V5 .A"
+                                        }
+                                    },
+                                    "type": "E"
+                                },
+                                {
+                                    "matcher": {
+                                        "type": "onoff",
+                                        "onMatcher": {
+                                            "target": {
+                                                "selector": "#Z3V6 .A"
+                                            }
+                                        },
+                                        "offMatcher": {
+                                            "target": {
+                                                "selector": "#Z3V6 .R"
+                                            }
+                                        }
+                                    },
+                                    "trueAction": {
+                                        "type": "click",
+                                        "target": {
+                                            "selector": "#Z3V6 .R"
+                                        }
+                                    },
+                                    "falseAction": {
+                                        "type": "click",
+                                        "target": {
+                                            "selector": "#Z3V6 .A"
+                                        }
+                                    },
+                                    "type": "E"
+                                },
+                                {
+                                    "matcher": {
+                                        "type": "onoff",
+                                        "onMatcher": {
+                                            "target": {
+                                                "selector": "#Z3V7 .A"
+                                            }
+                                        },
+                                        "offMatcher": {
+                                            "target": {
+                                                "selector": "#Z3V7 .R"
+                                            }
+                                        }
+                                    },
+                                    "trueAction": {
+                                        "type": "click",
+                                        "target": {
+                                            "selector": "#Z3V7 .R"
+                                        }
+                                    },
+                                    "falseAction": {
+                                        "type": "click",
+                                        "target": {
+                                            "selector": "#Z3V7 .A"
+                                        }
+                                    },
+                                    "type": "F"
+                                },
+                                {
+                                    "matcher": {
+                                        "type": "onoff",
+                                        "onMatcher": {
+                                            "target": {
+                                                "selector": "#Z3V8 .A"
+                                            }
+                                        },
+                                        "offMatcher": {
+                                            "target": {
+                                                "selector": "#Z3V8 .R"
+                                            }
+                                        }
+                                    },
+                                    "trueAction": {
+                                        "type": "click",
+                                        "target": {
+                                            "selector": "#Z3V8 .R"
+                                        }
+                                    },
+                                    "falseAction": {
+                                        "type": "click",
+                                        "target": {
+                                            "selector": "#Z3V8 .A"
+                                        }
+                                    },
+                                    "type": "E"
+                                },
+                                {
+                                    "matcher": {
+                                        "type": "onoff",
+                                        "onMatcher": {
+                                            "target": {
+                                                "selector": "#Z3V9 .A"
+                                            }
+                                        },
+                                        "offMatcher": {
+                                            "target": {
+                                                "selector": "#Z3V9 .R"
+                                            }
+                                        }
+                                    },
+                                    "trueAction": {
+                                        "type": "click",
+                                        "target": {
+                                            "selector": "#Z3V9 .R"
+                                        }
+                                    },
+                                    "falseAction": {
+                                        "type": "click",
+                                        "target": {
+                                            "selector": "#Z3V9 .A"
+                                        }
+                                    },
+                                    "type": "B"
+                                },
+                                {
+                                    "matcher": {
+                                        "type": "onoff",
+                                        "onMatcher": {
+                                            "target": {
+                                                "selector": "#Z3V10 .A"
+                                            }
+                                        },
+                                        "offMatcher": {
+                                            "target": {
+                                                "selector": "#Z3V10 .R"
+                                            }
+                                        }
+                                    },
+                                    "trueAction": {
+                                        "type": "click",
+                                        "target": {
+                                            "selector": "#Z3V10 .R"
+                                        }
+                                    },
+                                    "falseAction": {
+                                        "type": "click",
+                                        "target": {
+                                            "selector": "#Z3V10 .A"
+                                        }
+                                    },
+                                    "type": "X"
+                                },
+                                {
+                                    "matcher": {
+                                        "type": "onoff",
+                                        "onMatcher": {
+                                            "target": {
+                                                "selector": "#Z6V1 .A"
+                                            }
+                                        },
+                                        "offMatcher": {
+                                            "target": {
+                                                "selector": "#Z6V1 .R"
+                                            }
+                                        }
+                                    },
+                                    "trueAction": {
+                                        "type": "click",
+                                        "target": {
+                                            "selector": "#Z6V1 .R"
+                                        }
+                                    },
+                                    "falseAction": {
+                                        "type": "click",
+                                        "target": {
+                                            "selector": "#Z6V1 .A"
+                                        }
+                                    },
+                                    "type": "X"
+                                },
+                                {
+                                    "matcher": {
+                                        "type": "onoff",
+                                        "onMatcher": {
+                                            "target": {
+                                                "selector": "#Z6V2 .A"
+                                            }
+                                        },
+                                        "offMatcher": {
+                                            "target": {
+                                                "selector": "#Z6V2 .R"
+                                            }
+                                        }
+                                    },
+                                    "trueAction": {
+                                        "type": "click",
+                                        "target": {
+                                            "selector": "#Z6V2 .R"
+                                        }
+                                    },
+                                    "falseAction": {
+                                        "type": "click",
+                                        "target": {
+                                            "selector": "#Z6V2 .A"
+                                        }
+                                    },
+                                    "type": "D"
+                                },
+                                {
+                                    "matcher": {
+                                        "type": "onoff",
+                                        "onMatcher": {
+                                            "target": {
+                                                "selector": "#Z7V0 .A"
+                                            }
+                                        },
+                                        "offMatcher": {
+                                            "target": {
+                                                "selector": "#Z7V0 .R"
+                                            }
+                                        }
+                                    },
+                                    "trueAction": {
+                                        "type": "click",
+                                        "target": {
+                                            "selector": "#Z7V0 .R"
+                                        }
+                                    },
+                                    "falseAction": {
+                                        "type": "click",
+                                        "target": {
+                                            "selector": "#Z7V0 .A"
+                                        }
+                                    },
+                                    "type": "X"
+                                },
+                                {
+                                    "matcher": {
+                                        "type": "onoff",
+                                        "onMatcher": {
+                                            "target": {
+                                                "selector": "#Z3V11 .A"
+                                            }
+                                        },
+                                        "offMatcher": {
+                                            "target": {
+                                                "selector": "#Z3V11 .R"
+                                            }
+                                        }
+                                    },
+                                    "trueAction": {
+                                        "type": "click",
+                                        "target": {
+                                            "selector": "#Z3V11 .R"
+                                        }
+                                    },
+                                    "falseAction": {
+                                        "type": "click",
+                                        "target": {
+                                            "selector": "#Z3V11 .A"
+                                        }
+                                    },
+                                    "type": "E"
+                                }
+                            ]
+                        }
+                    ]
+                },
+                "name": "DO_CONSENT"
+            },
+            {
+                "action": {
+                    "type": "click",
+                    "target": {
+                        "selector": "#eTcP a",
+                        "textFilter": [
+                            "Valider"
+                        ]
+                    }
+                },
+                "name": "SAVE_CONSENT"
+            },
+            {
+                "action": {
+                    "type": "list",
+                    "actions": [
+                        {
+                            "type": "hide",
+                            "target": {
+                                "selector": "#eTpi"
+                            }
+                        },
+                        {
+                            "type": "hide",
+                            "target": {
+                                "selector": "#CkC"
+                            }
+                        }
+                    ]
+                },
+                "name": "HIDE_CMP"
+            },
+            {
+                "name": "UTILITY"
+            }
+        ]
+    }
+}

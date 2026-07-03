@@ -1,0 +1,4 @@
+{
+  "_comment": "Sieve custom profanity supplement (Module 4A, Layer 1). Add your own terms to the 'words' array below. These are merged with data/profanity-list.json at runtime, so you are never locked to one upstream repo's update cadence. One lowercase term per line; phrases are allowed. Whole-word + leetspeak matching is applied automatically by the filter — do NOT add leetspeak variants here (e.g. add 'idiot', not '1d10t').",
+  "words": []
+}

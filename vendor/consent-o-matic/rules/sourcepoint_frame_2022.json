@@ -1,0 +1,1299 @@
+{
+    "$schema": "https://raw.githubusercontent.com/cavi-au/Consent-O-Matic/master/rules.schema.json",
+    "sourcepoint_frame_2022": {
+        "detectors": [
+            {
+                "presentMatcher": [
+                    {
+                        "type": "css",
+                        "target": {
+                            "selector": ".message-container .message.type-modal",
+                            "iframeFilter": true
+                        }
+                    }
+                ],
+                "showingMatcher": [
+                    {
+                        "type": "css",
+                        "target": {
+                            "selector": ".message-container .message.type-modal",
+                            "iframeFilter": true,
+                            "displayFilter": true
+                        }
+                    }
+                ]
+            }
+        ],
+        "methods": [
+            {
+                "action": {
+                    "type": "list",
+                    "actions": [
+                        {
+                            "type": "hide",
+                            "target": {
+                                "selector": ".message.type-modal"
+                            }
+                        },
+                        {
+                            "type": "hide",
+                            "target": {
+                                "selector": ".message-overlay"
+                            },
+                            "forceHide": true
+                        }
+                    ]
+                },
+                "name": "HIDE_CMP"
+            },
+            {
+                "action": {
+                    "type": "list",
+                    "actions": [
+                        {
+                            "type": "ifcss",
+                            "target": {
+                                "selector": "button.message-button",
+                                "textFilter": [
+                                    "Manage Cookies",
+                                    "Customize",
+                                    "Konfigurieren",
+                                    "Asetukset",
+                                    "Learn More",
+                                    "Instellingen beheren",
+                                    "GESTIRE LE IMPOSTAZIONI",
+                                    "Instellingen"
+                                ]
+                            },
+                            "trueAction": {
+                                "type": "click",
+                                "target": {
+                                    "selector": "button.message-button",
+                                    "textFilter": [
+                                        "Manage Cookies",
+                                        "Customize",
+                                        "Konfigurieren",
+                                        "Asetukset",
+                                        "Learn More",
+                                        "Instellingen beheren",
+                                        "GESTIRE LE IMPOSTAZIONI",
+                                        "Instellingen"
+                                    ]
+                                }
+                            }
+                        },
+                        {
+                            "type": "ifcss",
+                            "target": {
+                                "selector": "p.message-component a",
+                                "textFilter": [
+                                    "Einstellungen anpassen"
+                                ]
+                            },
+                            "trueAction": {
+                                "type": "click",
+                                "target": {
+                                    "selector": "p.message-component a",
+                                    "textFilter": [
+                                        "Einstellungen anpassen"
+                                    ]
+                                }
+                            }
+                        }
+                    ]
+                },
+                "name": "OPEN_OPTIONS"
+            },
+            {
+                "action": {
+                    "type": "ifcss",
+                    "target": {
+                        "selector": ".pm-tabs .pm-tab"
+                    },
+                    "trueAction": {
+                        "type": "foreach",
+                        "target": {
+                            "selector": ".pm-tabs .pm-tab"
+                        },
+                        "action": {
+                            "type": "ifcss",
+                            "target": {
+                                "selector": ":scope",
+                                "textFilter": [
+                                    "\"NOT USED ATM\""
+                                ]
+                            },
+                            "falseAction": {
+                                "type": "list",
+                                "actions": [
+                                    {
+                                        "type": "click",
+                                        "target": {
+                                            "selector": ":scope"
+                                        }
+                                    },
+                                    {
+                                        "type": "runrooted",
+                                        "target": {
+                                            "selector": "body"
+                                        },
+                                        "action": {
+                                            "type": "list",
+                                            "actions": [
+                                                {
+                                                    "type": "runmethod",
+                                                    "method": "HANDLE_TAB"
+                                                },
+                                                {
+                                                    "type": "ifcss",
+                                                    "target": {
+                                                        "selector": ".pm-type-toggle > div",
+                                                        "textFilter": [
+                                                            "Legitimate Interest"
+                                                        ]
+                                                    },
+                                                    "trueAction": {
+                                                        "type": "list",
+                                                        "actions": [
+                                                            {
+                                                                "type": "click",
+                                                                "target": {
+                                                                    "selector": ".pm-type-toggle > div",
+                                                                    "textFilter": [
+                                                                        "Legitimate Interest"
+                                                                    ]
+                                                                }
+                                                            },
+                                                            {
+                                                                "type": "runmethod",
+                                                                "method": "HANDLE_TAB"
+                                                            }
+                                                        ]
+                                                    }
+                                                }
+                                            ]
+                                        },
+                                        "ignoreOldRoot": true
+                                    }
+                                ]
+                            }
+                        }
+                    },
+                    "falseAction": {
+                        "type": "list",
+                        "actions": [
+                            {
+                                "type": "runmethod",
+                                "method": "HANDLE_TAB"
+                            },
+                            {
+                                "type": "ifcss",
+                                "target": {
+                                    "selector": ".pm-type-toggle > div",
+                                    "textFilter": [
+                                        "Legitimate Interest"
+                                    ]
+                                },
+                                "trueAction": {
+                                    "type": "list",
+                                    "actions": [
+                                        {
+                                            "type": "click",
+                                            "target": {
+                                                "selector": ".pm-type-toggle > div",
+                                                "textFilter": [
+                                                    "Legitimate Interest"
+                                                ]
+                                            }
+                                        },
+                                        {
+                                            "type": "runmethod",
+                                            "method": "HANDLE_TAB"
+                                        }
+                                    ]
+                                }
+                            }
+                        ]
+                    }
+                },
+                "name": "DO_CONSENT"
+            },
+            {
+                "action": {
+                    "type": "click",
+                    "target": {
+                        "selector": "button.sp_choice_type_SAVE_AND_EXIT"
+                    }
+                },
+                "name": "SAVE_CONSENT"
+            },
+            {
+                "name": "UTILITY"
+            },
+            {
+                "action": {
+                    "type": "list",
+                    "actions": [
+                        {
+                            "type": "multiclick",
+                            "target": {
+                                "childFilter": {
+                                    "target": {
+                                        "selector": "[role=\"switch\"], .stack-title"
+                                    }
+                                },
+                                "selector": ".tcfv2-stack .accordion:not(.active)",
+                                "childFilterNegate": true
+                            }
+                        },
+                        {
+                            "type": "wait",
+                            "waitTime": 250
+                        },
+                        {
+                            "type": "foreach",
+                            "target": {
+                                "selector": ".tcfv2-stack"
+                            },
+                            "action": {
+                                "type": "list",
+                                "actions": [
+                                    {
+                                        "type": "foreach",
+                                        "target": {
+                                            "selector": ".stack-row"
+                                        },
+                                        "action": {
+                                            "type": "list",
+                                            "actions": [
+                                                {
+                                                    "type": "ifcss",
+                                                    "target": {
+                                                        "selector": "span.on"
+                                                    },
+                                                    "trueAction": {
+                                                        "type": "consent",
+                                                        "consents": [
+                                                            {
+                                                                "matcher": {
+                                                                    "type": "onoff",
+                                                                    "onMatcher": {
+                                                                        "target": {
+                                                                            "selector": "button[role=\"switch\"][aria-checked=\"true\"]"
+                                                                        }
+                                                                    },
+                                                                    "offMatcher": {
+                                                                        "target": {
+                                                                            "selector": "button[role=\"switch\"][aria-checked=\"false\"]"
+                                                                        }
+                                                                    }
+                                                                },
+                                                                "trueAction": {
+                                                                    "type": "click",
+                                                                    "target": {
+                                                                        "selector": "span.on"
+                                                                    },
+                                                                    "noTimeout": true
+                                                                },
+                                                                "falseAction": {
+                                                                    "type": "click",
+                                                                    "target": {
+                                                                        "selector": "span.off"
+                                                                    },
+                                                                    "noTimeout": true
+                                                                },
+                                                                "type": "X"
+                                                            }
+                                                        ]
+                                                    },
+                                                    "falseAction": {
+                                                        "type": "ifcss",
+                                                        "target": {
+                                                            "selector": ".stack-toggles"
+                                                        },
+                                                        "trueAction": {
+                                                            "type": "consent",
+                                                            "consents": [
+                                                                {
+                                                                    "matcher": {
+                                                                        "type": "onoff",
+                                                                        "onMatcher": {
+                                                                            "target": {
+                                                                                "selector": ".accept-toggle.choice"
+                                                                            }
+                                                                        },
+                                                                        "offMatcher": {
+                                                                            "target": {
+                                                                                "selector": ".reject-toggle.choice"
+                                                                            }
+                                                                        }
+                                                                    },
+                                                                    "trueAction": {
+                                                                        "type": "click",
+                                                                        "target": {
+                                                                            "selector": ".accept-toggle"
+                                                                        }
+                                                                    },
+                                                                    "falseAction": {
+                                                                        "type": "click",
+                                                                        "target": {
+                                                                            "selector": ".reject-toggle"
+                                                                        }
+                                                                    },
+                                                                    "type": "X"
+                                                                }
+                                                            ]
+                                                        },
+                                                        "falseAction": {
+                                                            "type": "consent",
+                                                            "consents": [
+                                                                {
+                                                                    "matcher": {
+                                                                        "type": "onoff",
+                                                                        "onMatcher": {
+                                                                            "target": {
+                                                                                "selector": "button[role=\"switch\"][aria-checked=\"true\"]"
+                                                                            }
+                                                                        },
+                                                                        "offMatcher": {
+                                                                            "target": {
+                                                                                "selector": "button[role=\"switch\"][aria-checked=\"false\"]"
+                                                                            }
+                                                                        }
+                                                                    },
+                                                                    "toggleAction": {
+                                                                        "type": "click",
+                                                                        "target": {
+                                                                            "selector": "span.slider"
+                                                                        },
+                                                                        "noTimeout": true
+                                                                    },
+                                                                    "type": "X"
+                                                                }
+                                                            ]
+                                                        }
+                                                    }
+                                                },
+                                                {
+                                                    "type": "list",
+                                                    "actions": [
+                                                        {
+                                                            "type": "ifcss",
+                                                            "target": {
+                                                                "selector": "span",
+                                                                "textFilter": [
+                                                                    "Use limited data to select advertising",
+                                                                    "Create profiles for personalised advertising",
+                                                                    "Use profiles to select personalised advertising",
+                                                                    "Measure advertising performance"
+                                                                ]
+                                                            },
+                                                            "trueAction": {
+                                                                "type": "consent",
+                                                                "consents": [
+                                                                    {
+                                                                        "matcher": {
+                                                                            "type": "onoff",
+                                                                            "onMatcher": {
+                                                                                "target": {
+                                                                                    "selector": "[aria-checked='true']"
+                                                                                }
+                                                                            },
+                                                                            "offMatcher": {
+                                                                                "target": {
+                                                                                    "selector": "[aria-checked='false']"
+                                                                                }
+                                                                            }
+                                                                        },
+                                                                        "toggleAction": {
+                                                                            "type": "click",
+                                                                            "target": {
+                                                                                "selector": "button[role='switch']"
+                                                                            }
+                                                                        },
+                                                                        "type": "F"
+                                                                    }
+                                                                ]
+                                                            }
+                                                        },
+                                                        {
+                                                            "type": "ifcss",
+                                                            "target": {
+                                                                "selector": "span",
+                                                                "textFilter": [
+                                                                    "Create profiles to personalise content",
+                                                                    "Use profiles to select personalised content",
+                                                                    "Measure content performance",
+                                                                    "Use limited data to select content"
+                                                                ]
+                                                            },
+                                                            "trueAction": {
+                                                                "type": "consent",
+                                                                "consents": [
+                                                                    {
+                                                                        "matcher": {
+                                                                            "type": "onoff",
+                                                                            "onMatcher": {
+                                                                                "target": {
+                                                                                    "selector": "[aria-checked='true']"
+                                                                                }
+                                                                            },
+                                                                            "offMatcher": {
+                                                                                "target": {
+                                                                                    "selector": "[aria-checked='false']"
+                                                                                }
+                                                                            }
+                                                                        },
+                                                                        "toggleAction": {
+                                                                            "type": "click",
+                                                                            "target": {
+                                                                                "selector": "button[role='switch']"
+                                                                            }
+                                                                        },
+                                                                        "type": "E"
+                                                                    }
+                                                                ]
+                                                            }
+                                                        },
+                                                        {
+                                                            "type": "ifcss",
+                                                            "target": {
+                                                                "selector": "span",
+                                                                "textFilter": [
+                                                                    "Use profiles to select personalised content",
+                                                                    "Develop and improve services",
+                                                                    "Understand audiences through statistics or combinations of data from different sources"
+                                                                ]
+                                                            },
+                                                            "trueAction": {
+                                                                "type": "consent",
+                                                                "consents": [
+                                                                    {
+                                                                        "matcher": {
+                                                                            "type": "onoff",
+                                                                            "onMatcher": {
+                                                                                "target": {
+                                                                                    "selector": "[aria-checked='true']"
+                                                                                }
+                                                                            },
+                                                                            "offMatcher": {
+                                                                                "target": {
+                                                                                    "selector": "[aria-checked='false']"
+                                                                                }
+                                                                            }
+                                                                        },
+                                                                        "toggleAction": {
+                                                                            "type": "click",
+                                                                            "target": {
+                                                                                "selector": "button[role='switch']"
+                                                                            }
+                                                                        },
+                                                                        "type": "B"
+                                                                    }
+                                                                ]
+                                                            }
+                                                        }
+                                                    ]
+                                                }
+                                            ]
+                                        }
+                                    },
+                                    {
+                                        "type": "ifcss",
+                                        "target": {
+                                            "selector": ".accordion",
+                                            "textFilter": [
+                                                "Store and/or access information on a device",
+                                                "Use precise geolocation data",
+                                                "Actively scan device characteristics for identification",
+                                                "Informatie op een apparaat opslaan en/of openen",
+                                                "Archiviare e/o accedere a informazioni su un dispositivo",
+                                                "Utilizzare dati di geolocalizzazione precisi",
+                                                "Scansione attiva delle caratteristiche del dispositivo ai fini dell’identificazione"
+                                            ]
+                                        },
+                                        "trueAction": {
+                                            "type": "foreach",
+                                            "target": {
+                                                "selector": ".stack-row"
+                                            },
+                                            "action": {
+                                                "type": "ifcss",
+                                                "target": {
+                                                    "selector": "span.on"
+                                                },
+                                                "trueAction": {
+                                                    "type": "consent",
+                                                    "consents": [
+                                                        {
+                                                            "matcher": {
+                                                                "type": "onoff",
+                                                                "onMatcher": {
+                                                                    "target": {
+                                                                        "selector": "button[role=\"switch\"][aria-checked=\"true\"]"
+                                                                    }
+                                                                },
+                                                                "offMatcher": {
+                                                                    "target": {
+                                                                        "selector": "button[role=\"switch\"][aria-checked=\"false\"]"
+                                                                    }
+                                                                }
+                                                            },
+                                                            "trueAction": {
+                                                                "type": "click",
+                                                                "target": {
+                                                                    "selector": "span.on"
+                                                                },
+                                                                "noTimeout": true
+                                                            },
+                                                            "falseAction": {
+                                                                "type": "click",
+                                                                "target": {
+                                                                    "selector": "span.off"
+                                                                },
+                                                                "noTimeout": true
+                                                            },
+                                                            "type": "D"
+                                                        }
+                                                    ]
+                                                },
+                                                "falseAction": {
+                                                    "type": "ifcss",
+                                                    "target": {
+                                                        "selector": ".stack-toggles"
+                                                    },
+                                                    "trueAction": {
+                                                        "type": "consent",
+                                                        "consents": [
+                                                            {
+                                                                "matcher": {
+                                                                    "type": "onoff",
+                                                                    "onMatcher": {
+                                                                        "target": {
+                                                                            "selector": ".accept-toggle.choice"
+                                                                        }
+                                                                    },
+                                                                    "offMatcher": {
+                                                                        "target": {
+                                                                            "selector": ".reject-toggle.choice"
+                                                                        }
+                                                                    }
+                                                                },
+                                                                "trueAction": {
+                                                                    "type": "click",
+                                                                    "target": {
+                                                                        "selector": ".accept-toggle"
+                                                                    }
+                                                                },
+                                                                "falseAction": {
+                                                                    "type": "click",
+                                                                    "target": {
+                                                                        "selector": ".reject-toggle"
+                                                                    }
+                                                                },
+                                                                "type": "D"
+                                                            }
+                                                        ]
+                                                    },
+                                                    "falseAction": {
+                                                        "type": "consent",
+                                                        "consents": [
+                                                            {
+                                                                "matcher": {
+                                                                    "type": "onoff",
+                                                                    "onMatcher": {
+                                                                        "target": {
+                                                                            "selector": "button[role=\"switch\"][aria-checked=\"true\"]"
+                                                                        }
+                                                                    },
+                                                                    "offMatcher": {
+                                                                        "target": {
+                                                                            "selector": "button[role=\"switch\"][aria-checked=\"false\"]"
+                                                                        }
+                                                                    }
+                                                                },
+                                                                "toggleAction": {
+                                                                    "type": "click",
+                                                                    "target": {
+                                                                        "selector": "span.slider"
+                                                                    },
+                                                                    "noTimeout": true
+                                                                },
+                                                                "type": "D"
+                                                            }
+                                                        ]
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    },
+                                    {
+                                        "type": "ifcss",
+                                        "target": {
+                                            "selector": ".accordion",
+                                            "textFilter": [
+                                                "Personalised ads and content, ad and content measurement, audience insights and product development",
+                                                "Select personalised ads",
+                                                "Select basic ads",
+                                                "Create a personalised ads profile",
+                                                "Measure ad performance",
+                                                "Apply market research to generate audience insights",
+                                                "Marketing-cookies",
+                                                "Cookies brugt af reklamepartnere (IAB)",
+                                                "Marketing",
+                                                "Annunci basici, profilo di annunci personalizzati e valutazione dell’annuncio",
+                                                "Selezionare annunci personalizzati"
+                                            ]
+                                        },
+                                        "trueAction": {
+                                            "type": "foreach",
+                                            "target": {
+                                                "selector": ".stack-row"
+                                            },
+                                            "action": {
+                                                "type": "ifcss",
+                                                "target": {
+                                                    "selector": "span.on"
+                                                },
+                                                "trueAction": {
+                                                    "type": "consent",
+                                                    "consents": [
+                                                        {
+                                                            "matcher": {
+                                                                "type": "onoff",
+                                                                "onMatcher": {
+                                                                    "target": {
+                                                                        "selector": "button[role=\"switch\"][aria-checked=\"true\"]"
+                                                                    }
+                                                                },
+                                                                "offMatcher": {
+                                                                    "target": {
+                                                                        "selector": "button[role=\"switch\"][aria-checked=\"false\"]"
+                                                                    }
+                                                                }
+                                                            },
+                                                            "trueAction": {
+                                                                "type": "click",
+                                                                "target": {
+                                                                    "selector": "span.on"
+                                                                },
+                                                                "noTimeout": true
+                                                            },
+                                                            "falseAction": {
+                                                                "type": "click",
+                                                                "target": {
+                                                                    "selector": "span.off"
+                                                                },
+                                                                "noTimeout": true
+                                                            },
+                                                            "type": "F"
+                                                        }
+                                                    ]
+                                                },
+                                                "falseAction": {
+                                                    "type": "ifcss",
+                                                    "target": {
+                                                        "selector": ".stack-toggles"
+                                                    },
+                                                    "trueAction": {
+                                                        "type": "consent",
+                                                        "consents": [
+                                                            {
+                                                                "matcher": {
+                                                                    "type": "onoff",
+                                                                    "onMatcher": {
+                                                                        "target": {
+                                                                            "selector": ".accept-toggle.choice"
+                                                                        }
+                                                                    },
+                                                                    "offMatcher": {
+                                                                        "target": {
+                                                                            "selector": ".reject-toggle.choice"
+                                                                        }
+                                                                    }
+                                                                },
+                                                                "trueAction": {
+                                                                    "type": "click",
+                                                                    "target": {
+                                                                        "selector": ".accept-toggle"
+                                                                    }
+                                                                },
+                                                                "falseAction": {
+                                                                    "type": "click",
+                                                                    "target": {
+                                                                        "selector": ".reject-toggle"
+                                                                    }
+                                                                },
+                                                                "type": "F"
+                                                            }
+                                                        ]
+                                                    },
+                                                    "falseAction": {
+                                                        "type": "consent",
+                                                        "consents": [
+                                                            {
+                                                                "matcher": {
+                                                                    "type": "onoff",
+                                                                    "onMatcher": {
+                                                                        "target": {
+                                                                            "selector": "button[role=\"switch\"][aria-checked=\"true\"]"
+                                                                        }
+                                                                    },
+                                                                    "offMatcher": {
+                                                                        "target": {
+                                                                            "selector": "button[role=\"switch\"][aria-checked=\"false\"]"
+                                                                        }
+                                                                    }
+                                                                },
+                                                                "toggleAction": {
+                                                                    "type": "click",
+                                                                    "target": {
+                                                                        "selector": "span.slider"
+                                                                    },
+                                                                    "noTimeout": true
+                                                                },
+                                                                "type": "F"
+                                                            }
+                                                        ]
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    },
+                                    {
+                                        "type": "ifcss",
+                                        "target": {
+                                            "selector": ".accordion",
+                                            "textFilter": [
+                                                "Share pseudonymised user data between platforms",
+                                                "Develop and improve products",
+                                                "Contenuti personalizzati, valutazione dei contenuti e osservazioni del pubblico",
+                                                "Sviluppare e perfezionare i prodotti"
+                                            ]
+                                        },
+                                        "trueAction": {
+                                            "type": "foreach",
+                                            "target": {
+                                                "selector": ".stack-row"
+                                            },
+                                            "action": {
+                                                "type": "ifcss",
+                                                "target": {
+                                                    "selector": "span.on"
+                                                },
+                                                "trueAction": {
+                                                    "type": "consent",
+                                                    "consents": [
+                                                        {
+                                                            "matcher": {
+                                                                "type": "onoff",
+                                                                "onMatcher": {
+                                                                    "target": {
+                                                                        "selector": "button[role=\"switch\"][aria-checked=\"true\"]"
+                                                                    }
+                                                                },
+                                                                "offMatcher": {
+                                                                    "target": {
+                                                                        "selector": "button[role=\"switch\"][aria-checked=\"false\"]"
+                                                                    }
+                                                                }
+                                                            },
+                                                            "trueAction": {
+                                                                "type": "click",
+                                                                "target": {
+                                                                    "selector": "span.on"
+                                                                },
+                                                                "noTimeout": true
+                                                            },
+                                                            "falseAction": {
+                                                                "type": "click",
+                                                                "target": {
+                                                                    "selector": "span.off"
+                                                                },
+                                                                "noTimeout": true
+                                                            },
+                                                            "type": "X"
+                                                        }
+                                                    ]
+                                                },
+                                                "falseAction": {
+                                                    "type": "ifcss",
+                                                    "target": {
+                                                        "selector": ".stack-toggles"
+                                                    },
+                                                    "trueAction": {
+                                                        "type": "consent",
+                                                        "consents": [
+                                                            {
+                                                                "matcher": {
+                                                                    "type": "onoff",
+                                                                    "onMatcher": {
+                                                                        "target": {
+                                                                            "selector": ".accept-toggle.choice"
+                                                                        }
+                                                                    },
+                                                                    "offMatcher": {
+                                                                        "target": {
+                                                                            "selector": ".reject-toggle.choice"
+                                                                        }
+                                                                    }
+                                                                },
+                                                                "trueAction": {
+                                                                    "type": "click",
+                                                                    "target": {
+                                                                        "selector": ".accept-toggle"
+                                                                    }
+                                                                },
+                                                                "falseAction": {
+                                                                    "type": "click",
+                                                                    "target": {
+                                                                        "selector": ".reject-toggle"
+                                                                    }
+                                                                },
+                                                                "type": "X"
+                                                            }
+                                                        ]
+                                                    },
+                                                    "falseAction": {
+                                                        "type": "consent",
+                                                        "consents": [
+                                                            {
+                                                                "matcher": {
+                                                                    "type": "onoff",
+                                                                    "onMatcher": {
+                                                                        "target": {
+                                                                            "selector": "button[role=\"switch\"][aria-checked=\"true\"]"
+                                                                        }
+                                                                    },
+                                                                    "offMatcher": {
+                                                                        "target": {
+                                                                            "selector": "button[role=\"switch\"][aria-checked=\"false\"]"
+                                                                        }
+                                                                    }
+                                                                },
+                                                                "toggleAction": {
+                                                                    "type": "click",
+                                                                    "target": {
+                                                                        "selector": "span.slider"
+                                                                    },
+                                                                    "noTimeout": true
+                                                                },
+                                                                "type": "X"
+                                                            }
+                                                        ]
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    },
+                                    {
+                                        "type": "ifcss",
+                                        "target": {
+                                            "selector": ".accordion",
+                                            "textFilter": [
+                                                "Select personalised content",
+                                                "Create a personalised content profile",
+                                                "Measure content performance",
+                                                "Tilpas tjenester",
+                                                "Personalisatie"
+                                            ]
+                                        },
+                                        "trueAction": {
+                                            "type": "foreach",
+                                            "target": {
+                                                "selector": ".stack-row"
+                                            },
+                                            "action": {
+                                                "type": "ifcss",
+                                                "target": {
+                                                    "selector": "span.on"
+                                                },
+                                                "trueAction": {
+                                                    "type": "consent",
+                                                    "consents": [
+                                                        {
+                                                            "matcher": {
+                                                                "type": "onoff",
+                                                                "onMatcher": {
+                                                                    "target": {
+                                                                        "selector": "button[role=\"switch\"][aria-checked=\"true\"]"
+                                                                    }
+                                                                },
+                                                                "offMatcher": {
+                                                                    "target": {
+                                                                        "selector": "button[role=\"switch\"][aria-checked=\"false\"]"
+                                                                    }
+                                                                }
+                                                            },
+                                                            "trueAction": {
+                                                                "type": "click",
+                                                                "target": {
+                                                                    "selector": "span.on"
+                                                                },
+                                                                "noTimeout": true
+                                                            },
+                                                            "falseAction": {
+                                                                "type": "click",
+                                                                "target": {
+                                                                    "selector": "span.off"
+                                                                },
+                                                                "noTimeout": true
+                                                            },
+                                                            "type": "E"
+                                                        }
+                                                    ]
+                                                },
+                                                "falseAction": {
+                                                    "type": "ifcss",
+                                                    "target": {
+                                                        "selector": ".stack-toggles"
+                                                    },
+                                                    "trueAction": {
+                                                        "type": "consent",
+                                                        "consents": [
+                                                            {
+                                                                "matcher": {
+                                                                    "type": "onoff",
+                                                                    "onMatcher": {
+                                                                        "target": {
+                                                                            "selector": ".accept-toggle.choice"
+                                                                        }
+                                                                    },
+                                                                    "offMatcher": {
+                                                                        "target": {
+                                                                            "selector": ".reject-toggle.choice"
+                                                                        }
+                                                                    }
+                                                                },
+                                                                "trueAction": {
+                                                                    "type": "click",
+                                                                    "target": {
+                                                                        "selector": ".accept-toggle"
+                                                                    }
+                                                                },
+                                                                "falseAction": {
+                                                                    "type": "click",
+                                                                    "target": {
+                                                                        "selector": ".reject-toggle"
+                                                                    }
+                                                                },
+                                                                "type": "E"
+                                                            }
+                                                        ]
+                                                    },
+                                                    "falseAction": {
+                                                        "type": "consent",
+                                                        "consents": [
+                                                            {
+                                                                "matcher": {
+                                                                    "type": "onoff",
+                                                                    "onMatcher": {
+                                                                        "target": {
+                                                                            "selector": "button[role=\"switch\"][aria-checked=\"true\"]"
+                                                                        }
+                                                                    },
+                                                                    "offMatcher": {
+                                                                        "target": {
+                                                                            "selector": "button[role=\"switch\"][aria-checked=\"false\"]"
+                                                                        }
+                                                                    }
+                                                                },
+                                                                "toggleAction": {
+                                                                    "type": "click",
+                                                                    "target": {
+                                                                        "selector": "span.slider"
+                                                                    },
+                                                                    "noTimeout": true
+                                                                },
+                                                                "type": "E"
+                                                            }
+                                                        ]
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    },
+                                    {
+                                        "type": "ifcss",
+                                        "target": {
+                                            "selector": ".accordion",
+                                            "textFilter": [
+                                                "Analyse og produktudvikling"
+                                            ]
+                                        },
+                                        "trueAction": {
+                                            "type": "foreach",
+                                            "target": {
+                                                "selector": ".stack-row"
+                                            },
+                                            "action": {
+                                                "type": "ifcss",
+                                                "target": {
+                                                    "selector": "span.on"
+                                                },
+                                                "trueAction": {
+                                                    "type": "consent",
+                                                    "consents": [
+                                                        {
+                                                            "matcher": {
+                                                                "type": "onoff",
+                                                                "onMatcher": {
+                                                                    "target": {
+                                                                        "selector": "button[role=\"switch\"][aria-checked=\"true\"]"
+                                                                    }
+                                                                },
+                                                                "offMatcher": {
+                                                                    "target": {
+                                                                        "selector": "button[role=\"switch\"][aria-checked=\"false\"]"
+                                                                    }
+                                                                }
+                                                            },
+                                                            "trueAction": {
+                                                                "type": "click",
+                                                                "target": {
+                                                                    "selector": "span.on"
+                                                                },
+                                                                "noTimeout": true
+                                                            },
+                                                            "falseAction": {
+                                                                "type": "click",
+                                                                "target": {
+                                                                    "selector": "span.off"
+                                                                },
+                                                                "noTimeout": true
+                                                            },
+                                                            "type": "B"
+                                                        }
+                                                    ]
+                                                },
+                                                "falseAction": {
+                                                    "type": "ifcss",
+                                                    "target": {
+                                                        "selector": ".stack-toggles"
+                                                    },
+                                                    "trueAction": {
+                                                        "type": "consent",
+                                                        "consents": [
+                                                            {
+                                                                "matcher": {
+                                                                    "type": "onoff",
+                                                                    "onMatcher": {
+                                                                        "target": {
+                                                                            "selector": ".accept-toggle.choice"
+                                                                        }
+                                                                    },
+                                                                    "offMatcher": {
+                                                                        "target": {
+                                                                            "selector": ".reject-toggle.choice"
+                                                                        }
+                                                                    }
+                                                                },
+                                                                "trueAction": {
+                                                                    "type": "click",
+                                                                    "target": {
+                                                                        "selector": ".accept-toggle"
+                                                                    }
+                                                                },
+                                                                "falseAction": {
+                                                                    "type": "click",
+                                                                    "target": {
+                                                                        "selector": ".reject-toggle"
+                                                                    }
+                                                                },
+                                                                "type": "B"
+                                                            }
+                                                        ]
+                                                    },
+                                                    "falseAction": {
+                                                        "type": "consent",
+                                                        "consents": [
+                                                            {
+                                                                "matcher": {
+                                                                    "type": "onoff",
+                                                                    "onMatcher": {
+                                                                        "target": {
+                                                                            "selector": "button[role=\"switch\"][aria-checked=\"true\"]"
+                                                                        }
+                                                                    },
+                                                                    "offMatcher": {
+                                                                        "target": {
+                                                                            "selector": "button[role=\"switch\"][aria-checked=\"false\"]"
+                                                                        }
+                                                                    }
+                                                                },
+                                                                "toggleAction": {
+                                                                    "type": "click",
+                                                                    "target": {
+                                                                        "selector": "span.slider"
+                                                                    },
+                                                                    "noTimeout": true
+                                                                },
+                                                                "type": "B"
+                                                            }
+                                                        ]
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    },
+                                    {
+                                        "type": "ifcss",
+                                        "target": {
+                                            "selector": ".accordion",
+                                            "textFilter": [
+                                                "Datenübermittlung an Partner in den USA"
+                                            ]
+                                        },
+                                        "trueAction": {
+                                            "type": "foreach",
+                                            "target": {
+                                                "selector": ".stack-row"
+                                            },
+                                            "action": {
+                                                "type": "ifcss",
+                                                "target": {
+                                                    "selector": "span.on"
+                                                },
+                                                "trueAction": {
+                                                    "type": "consent",
+                                                    "consents": [
+                                                        {
+                                                            "matcher": {
+                                                                "type": "onoff",
+                                                                "onMatcher": {
+                                                                    "target": {
+                                                                        "selector": "button[role=\"switch\"][aria-checked=\"true\"]"
+                                                                    }
+                                                                },
+                                                                "offMatcher": {
+                                                                    "target": {
+                                                                        "selector": "button[role=\"switch\"][aria-checked=\"false\"]"
+                                                                    }
+                                                                }
+                                                            },
+                                                            "trueAction": {
+                                                                "type": "click",
+                                                                "target": {
+                                                                    "selector": "span.on"
+                                                                },
+                                                                "noTimeout": true
+                                                            },
+                                                            "falseAction": {
+                                                                "type": "click",
+                                                                "target": {
+                                                                    "selector": "span.off"
+                                                                },
+                                                                "noTimeout": true
+                                                            },
+                                                            "type": "E"
+                                                        }
+                                                    ]
+                                                },
+                                                "falseAction": {
+                                                    "type": "ifcss",
+                                                    "target": {
+                                                        "selector": ".stack-toggles"
+                                                    },
+                                                    "trueAction": {
+                                                        "type": "consent",
+                                                        "consents": [
+                                                            {
+                                                                "matcher": {
+                                                                    "type": "onoff",
+                                                                    "onMatcher": {
+                                                                        "target": {
+                                                                            "selector": ".accept-toggle.choice"
+                                                                        }
+                                                                    },
+                                                                    "offMatcher": {
+                                                                        "target": {
+                                                                            "selector": ".reject-toggle.choice"
+                                                                        }
+                                                                    }
+                                                                },
+                                                                "trueAction": {
+                                                                    "type": "click",
+                                                                    "target": {
+                                                                        "selector": ".accept-toggle"
+                                                                    }
+                                                                },
+                                                                "falseAction": {
+                                                                    "type": "click",
+                                                                    "target": {
+                                                                        "selector": ".reject-toggle"
+                                                                    }
+                                                                },
+                                                                "type": "E"
+                                                            }
+                                                        ]
+                                                    },
+                                                    "falseAction": {
+                                                        "type": "consent",
+                                                        "consents": [
+                                                            {
+                                                                "matcher": {
+                                                                    "type": "onoff",
+                                                                    "onMatcher": {
+                                                                        "target": {
+                                                                            "selector": "button[role=\"switch\"][aria-checked=\"true\"]"
+                                                                        }
+                                                                    },
+                                                                    "offMatcher": {
+                                                                        "target": {
+                                                                            "selector": "button[role=\"switch\"][aria-checked=\"false\"]"
+                                                                        }
+                                                                    }
+                                                                },
+                                                                "toggleAction": {
+                                                                    "type": "click",
+                                                                    "target": {
+                                                                        "selector": "span.slider"
+                                                                    },
+                                                                    "noTimeout": true
+                                                                },
+                                                                "type": "E"
+                                                            }
+                                                        ]
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    },
+                                    {
+                                        "type": "ifcss",
+                                        "target": {
+                                            "selector": ".accordion",
+                                            "textFilter": [
+                                                "Sociale media"
+                                            ]
+                                        },
+                                        "trueAction": {
+                                            "type": "foreach",
+                                            "target": {
+                                                "selector": ".stack-row"
+                                            },
+                                            "action": {
+                                                "type": "ifcss",
+                                                "target": {
+                                                    "selector": "button[role=\"switch\"][aria-checked=\"false\"]"
+                                                },
+                                                "trueAction": {
+                                                    "type": "click",
+                                                    "target": {
+                                                        "selector": "button[role=\"switch\"][aria-checked=\"false\"]"
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
+                                ]
+                            }
+                        }
+                    ]
+                },
+                "name": "HANDLE_TAB",
+                "custom": true
+            }
+        ]
+    }
+}

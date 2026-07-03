@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Sieve</title>
+    <link rel="stylesheet" href="popup.css" />
+  </head>
+  <body>
+    <!-- Header: brand + version -->
+    <header class="topbar">
+      <div class="brand">
+        <span class="brand-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg>
+        </span>
+        <span class="brand-name">Sieve</span>
+      </div>
+      <span class="version-badge" id="version">v—</span>
+    </header>
+
+    <!-- Protection summary -->
+    <div class="status" id="status">Loading…</div>
+
+    <!-- Core modules — quick on/off; detailed settings live on the options page -->
+    <section class="toggle-card" id="modules">
+      <div class="toggle-row">
+        <div class="toggle-info">
+          <span class="toggle-name">Bad Language Filter</span>
+          <span class="toggle-desc">Mask profanity on pages</span>
+          <span id="bad-language-state" hidden></span>
+        </div>
+        <label class="switch">
+          <input type="checkbox" id="bad-language-toggle" />
+          <span class="slider"></span>
+        </label>
+      </div>
+
+      <div class="toggle-row">
+        <div class="toggle-info">
+          <span class="toggle-name">Gambling Blocker</span>
+          <span class="toggle-desc">Block gambling &amp; betting sites</span>
+          <span id="gambling-state" hidden></span>
+        </div>
+        <label class="switch">
+          <input type="checkbox" id="gambling-toggle" />
+          <span class="slider"></span>
+        </label>
+      </div>
+
+      <div class="toggle-row">
+        <div class="toggle-info">
+          <span class="toggle-name">Doomscroll Stopper</span>
+          <span class="toggle-desc">Daily limits on endless feeds</span>
+          <span id="doomscroll-state" hidden></span>
+        </div>
+        <label class="switch">
+          <input type="checkbox" id="doomscroll-toggle" />
+          <span class="slider"></span>
+        </label>
+      </div>
+
+      <div class="toggle-row">
+        <div class="toggle-info">
+          <span class="toggle-name">Dark Pattern Blocker</span>
+          <span class="toggle-desc" id="dark-patterns-count">No dark patterns on this page</span>
+          <span id="dark-patterns-state" hidden></span>
+        </div>
+        <label class="switch">
+          <input type="checkbox" id="dark-patterns-toggle" />
+          <span class="slider"></span>
+        </label>
+      </div>
+
+      <div class="toggle-row">
+        <div class="toggle-info">
+          <span class="toggle-name">Toxic Comment Hider</span>
+          <span class="toggle-desc" id="toxic-hider-count">No comments hidden on this page</span>
+          <span id="toxic-hider-state" hidden></span>
+        </div>
+        <label class="switch">
+          <input type="checkbox" id="toxic-hider-toggle" />
+          <span class="slider"></span>
+        </label>
+      </div>
+
+    </section>
+
+    <!-- Popup & Click Hijack Blocker — kept here for per-page recovery -->
+    <section class="toggle-card" id="popup-hijack-section">
+      <div class="toggle-row">
+        <div class="toggle-info">
+          <span class="toggle-name">Popup &amp; Click Hijack Blocker</span>
+          <span class="toggle-desc" id="popup-hijack-count">No popups blocked on this page</span>
+          <span id="popup-hijack-state" hidden></span>
+        </div>
+        <label class="switch">
+          <input type="checkbox" id="popup-hijack-toggle" />
+          <span class="slider"></span>
+        </label>
+      </div>
+
+      <label class="ph-allow-site" id="popup-hijack-allow-row">
+        <input type="checkbox" id="popup-hijack-allow-site" />
+        <span id="popup-hijack-allow-label">Allow popups on this site</span>
+      </label>
+
+      <div class="ph-actions">
+        <button id="popup-hijack-wl-view" class="link-btn">Whitelisted sites</button>
+        <button id="popup-hijack-view" class="link-btn" hidden>View blocked popups</button>
+      </div>
+      <div id="popup-hijack-wl-list" class="ph-list" hidden></div>
+      <div id="popup-hijack-list" class="ph-list" hidden></div>
+    </section>
+
+    <!-- Settings -->
+    <button id="open-settings" class="btn btn-primary btn-block">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+      Open Settings
+    </button>
+
+    <script src="../common/guardian.js"></script>
+    <script src="../common/guardian-prompt.js"></script>
+    <script src="popup.js"></script>
+  </body>
+</html>

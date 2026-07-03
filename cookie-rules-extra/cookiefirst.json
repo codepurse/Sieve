@@ -1,0 +1,25 @@
+{
+  "cookiefirst": {
+    "detectors": [
+      {
+        "presentMatcher": [
+          { "type": "css", "target": { "selector": "[data-cookiefirst-action='reject']" } }
+        ],
+        "showingMatcher": [
+          { "type": "css", "target": { "selector": "[data-cookiefirst-action='reject']", "displayFilter": true } }
+        ]
+      }
+    ],
+    "methods": [
+      {
+        "name": "DO_CONSENT",
+        "action": { "type": "click", "target": { "selector": "[data-cookiefirst-action='reject']" } }
+      },
+      {
+        "name": "HIDE_CMP",
+        "action": { "type": "hide", "target": { "selector": "#cookiefirst-root, [data-cookiefirst-widget]" } }
+      },
+      { "name": "UTILITY" }
+    ]
+  }
+}

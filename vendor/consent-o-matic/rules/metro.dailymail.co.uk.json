@@ -1,0 +1,248 @@
+{
+    "$schema": "https://raw.githubusercontent.com/cavi-au/Consent-O-Matic/master/rules.schema.json",
+    "Metro.co.uk": {
+        "detectors": [
+            {
+                "presentMatcher": [
+                    {
+                        "type": "css",
+                        "target": {
+                            "selector": "[data-project='mol-fe-cmp']"
+                        }
+                    }
+                ],
+                "showingMatcher": [
+                    {
+                        "type": "css",
+                        "target": {
+                            "selector": ".container_riSbm",
+                            "displayFilter": true
+                        },
+                        "parent": {
+                            "selector": "[data-project='mol-fe-cmp']"
+                        }
+                    }
+                ]
+            }
+        ],
+        "methods": [
+            {
+                "action": {
+                    "type": "list",
+                    "actions": [
+                        {
+                            "type": "hide",
+                            "target": {
+                                "selector": ".container_riSbm"
+                            }
+                        },
+                        {
+                            "type": "hide",
+                            "target": {
+                                "selector": ".overlay_QGo9N"
+                            }
+                        }
+                    ]
+                },
+                "name": "HIDE_CMP"
+            },
+            {
+                "action": {
+                    "type": "click",
+                    "target": {
+                        "selector": "button",
+                        "textFilter": [
+                            "Cookie Settings",
+                            "Manage Settings"
+                        ]
+                    },
+                    "parent": {
+                        "selector": ".controls_RjJCE"
+                    }
+                },
+                "name": "OPEN_OPTIONS"
+            },
+            {
+                "action": {
+                    "type": "list",
+                    "actions": [
+                        {
+                            "type": "foreach",
+                            "target": {
+                                "selector": ".row_aCaLz"
+                            },
+                            "action": {
+                                "type": "list",
+                                "actions": [
+                                    {
+                                        "type": "ifcss",
+                                        "target": {
+                                            "selector": ".rowName_f4zjg",
+                                            "textFilter": [
+                                                "Store"
+                                            ]
+                                        },
+                                        "trueAction": {
+                                            "type": "consent",
+                                            "consents": [
+                                                {
+                                                    "matcher": {
+                                                        "type": "css",
+                                                        "target": {
+                                                            "selector": ".toggle_aViZP.enabled_Kd4lm"
+                                                        }
+                                                    },
+                                                    "toggleAction": {
+                                                        "type": "click",
+                                                        "target": {
+                                                            "selector": ".toggle_aViZP"
+                                                        }
+                                                    },
+                                                    "type": "A"
+                                                }
+                                            ]
+                                        }
+                                    },
+                                    {
+                                        "type": "ifcss",
+                                        "target": {
+                                            "selector": ".rowName_f4zjg",
+                                            "textFilter": [
+                                                "Use precise geolocation data",
+                                                "Actively scan device characteristics for identification"
+                                            ]
+                                        },
+                                        "trueAction": {
+                                            "type": "consent",
+                                            "consents": [
+                                                {
+                                                    "matcher": {
+                                                        "type": "css",
+                                                        "target": {
+                                                            "selector": ".toggle_aViZP.enabled_Kd4lm"
+                                                        }
+                                                    },
+                                                    "toggleAction": {
+                                                        "type": "click",
+                                                        "target": {
+                                                            "selector": ".toggle_aViZP"
+                                                        }
+                                                    },
+                                                    "type": "D"
+                                                }
+                                            ]
+                                        }
+                                    },
+                                    {
+                                        "type": "ifcss",
+                                        "target": {
+                                            "selector": ".rowName_f4zjg",
+                                            "textFilter": [
+                                                "Personalised advertising and content, advertising and content measurement, audience research and services development"
+                                            ]
+                                        },
+                                        "trueAction": {
+                                            "type": "consent",
+                                            "consents": [
+                                                {
+                                                    "matcher": {
+                                                        "type": "css",
+                                                        "target": {
+                                                            "selector": ".toggle_aViZP.enabled_Kd4lm"
+                                                        },
+                                                        "parent": {
+                                                            "childFilter": {
+                                                                "target": {
+                                                                    "selector": ".toggleLabel_cZniW",
+                                                                    "textFilter": [
+                                                                        "Consent"
+                                                                    ]
+                                                                }
+                                                            },
+                                                            "selector": ".toggleLabelWrapper_z2Zbs"
+                                                        }
+                                                    },
+                                                    "toggleAction": {
+                                                        "type": "click",
+                                                        "target": {
+                                                            "selector": ".toggle_aViZP"
+                                                        },
+                                                        "parent": {
+                                                            "childFilter": {
+                                                                "target": {
+                                                                    "selector": ".toggleLabel_cZniW",
+                                                                    "textFilter": [
+                                                                        "Consent"
+                                                                    ]
+                                                                }
+                                                            },
+                                                            "selector": ".toggleLabelWrapper_z2Zbs"
+                                                        }
+                                                    },
+                                                    "type": "F"
+                                                },
+                                                {
+                                                    "matcher": {
+                                                        "type": "css",
+                                                        "target": {
+                                                            "selector": ".toggle_aViZP.enabled_Kd4lm"
+                                                        },
+                                                        "parent": {
+                                                            "childFilter": {
+                                                                "target": {
+                                                                    "selector": ".toggleLabel_cZniW",
+                                                                    "textFilter": [
+                                                                        "Legitimate interest"
+                                                                    ]
+                                                                }
+                                                            },
+                                                            "selector": ".toggleLabelWrapper_z2Zbs"
+                                                        }
+                                                    },
+                                                    "toggleAction": {
+                                                        "type": "click",
+                                                        "target": {
+                                                            "selector": ".toggle_aViZP"
+                                                        },
+                                                        "parent": {
+                                                            "childFilter": {
+                                                                "target": {
+                                                                    "selector": ".toggleLabel_cZniW",
+                                                                    "textFilter": [
+                                                                        "Legitimate interest"
+                                                                    ]
+                                                                }
+                                                            },
+                                                            "selector": ".toggleLabelWrapper_z2Zbs"
+                                                        }
+                                                    },
+                                                    "type": "F"
+                                                }
+                                            ]
+                                        }
+                                    }
+                                ]
+                            }
+                        }
+                    ]
+                },
+                "name": "DO_CONSENT"
+            },
+            {
+                "action": {
+                    "type": "click",
+                    "target": {
+                        "selector": "button",
+                        "textFilter": [
+                            "Save & Exit"
+                        ]
+                    }
+                },
+                "name": "SAVE_CONSENT"
+            },
+            {
+                "name": "UTILITY"
+            }
+        ]
+    }
+}

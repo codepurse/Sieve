@@ -1,0 +1,87 @@
+{
+    "$schema": "https://raw.githubusercontent.com/cavi-au/Consent-O-Matic/master/rules.schema.json",
+    "onetrust_banner": {
+        "detectors": [
+            {
+                "presentMatcher": [
+                    {
+                        "type": "css",
+                        "target": {
+                            "selector": "#onetrust-banner-sdk, #cookie-consent-wrapper"
+                        }
+                    }
+                ],
+                "showingMatcher": [
+                    {
+                        "type": "css",
+                        "target": {
+                            "selector": "#onetrust-banner-sdk, #cookie-consent-preferences",
+                            "displayFilter": true
+                        }
+                    }
+                ]
+            }
+        ],
+        "methods": [
+            {
+                "name": "HIDE_CMP"
+            },
+            {
+                "name": "OPEN_OPTIONS"
+            },
+            {
+                "name": "DO_CONSENT"
+            },
+            {
+                "name": "SAVE_CONSENT"
+            },
+            {
+                "action": {
+                    "type": "list",
+                    "actions": [
+                        {
+                            "type": "hide",
+                            "target": {
+                                "selector": "#onetrust-banner-sdk"
+                            },
+                            "hideFromDetection": true,
+                            "forceHide": true
+                        },
+                        {
+                            "type": "hide",
+                            "target": {
+                                "childFilter": {
+                                    "target": {
+                                        "selector": "#cookie-consent-preferences"
+                                    }
+                                },
+                                "selector": "#cookie-consent-wrapper"
+                            },
+                            "hideFromDetection": true,
+                            "forceHide": true
+                        },
+                        {
+                            "type": "ifcss",
+                            "target": {
+                                "selector": "#onetrust-pc-btn-handler, #cookie-consent-preferences"
+                            },
+                            "trueAction": {
+                                "type": "click",
+                                "target": {
+                                    "selector": "#onetrust-pc-btn-handler, #cookie-consent-preferences"
+                                }
+                            },
+                            "falseAction": {
+                                "type": "click",
+                                "target": {
+                                    "selector": "#onetrust-accept-btn-handler"
+                                }
+                            }
+                        }
+                    ]
+                },
+                "name": "UTILITY"
+            }
+        ]
+    }
+}

@@ -1,0 +1,172 @@
+{
+    "$schema": "https://raw.githubusercontent.com/cavi-au/Consent-O-Matic/master/rules.schema.json",
+    "pepper": {
+        "detectors": [
+            {
+                "presentMatcher": [
+                    {
+                        "type": "css",
+                        "target": {
+                            "selector": "div.popover-content"
+                        }
+                    },
+                    {
+                        "type": "url",
+                        "url": [
+                            "www.mydealz.de",
+                            "www.hotukdeals.com",
+                            "www.dealabs.com",
+                            "nl.pepper.com",
+                            "www.pepper.pl",
+                            "www.pepper.it",
+                            "www.preisjaeger.at",
+                            "www.chollometro.com"
+                        ]
+                    }
+                ],
+                "showingMatcher": [
+                    {
+                        "type": "css",
+                        "target": {
+                            "selector": "div.popover-content",
+                            "displayFilter": true
+                        }
+                    }
+                ]
+            }
+        ],
+        "methods": [
+            {
+                "name": "HIDE_CMP"
+            },
+            {
+                "action": {
+                    "type": "ifallownone",
+                    "falseAction": {
+                        "type": "ifallowall",
+                        "falseAction": {
+                            "type": "click",
+                            "target": {
+                                "selector": "button[data-t=\"showSettingsBtn\"]"
+                            }
+                        }
+                    }
+                },
+                "name": "OPEN_OPTIONS"
+            },
+            {
+                "action": {
+                    "type": "ifallownone",
+                    "falseAction": {
+                        "type": "ifallowall",
+                        "falseAction": {
+                            "type": "ifcss",
+                            "target": {
+                                "selector": "form[data-t=\"cookiesSettings\"]"
+                            },
+                            "trueAction": {
+                                "type": "list",
+                                "actions": [
+                                    {
+                                        "type": "consent",
+                                        "consents": [
+                                            {
+                                                "matcher": {
+                                                    "type": "checkbox",
+                                                    "target": {
+                                                        "selector": "input.checkbox-input[id='11']"
+                                                    }
+                                                },
+                                                "toggleAction": {
+                                                    "type": "click",
+                                                    "target": {
+                                                        "selector": "label.checkbox[for='11']"
+                                                    }
+                                                },
+                                                "type": "F"
+                                            }
+                                        ]
+                                    },
+                                    {
+                                        "type": "consent",
+                                        "consents": [
+                                            {
+                                                "matcher": {
+                                                    "type": "checkbox",
+                                                    "target": {
+                                                        "selector": "input.checkbox-input[id=\"12\"]"
+                                                    }
+                                                },
+                                                "toggleAction": {
+                                                    "type": "click",
+                                                    "target": {
+                                                        "selector": "input.checkbox-input[id=\"12\"]"
+                                                    }
+                                                },
+                                                "type": "A"
+                                            }
+                                        ]
+                                    },
+                                    {
+                                        "type": "consent",
+                                        "consents": [
+                                            {
+                                                "matcher": {
+                                                    "type": "checkbox",
+                                                    "target": {
+                                                        "selector": "input.checkbox-input[id=\"13\"]"
+                                                    }
+                                                },
+                                                "toggleAction": {
+                                                    "type": "click",
+                                                    "target": {
+                                                        "selector": "input.checkbox-input[id=\"13\"]"
+                                                    }
+                                                },
+                                                "type": "B"
+                                            }
+                                        ]
+                                    }
+                                ]
+                            }
+                        }
+                    }
+                },
+                "name": "DO_CONSENT"
+            },
+            {
+                "action": {
+                    "type": "ifallownone",
+                    "trueAction": {
+                        "type": "click",
+                        "target": {
+                            "selector": "[data-t=\"continueWithoutAcceptingBtn\"]"
+                        }
+                    },
+                    "falseAction": {
+                        "type": "ifallowall",
+                        "trueAction": {
+                            "type": "click",
+                            "target": {
+                                "selector": "[data-t='acceptAllBtn']"
+                            }
+                        },
+                        "falseAction": {
+                            "type": "click",
+                            "target": {
+                                "selector": "button[type=\"submit\"]"
+                            },
+                            "parent": {
+                                "selector": "[data-t='cookiesSettings']"
+                            }
+                        }
+                    }
+                },
+                "name": "SAVE_CONSENT"
+            },
+            {
+                "name": "UTILITY"
+            }
+        ]
+    }
+}

@@ -1,0 +1,399 @@
+{
+    "$schema": "https://raw.githubusercontent.com/cavi-au/Consent-O-Matic/master/rules.schema.json",
+    "consentmanager.net": {
+        "detectors": [
+            {
+                "presentMatcher": [
+                    {
+                        "type": "css",
+                        "target": {
+                            "selector": "#cmpbox"
+                        }
+                    }
+                ],
+                "showingMatcher": [
+                    {
+                        "type": "css",
+                        "target": {
+                            "selector": "#cmpbox .cmpmore"
+                        }
+                    }
+                ]
+            }
+        ],
+        "methods": [
+            {
+                "action": {
+                    "type": "list",
+                    "actions": [
+                        {
+                            "type": "click",
+                            "target": {
+                                "selector": "#cmpbox .cmpmorelink",
+                                "textFilter": [
+                                    "Customize your choice",
+                                    "More Options"
+                                ]
+                            }
+                        }
+                    ]
+                },
+                "name": "OPEN_OPTIONS"
+            },
+            {
+                "action": {
+                    "type": "list",
+                    "actions": [
+                        {
+                            "type": "foreach",
+                            "target": {
+                                "selector": "#cmpbox .cmptbl tbody tr:not(.cmpvenditem)"
+                            },
+                            "action": {
+                                "type": "list",
+                                "actions": [
+                                    {
+                                        "type": "ifcss",
+                                        "target": {
+                                            "selector": ".cmpvendname",
+                                            "textFilter": [
+                                                "Information storage and access",
+                                                "Store and/or access information on a device",
+                                                "Use precise geolocation data",
+                                                "Actively scan device characteristics for identification"
+                                            ]
+                                        },
+                                        "trueAction": {
+                                            "type": "consent",
+                                            "consents": [
+                                                {
+                                                    "matcher": {
+                                                        "type": "css",
+                                                        "target": {
+                                                            "selector": ".cmponofftext",
+                                                            "textFilter": [
+                                                                "on"
+                                                            ]
+                                                        },
+                                                        "parent": {
+                                                            "selector": ".cmptdchoice"
+                                                        }
+                                                    },
+                                                    "toggleAction": {
+                                                        "type": "click",
+                                                        "target": {
+                                                            "selector": ".cmpimgyesno, .cmptogglespan"
+                                                        }
+                                                    },
+                                                    "type": "D"
+                                                }
+                                            ]
+                                        }
+                                    },
+                                    {
+                                        "type": "ifcss",
+                                        "target": {
+                                            "selector": ".cmpvendname",
+                                            "textFilter": [
+                                                "Personalisation",
+                                                "Select basic ads",
+                                                "Create a personalised ads profile",
+                                                "Select personalised ads",
+                                                "Measure ad performance",
+                                                "Apply market research to generate audience insights",
+                                                "Processing the Consumer’s Personal Data for Targeted Advertising (Virginia)"
+                                            ]
+                                        },
+                                        "trueAction": {
+                                            "type": "consent",
+                                            "consents": [
+                                                {
+                                                    "matcher": {
+                                                        "type": "css",
+                                                        "target": {
+                                                            "selector": ".cmponofftext",
+                                                            "textFilter": [
+                                                                "on"
+                                                            ]
+                                                        },
+                                                        "parent": {
+                                                            "selector": ".cmptdchoice"
+                                                        }
+                                                    },
+                                                    "toggleAction": {
+                                                        "type": "click",
+                                                        "target": {
+                                                            "selector": ".cmpimgyesno, .cmptogglespan"
+                                                        }
+                                                    },
+                                                    "type": "F"
+                                                }
+                                            ]
+                                        }
+                                    },
+                                    {
+                                        "type": "ifcss",
+                                        "target": {
+                                            "selector": ".cmpvendname",
+                                            "textFilter": [
+                                                "Ad selection, delivery, reporting",
+                                                "Measure advertising performance",
+                                                "Use profiles to select personalised advertising",
+                                                "Create profiles for personalised advertising",
+                                                "Use limited data to select advertising"
+                                            ]
+                                        },
+                                        "trueAction": {
+                                            "type": "consent",
+                                            "consents": [
+                                                {
+                                                    "matcher": {
+                                                        "type": "css",
+                                                        "target": {
+                                                            "selector": ".cmponofftext",
+                                                            "textFilter": [
+                                                                "on"
+                                                            ]
+                                                        },
+                                                        "parent": {
+                                                            "selector": ".cmptdchoice"
+                                                        }
+                                                    },
+                                                    "toggleAction": {
+                                                        "type": "click",
+                                                        "target": {
+                                                            "selector": ".cmpimgyesno, .cmptogglespan"
+                                                        }
+                                                    },
+                                                    "type": "F"
+                                                }
+                                            ]
+                                        }
+                                    },
+                                    {
+                                        "type": "ifcss",
+                                        "target": {
+                                            "selector": ".cmpvendname",
+                                            "textFilter": [
+                                                "Content selection, delivery, reporting",
+                                                "Create a personalised content profile",
+                                                "Select personalised content",
+                                                "Measure content performance"
+                                            ]
+                                        },
+                                        "trueAction": {
+                                            "type": "consent",
+                                            "consents": [
+                                                {
+                                                    "matcher": {
+                                                        "type": "css",
+                                                        "target": {
+                                                            "selector": ".cmponofftext",
+                                                            "textFilter": [
+                                                                "on"
+                                                            ]
+                                                        },
+                                                        "parent": {
+                                                            "selector": ".cmptdchoice"
+                                                        }
+                                                    },
+                                                    "toggleAction": {
+                                                        "type": "click",
+                                                        "target": {
+                                                            "selector": ".cmpimgyesno, .cmptogglespan"
+                                                        }
+                                                    },
+                                                    "type": "E"
+                                                }
+                                            ]
+                                        }
+                                    },
+                                    {
+                                        "type": "ifcss",
+                                        "target": {
+                                            "selector": ".cmpvendname",
+                                            "textFilter": [
+                                                "Measurement",
+                                                "Understand audiences through statistics or combinations of data from different sources",
+                                                "Deliver and present advertising and content"
+                                            ]
+                                        },
+                                        "trueAction": {
+                                            "type": "consent",
+                                            "consents": [
+                                                {
+                                                    "matcher": {
+                                                        "type": "css",
+                                                        "target": {
+                                                            "selector": ".cmponofftext",
+                                                            "textFilter": [
+                                                                "on"
+                                                            ]
+                                                        },
+                                                        "parent": {
+                                                            "selector": ".cmptdchoice"
+                                                        }
+                                                    },
+                                                    "toggleAction": {
+                                                        "type": "click",
+                                                        "target": {
+                                                            "selector": ".cmpimgyesno, .cmptogglespan"
+                                                        }
+                                                    },
+                                                    "type": "B"
+                                                }
+                                            ]
+                                        }
+                                    },
+                                    {
+                                        "type": "ifcss",
+                                        "target": {
+                                            "selector": ".cmpvendname",
+                                            "textFilter": [
+                                                "Develop and improve products",
+                                                "Sale of the Consumer’s Personal Data (Virginia)",
+                                                "Ensure security, prevent and detect fraud, and fix errors",
+                                                "Develop and improve services"
+                                            ]
+                                        },
+                                        "trueAction": {
+                                            "type": "consent",
+                                            "consents": [
+                                                {
+                                                    "matcher": {
+                                                        "type": "css",
+                                                        "target": {
+                                                            "selector": ".cmponofftext",
+                                                            "textFilter": [
+                                                                "on"
+                                                            ]
+                                                        },
+                                                        "parent": {
+                                                            "selector": ".cmptdchoice"
+                                                        }
+                                                    },
+                                                    "toggleAction": {
+                                                        "type": "click",
+                                                        "target": {
+                                                            "selector": ".cmpimgyesno, .cmptogglespan"
+                                                        }
+                                                    },
+                                                    "type": "X"
+                                                }
+                                            ]
+                                        }
+                                    },
+                                    {
+                                        "type": "ifcss",
+                                        "target": {
+                                            "selector": ".cmpvendname",
+                                            "textFilter": [
+                                                "Create profiles to personalise content"
+                                            ]
+                                        },
+                                        "trueAction": {
+                                            "type": "consent",
+                                            "consents": [
+                                                {
+                                                    "matcher": {
+                                                        "type": "css",
+                                                        "target": {
+                                                            "selector": ".cmponofftext",
+                                                            "textFilter": [
+                                                                "on"
+                                                            ]
+                                                        },
+                                                        "parent": {
+                                                            "selector": ".cmptdchoice"
+                                                        }
+                                                    },
+                                                    "toggleAction": {
+                                                        "type": "click",
+                                                        "target": {
+                                                            "selector": ".cmpimgyesno, .cmptogglespan"
+                                                        }
+                                                    },
+                                                    "type": "E"
+                                                }
+                                            ]
+                                        }
+                                    }
+                                ]
+                            }
+                        },
+                        {
+                            "type": "foreach",
+                            "target": {
+                                "selector": "#cmpbox .cmptbl tbody tr.cmpvenditem"
+                            },
+                            "action": {
+                                "type": "consent",
+                                "consents": [
+                                    {
+                                        "matcher": {
+                                            "type": "css",
+                                            "target": {
+                                                "selector": ".cmponofftext",
+                                                "textFilter": [
+                                                    "on"
+                                                ]
+                                            },
+                                            "parent": {
+                                                "selector": ".cmptdchoice"
+                                            }
+                                        },
+                                        "toggleAction": {
+                                            "type": "click",
+                                            "target": {
+                                                "selector": ".cmpimgyesno, .cmptogglespan"
+                                            }
+                                        },
+                                        "type": "X"
+                                    }
+                                ]
+                            }
+                        }
+                    ]
+                },
+                "name": "DO_CONSENT"
+            },
+            {
+                "action": {
+                    "type": "list",
+                    "actions": [
+                        {
+                            "type": "click",
+                            "target": {
+                                "selector": "#cmpbox .cmpboxbtn.cmpboxbtnyes"
+                            }
+                        }
+                    ]
+                },
+                "name": "SAVE_CONSENT"
+            },
+            {
+                "action": {
+                    "type": "list",
+                    "actions": [
+                        {
+                            "type": "hide",
+                            "target": {
+                                "selector": "#cmpbox2"
+                            }
+                        },
+                        {
+                            "type": "hide",
+                            "target": {
+                                "selector": "#cmpbox"
+                            }
+                        }
+                    ]
+                },
+                "name": "HIDE_CMP"
+            },
+            {
+                "name": "UTILITY"
+            }
+        ]
+    }
+}

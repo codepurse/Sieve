@@ -1,0 +1,150 @@
+{
+    "$schema": "https://raw.githubusercontent.com/cavi-au/Consent-O-Matic/master/rules.schema.json",
+    "bankofscotland": {
+        "detectors": [
+            {
+                "presentMatcher": [
+                    {
+                        "type": "css",
+                        "target": {
+                            "selector": "#lbganalyticsCookies"
+                        }
+                    }
+                ],
+                "showingMatcher": [
+                    {
+                        "type": "css",
+                        "target": {
+                            "selector": "#lbganalyticsCookies",
+                            "displayFilter": true
+                        }
+                    }
+                ]
+            }
+        ],
+        "methods": [
+            {
+                "action": {
+                    "type": "hide",
+                    "target": {
+                        "selector": "#lbganalyticsCookies"
+                    }
+                },
+                "name": "HIDE_CMP"
+            },
+            {
+                "action": {
+                    "type": "click",
+                    "target": {
+                        "selector": "[title='Change cookie preferences']"
+                    }
+                },
+                "name": "OPEN_OPTIONS"
+            },
+            {
+                "action": {
+                    "type": "foreach",
+                    "target": {
+                        "selector": ".granular"
+                    },
+                    "action": {
+                        "type": "list",
+                        "actions": [
+                            {
+                                "type": "ifcss",
+                                "target": {
+                                    "selector": "#pmcat-performance"
+                                },
+                                "trueAction": {
+                                    "type": "consent",
+                                    "consents": [
+                                        {
+                                            "matcher": {
+                                                "type": "onoff",
+                                                "onMatcher": {
+                                                    "target": {
+                                                        "selector": "[title='Performance cookies will be permitted when you save your settings']"
+                                                    }
+                                                },
+                                                "offMatcher": {
+                                                    "target": {
+                                                        "selector": "[title='Performance cookies will be blocked when you save your settings'],[title='Performance cookies are blocked']"
+                                                    }
+                                                }
+                                            },
+                                            "trueAction": {
+                                                "type": "click",
+                                                "target": {
+                                                    "selector": "[title='Performance cookies will be blocked when you save your settings'],[title='Performance cookies are blocked']"
+                                                }
+                                            },
+                                            "falseAction": {
+                                                "type": "click",
+                                                "target": {
+                                                    "selector": "[title='Performance cookies will be permitted when you save your settings']"
+                                                }
+                                            },
+                                            "type": "B"
+                                        }
+                                    ]
+                                }
+                            },
+                            {
+                                "type": "ifcss",
+                                "target": {
+                                    "selector": "#pmcat-targeting"
+                                },
+                                "trueAction": {
+                                    "type": "consent",
+                                    "consents": [
+                                        {
+                                            "matcher": {
+                                                "type": "onoff",
+                                                "onMatcher": {
+                                                    "target": {
+                                                        "selector": "[title='Marketing cookies will be permitted when you save your settings']"
+                                                    }
+                                                },
+                                                "offMatcher": {
+                                                    "target": {
+                                                        "selector": "[title='Marketing cookies are blocked'],[title='Marketing cookies will be blocked when you save your settings']"
+                                                    }
+                                                }
+                                            },
+                                            "trueAction": {
+                                                "type": "click",
+                                                "target": {
+                                                    "selector": "[title='Marketing cookies are blocked'],[title='Marketing cookies will be blocked when you save your settings']"
+                                                }
+                                            },
+                                            "falseAction": {
+                                                "type": "click",
+                                                "target": {
+                                                    "selector": "[title='Marketing cookies will be permitted when you save your settings']"
+                                                }
+                                            },
+                                            "type": "F"
+                                        }
+                                    ]
+                                }
+                            }
+                        ]
+                    }
+                },
+                "name": "DO_CONSENT"
+            },
+            {
+                "action": {
+                    "type": "click",
+                    "target": {
+                        "selector": "#tealium_confirm_desktop"
+                    }
+                },
+                "name": "SAVE_CONSENT"
+            },
+            {
+                "name": "UTILITY"
+            }
+        ]
+    }
+}

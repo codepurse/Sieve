@@ -1,0 +1,480 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Blocked by Sieve</title>
+    <style>
+      /* ==========================================================================
+         Sieve — block interstitial
+         Full-screen hero in the extension's house style: deep navy, single indigo
+         accent, glassy cards (matches popup.css / options). The accent GLOW shifts
+         with severity — indigo for opt-in blocks (🛡️), amber/rose for safety
+         warnings (⚠️) — driven by data-severity on <html> from blocked.js.
+         ========================================================================== */
+
+      :root {
+        color-scheme: dark;
+
+        --fg: #f1f5f9;
+        --muted: #94a3b8;
+        --dim: #64748b;
+
+        --card-border: rgba(255, 255, 255, 0.08);
+        --hover-border: rgba(99, 102, 241, 0.45);
+        --line: rgba(255, 255, 255, 0.06);
+
+        /* Fixed brand accent — the Sieve logo & primary actions never change hue */
+        --brand-1: #6366f1;
+        --brand-2: #2575fc;
+        --accent-soft: rgba(99, 102, 241, 0.12);
+        --accent-glow: rgba(99, 102, 241, 0.3);
+        --accent-text: #a5b4fc;
+
+        --success: #34d399;
+        --danger: #f87171;
+
+        --transition: 0.18s cubic-bezier(0.16, 1, 0.3, 1);
+
+        /* Severity-driven (default = guard / indigo). See [data-severity="warn"]. */
+        --glow: #6366f1;
+        --ring-1: #6366f1;
+        --ring-2: #38bdf8;
+        --aurora-1: rgba(99, 102, 241, 0.3);
+        --aurora-2: rgba(37, 117, 252, 0.2);
+      }
+
+      html[data-severity="warn"] {
+        --glow: #f59e0b;
+        --ring-1: #f59e0b;
+        --ring-2: #f43f5e;
+        --aurora-1: rgba(245, 158, 11, 0.24);
+        --aurora-2: rgba(244, 63, 94, 0.18);
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+      [hidden] {
+        display: none !important;
+      }
+
+      body {
+        margin: 0;
+        min-height: 100vh;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 32px;
+        font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+        color: var(--fg);
+        background: radial-gradient(
+          125% 110% at 50% -20%,
+          #101a33 0%,
+          #0b1120 55%,
+          #090d18 100%
+        );
+        overflow-x: hidden;
+        -webkit-font-smoothing: antialiased;
+      }
+
+      /* Ambient aurora — soft coloured light behind the card */
+      body::before {
+        content: "";
+        position: fixed;
+        inset: 0;
+        z-index: 0;
+        pointer-events: none;
+        background:
+          radial-gradient(38% 42% at 16% 10%, var(--aurora-1), transparent 70%),
+          radial-gradient(44% 48% at 86% 6%, var(--aurora-2), transparent 72%),
+          radial-gradient(55% 55% at 50% 122%, rgba(99, 102, 241, 0.14), transparent 70%);
+        filter: blur(26px);
+        transition: background 0.4s ease;
+      }
+
+      /* Fine "sieve" mesh — a dot grid that fades in toward the edges */
+      body::after {
+        content: "";
+        position: fixed;
+        inset: 0;
+        z-index: 0;
+        pointer-events: none;
+        opacity: 0.55;
+        background-image: radial-gradient(
+          rgba(148, 163, 184, 0.1) 1px,
+          transparent 1.4px
+        );
+        background-size: 24px 24px;
+        -webkit-mask: radial-gradient(120% 90% at 50% 38%, transparent 42%, #000 100%);
+        mask: radial-gradient(120% 90% at 50% 38%, transparent 42%, #000 100%);
+      }
+
+      /* ---- Card --------------------------------------------------------------- */
+
+      .card {
+        position: relative;
+        z-index: 1;
+        width: min(480px, 100%);
+        padding: 38px 38px 30px;
+        text-align: center;
+        border-radius: 24px;
+        background: linear-gradient(
+          180deg,
+          rgba(22, 32, 54, 0.82),
+          rgba(15, 22, 40, 0.82)
+        );
+        border: 1px solid var(--card-border);
+        box-shadow:
+          0 40px 80px -32px rgba(0, 0, 0, 0.75),
+          inset 0 1px 0 rgba(255, 255, 255, 0.04);
+        backdrop-filter: blur(14px) saturate(140%);
+        -webkit-backdrop-filter: blur(14px) saturate(140%);
+      }
+
+      /* Gradient hairline — a lit top edge fading around the card */
+      .card::before {
+        content: "";
+        position: absolute;
+        inset: 0;
+        border-radius: inherit;
+        padding: 1px;
+        background: linear-gradient(
+          160deg,
+          rgba(255, 255, 255, 0.18),
+          rgba(255, 255, 255, 0.02) 42%,
+          transparent 70%
+        );
+        -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+        -webkit-mask-composite: xor;
+        mask-composite: exclude;
+        pointer-events: none;
+      }
+
+      /* ---- Brand lockup (letterhead) ------------------------------------------ */
+
+      .lockup {
+        display: inline-flex;
+        align-items: center;
+        gap: 9px;
+        margin-bottom: 26px;
+      }
+      .logo {
+        width: 32px;
+        height: 32px;
+        flex-shrink: 0;
+        display: grid;
+        place-items: center;
+        border-radius: 9px;
+        color: #07131f;
+        background: linear-gradient(135deg, var(--brand-1), var(--brand-2));
+        box-shadow: 0 6px 16px -6px var(--accent-glow);
+      }
+      .logo svg {
+        width: 18px;
+        height: 18px;
+      }
+      .wordmark {
+        font-size: 14px;
+        font-weight: 700;
+        letter-spacing: 0.16em;
+        text-transform: uppercase;
+        color: #e2e8f0;
+      }
+      .tag {
+        font-size: 10px;
+        font-weight: 700;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+        padding: 3px 8px;
+        border-radius: 20px;
+        color: var(--accent-text);
+        background: var(--accent-soft);
+        border: 1px solid rgba(99, 102, 241, 0.3);
+      }
+
+      /* ---- Hero badge --------------------------------------------------------- */
+
+      .badge {
+        position: relative;
+        width: 112px;
+        height: 112px;
+        margin: 0 auto;
+        padding: 2px; /* ring thickness */
+        border-radius: 50%;
+        background: conic-gradient(
+          from 140deg,
+          var(--ring-1),
+          var(--ring-2) 55%,
+          var(--ring-1)
+        );
+        display: grid;
+        place-items: center;
+      }
+      /* Blurred halo behind the badge */
+      .badge::after {
+        content: "";
+        position: absolute;
+        inset: -16px;
+        z-index: -1;
+        border-radius: 50%;
+        background: radial-gradient(circle, var(--glow), transparent 62%);
+        opacity: 0.5;
+        filter: blur(10px);
+      }
+      .badge-disc {
+        width: 100%;
+        height: 100%;
+        border-radius: 50%;
+        display: grid;
+        place-items: center;
+        background: radial-gradient(circle at 50% 34%, #18233f, #0b1122);
+        box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.07);
+      }
+      .badge-emoji {
+        font-size: 50px;
+        line-height: 1;
+        filter: drop-shadow(0 4px 10px rgba(0, 0, 0, 0.4));
+      }
+
+      /* ---- Copy --------------------------------------------------------------- */
+
+      h1 {
+        margin: 22px 0 10px;
+        font-size: 26px;
+        font-weight: 700;
+        letter-spacing: -0.02em;
+        color: var(--fg);
+      }
+      .message {
+        margin: 0 auto;
+        max-width: 40ch;
+        font-size: 15px;
+        line-height: 1.6;
+        color: var(--muted);
+      }
+
+      /* ---- Blocked origin ----------------------------------------------------- */
+
+      .origin {
+        margin-top: 24px;
+        padding: 13px 15px;
+        text-align: left;
+        border-radius: 12px;
+        background: rgba(255, 255, 255, 0.03);
+        border: 1px solid var(--card-border);
+      }
+      .origin-label {
+        display: block;
+        margin-bottom: 6px;
+        font-size: 11px;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        color: var(--dim);
+      }
+      .origin-row {
+        display: flex;
+        align-items: center;
+        gap: 9px;
+      }
+      .origin-glyph {
+        width: 15px;
+        height: 15px;
+        flex-shrink: 0;
+        color: var(--muted);
+      }
+      .origin-url {
+        font-family: ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+        font-size: 13px;
+        line-height: 1.4;
+        color: #cbd5e1;
+        word-break: break-all;
+      }
+
+      /* ---- Allow action ------------------------------------------------------- */
+
+      .allow-actions {
+        margin-top: 20px;
+      }
+      .allow-btn {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        padding: 11px 20px;
+        font-size: 14px;
+        font-weight: 600;
+        color: var(--fg);
+        background: rgba(255, 255, 255, 0.04);
+        border: 1px solid #334155;
+        border-radius: 10px;
+        cursor: pointer;
+        transition: color var(--transition), border-color var(--transition),
+          background var(--transition), transform var(--transition),
+          box-shadow var(--transition);
+      }
+      .allow-btn:hover {
+        color: var(--accent-text);
+        border-color: var(--hover-border);
+        background: var(--accent-soft);
+        transform: translateY(-1px);
+        box-shadow: 0 10px 24px -14px var(--accent-glow);
+      }
+      .allow-btn:focus-visible {
+        outline: none;
+        border-color: var(--hover-border);
+        box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.4);
+      }
+      .allow-btn:active {
+        transform: translateY(0);
+      }
+      .allow-btn:disabled {
+        opacity: 0.6;
+        cursor: default;
+        transform: none;
+        box-shadow: none;
+      }
+      .allow-result {
+        margin: 12px 0 0;
+        min-height: 16px;
+        font-size: 13px;
+        color: var(--muted);
+      }
+      .allow-result.ok {
+        color: var(--success);
+      }
+      .allow-result.err {
+        color: var(--danger);
+      }
+
+      /* ---- Footer note -------------------------------------------------------- */
+
+      .note {
+        margin: 26px 0 0;
+        padding-top: 18px;
+        border-top: 1px solid var(--line);
+        font-size: 12.5px;
+        line-height: 1.6;
+        color: var(--dim);
+      }
+
+      /* ---- Motion ------------------------------------------------------------- */
+
+      @media (prefers-reduced-motion: no-preference) {
+        .card {
+          animation: rise 0.5s cubic-bezier(0.16, 1, 0.3, 1) both;
+        }
+        .badge {
+          animation: pop 0.55s cubic-bezier(0.34, 1.56, 0.64, 1) 0.06s both;
+        }
+        .badge::after {
+          animation: breathe 4s ease-in-out infinite;
+        }
+        @keyframes rise {
+          from {
+            opacity: 0;
+            transform: translateY(14px);
+          }
+          to {
+            opacity: 1;
+            transform: none;
+          }
+        }
+        @keyframes pop {
+          from {
+            opacity: 0;
+            transform: scale(0.82);
+          }
+          to {
+            opacity: 1;
+            transform: none;
+          }
+        }
+        @keyframes breathe {
+          0%,
+          100% {
+            opacity: 0.42;
+            transform: scale(1);
+          }
+          50% {
+            opacity: 0.8;
+            transform: scale(1.08);
+          }
+        }
+      }
+
+      /* ---- Small screens ------------------------------------------------------ */
+
+      @media (max-width: 480px) {
+        body {
+          padding: 18px;
+        }
+        .card {
+          padding: 30px 22px 24px;
+        }
+        .lockup {
+          margin-bottom: 22px;
+        }
+        h1 {
+          font-size: 22px;
+        }
+        .badge {
+          width: 96px;
+          height: 96px;
+        }
+        .badge-emoji {
+          font-size: 44px;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <main class="card">
+      <div class="lockup">
+        <span class="logo" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3" />
+          </svg>
+        </span>
+        <span class="wordmark">Sieve</span>
+        <span class="tag">Protection</span>
+      </div>
+
+      <div class="badge">
+        <span class="badge-disc">
+          <span class="badge-emoji" id="block-shield" aria-hidden="true">🛡️</span>
+        </span>
+      </div>
+
+      <h1>This page is blocked</h1>
+      <p class="message" id="block-message">
+        This is a gambling site, and Sieve blocked it to keep your browsing clean.
+      </p>
+
+      <div class="origin" id="origin-wrap" hidden>
+        <span class="origin-label">You tried to visit</span>
+        <div class="origin-row">
+          <svg class="origin-glyph" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <circle cx="12" cy="12" r="9" />
+            <path d="M3 12h18" />
+            <path d="M12 3a14 14 0 0 1 0 18 14 14 0 0 1 0-18" />
+          </svg>
+          <span class="origin-url" id="origin-url"></span>
+        </div>
+      </div>
+
+      <div class="allow-actions" id="allow-actions" hidden>
+        <button class="allow-btn" id="allow-btn" type="button">Allow this site</button>
+        <p class="allow-result" id="allow-result" role="status" aria-live="polite"></p>
+      </div>
+
+      <p class="note" id="block-note">
+        You can manage blocked sites and turn the Gambling Blocker on or off from
+        the Sieve icon in your browser toolbar.
+      </p>
+    </main>
+    <script src="../common/guardian.js"></script>
+    <script src="../common/guardian-prompt.js"></script>
+    <script src="blocked.js"></script>
+  </body>
+</html>

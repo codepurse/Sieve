@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Welcome to Sieve</title>
+    <link rel="stylesheet" href="onboarding.css" />
+  </head>
+  <body>
+    <div class="loading-veil" id="loading-veil" hidden>
+      <div class="loading-spinner" aria-hidden="true"></div>
+      <p>Setting up Sieve…</p>
+    </div>
+
+    <div class="onboarding">
+      <header class="ob-header">
+        <div class="brand">
+          <span class="brand-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg>
+          </span>
+          <div class="brand-text">
+            <h1>Sieve</h1>
+            <p>Clean Internet Suite</p>
+          </div>
+        </div>
+      </header>
+
+      <main class="ob-main">
+        <!-- Step 1: Welcome -->
+        <section class="ob-section welcome" id="welcome">
+          <h1>Welcome to a cleaner internet</h1>
+          <p class="lead">
+            Sieve is your browser's quiet bodyguard. It blocks scams, dark patterns,
+            toxic comments, gambling sites, and more — all on your device.
+          </p>
+          <p class="subtle">One question gets you protected in seconds.</p>
+        </section>
+
+        <!-- Step 2: What Sieve does (brief orientation) -->
+        <section class="ob-section overview" id="overview" aria-label="What Sieve does">
+          <div class="section-head">
+            <h2 class="section-title">What Sieve does</h2>
+            <p class="section-desc">Four lines of defense, one quiet suite.</p>
+          </div>
+          <div class="overview-grid">
+            <div class="overview-card card" style="--card-hue: 260">
+              <div class="overview-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+              </div>
+              <h3>Content Shield</h3>
+              <p>Bad Language Filter, Toxic Comment Hider, and comment-section disabler keep pages cleaner.</p>
+            </div>
+            <div class="overview-card card" style="--card-hue: 170">
+              <div class="overview-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>
+              </div>
+              <h3>Wellbeing Guard</h3>
+              <p>Doomscroll Stopper, social-media timers, and Focus Mode protect your attention.</p>
+            </div>
+            <div class="overview-card card" style="--card-hue: 35">
+              <div class="overview-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/></svg>
+              </div>
+              <h3>Financial &amp; Scam Protection</h3>
+              <p>Blocks gambling, crypto scams, trading sites, MLMs, and resolves URL shorteners.</p>
+            </div>
+            <div class="overview-card card" style="--card-hue: 210">
+              <div class="overview-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><path d="m9 12 2 2 4-4"/></svg>
+              </div>
+              <h3>General Safety</h3>
+              <p>Malware, phishing, piracy, cryptojacking, AI slop, dark patterns, and click hijacks.</p>
+            </div>
+          </div>
+        </section>
+
+        <!-- Step 3: Setup wizard -->
+        <section class="ob-section wizard" id="wizard" aria-label="Setup wizard">
+          <div class="section-head">
+            <h2 class="section-title">How do you want to use Sieve?</h2>
+            <p class="section-desc">Pick one. You can fine-tune everything later.</p>
+          </div>
+          <div class="wizard-options" id="wizard-options">
+            <button class="wizard-option card" data-path="family" type="button">
+              <span class="wizard-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>
+              </span>
+              <span class="wizard-title">Protect my family</span>
+              <span class="wizard-desc">Language, comments, gambling, scams, and gore/shock sites — plus a Parental PIN.</span>
+            </button>
+            <button class="wizard-option card" data-path="focus" type="button">
+              <span class="wizard-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+              </span>
+              <span class="wizard-title">Help me focus</span>
+              <span class="wizard-desc">Doomscroll Stopper, social-media timers, and Focus Mode.</span>
+            </button>
+            <button class="wizard-option card" data-path="scams" type="button">
+              <span class="wizard-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+              </span>
+              <span class="wizard-title">Block scams &amp; fraud</span>
+              <span class="wizard-desc">Malware, phishing, piracy, cryptojacking, AI slop, and every Financial Protection tier.</span>
+            </button>
+            <button class="wizard-option card" data-path="all" type="button">
+              <span class="wizard-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2 2 7l10 5 10-5-10-5z"/><path d="m2 17 10 5 10-5"/><path d="m2 12 10 5 10-5"/></svg>
+              </span>
+              <span class="wizard-title">I want it all</span>
+              <span class="wizard-desc">Enable every protection at sensible defaults.</span>
+            </button>
+            <button class="wizard-option skip card" data-path="skip" type="button">
+              <span class="wizard-title">Skip for now, I'll set it up myself</span>
+            </button>
+          </div>
+        </section>
+
+        <!-- Step 4: Inline Parental PIN setup (family path only) -->
+        <section class="ob-section pin-setup" id="pin-setup" aria-label="Parental PIN setup" hidden>
+          <div class="section-head">
+            <h2 class="section-title">Set a Parental PIN</h2>
+            <p class="section-desc">Lock these settings so only you can change them.</p>
+          </div>
+
+          <div class="pin-form card" id="pin-form">
+            <p class="pin-hint">Enter a 4-digit PIN (or longer). You’ll need it to turn protections off later.</p>
+            <div class="pin-fields">
+              <label class="pin-label" for="pin-new">New PIN</label>
+              <input class="input" id="pin-new" type="password" inputmode="numeric" autocomplete="off" placeholder="4+ digits" />
+
+              <label class="pin-label" for="pin-confirm">Confirm PIN</label>
+              <input class="input" id="pin-confirm" type="password" inputmode="numeric" autocomplete="off" placeholder="Repeat PIN" />
+            </div>
+            <p class="pin-error" id="pin-error" role="alert" aria-live="polite"></p>
+            <div class="pin-actions">
+              <button class="btn btn-primary" id="pin-set-btn" type="button">Set PIN</button>
+              <button class="btn" id="pin-skip-btn" type="button">Skip for now</button>
+            </div>
+          </div>
+
+          <div class="pin-success card" id="pin-success" hidden>
+            <p>Parental PIN set. Your family settings are now locked.</p>
+            <button class="btn btn-primary" id="pin-success-btn" type="button">Continue</button>
+          </div>
+        </section>
+
+        <!-- Confirmation shown after a path is chosen -->
+        <section class="ob-section confirmation" id="confirmation" aria-label="Confirmation" hidden>
+          <div class="section-head">
+            <h2 class="section-title">You're all set</h2>
+          </div>
+          <div class="confirmation-body card" id="confirmation-body">
+            <!-- Populated by onboarding.js -->
+          </div>
+          <p class="reminder">You can change any of this anytime in Settings.</p>
+        </section>
+
+        <!-- Step 5: Privacy note -->
+        <section class="ob-section privacy" id="privacy" aria-label="Privacy">
+          <div class="section-head">
+            <h2 class="section-title">Privacy first</h2>
+          </div>
+          <div class="card">
+            <p>
+              Sieve runs entirely on your device. Nothing you browse, type, or block is
+              sent anywhere. Your settings stay in this browser.
+            </p>
+          </div>
+        </section>
+
+        <!-- Step 6: Porn-blocker mention -->
+        <section class="ob-section mention" id="mention" aria-label="Also by the same developer">
+          <p class="quiet">
+            Also protecting your browsing? Check out <a id="blocknsfw-link" href="#" target="_blank" rel="noopener">BlockNSFW – Porn &amp; Adult Content Blocker</a> by the same developer.
+          </p>
+        </section>
+
+        <!-- Step 7: Finish -->
+        <section class="ob-section finish" id="finish" aria-label="Finish">
+          <button class="btn btn-primary btn-finish" id="finish-btn" type="button">Open Settings</button>
+          <p class="reminder">You can change any of this anytime in Settings.</p>
+        </section>
+      </main>
+    </div>
+
+    <script src="../common/guardian.js"></script>
+    <script src="onboarding.js"></script>
+  </body>
+</html>

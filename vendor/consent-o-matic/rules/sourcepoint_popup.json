@@ -1,0 +1,92 @@
+{
+    "$schema": "https://raw.githubusercontent.com/cavi-au/Consent-O-Matic/master/rules.schema.json",
+    "sourcepointpopup": {
+        "detectors": [
+            {
+                "presentMatcher": [
+                    {
+                        "type": "css",
+                        "target": {
+                            "selector": ".message-container .message-button",
+                            "textFilter": [
+                                "Ret indstillinger",
+                                "Cookie Settings",
+                                "Voir les paramètres",
+                                "Options",
+                                "Manage my cookies",
+                                "Settings",
+                                "Einstellungen",
+                                "Instellen",
+                                "Mijn instellingen beheren",
+                                "Hantera cookies",
+                                "Manage",
+                                "Configure Preferences"
+                            ],
+                            "displayFilter": true
+                        }
+                    }
+                ]
+            }
+        ],
+        "methods": [
+            {
+                "name": "HIDE_CMP"
+            },
+            {
+                "name": "OPEN_OPTIONS"
+            },
+            {
+                "name": "DO_CONSENT"
+            },
+            {
+                "name": "SAVE_CONSENT"
+            },
+            {
+                "action": {
+                    "type": "list",
+                    "actions": [
+                        {
+                            "type": "wait",
+                            "waitTime": 250
+                        },
+                        {
+                            "type": "click",
+                            "target": {
+                                "selector": ".message-container .message-button.cmp-cta-manage"
+                            }
+                        },
+                        {
+                            "type": "ifcss",
+                            "target": {
+                                "selector": ".sp_choice_type_SAVE_AND_EXIT",
+                                "iframeFilter": true,
+                                "displayFilter": true
+                            },
+                            "falseAction": {
+                                "type": "click",
+                                "target": {
+                                    "selector": ".message-container .message-button",
+                                    "textFilter": [
+                                        "Ret indstillinger",
+                                        "Cookie Settings",
+                                        "Voir les paramètres",
+                                        "Options",
+                                        "Manage my cookies",
+                                        "Settings",
+                                        "Einstellungen",
+                                        "Instellen",
+                                        "Mijn instellingen beheren",
+                                        "Hantera cookies",
+                                        "Manage",
+                                        "Configure Preferences"
+                                    ]
+                                }
+                            }
+                        }
+                    ]
+                },
+                "name": "UTILITY"
+            }
+        ]
+    }
+}

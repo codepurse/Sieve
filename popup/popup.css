@@ -1,0 +1,417 @@
+/* ==========================================================================
+   Sieve — toolbar popup
+   Clean modern dark, single indigo accent (matches the options page).
+   ========================================================================== */
+
+:root {
+  --bg: #0b1120;
+  --bg-gradient: linear-gradient(160deg, #0d1424 0%, #0a0f1c 100%);
+  --card: rgba(20, 29, 48, 0.7);
+  --card-border: rgba(255, 255, 255, 0.08);
+  --card-border-hover: rgba(99, 102, 241, 0.4);
+
+  --fg: #f1f5f9;
+  --muted: #94a3b8;
+  --dim: #64748b;
+
+  --accent: #6366f1;
+  --accent-text: #818cf8;
+  --accent-soft: rgba(99, 102, 241, 0.12);
+  --accent-glow: rgba(99, 102, 241, 0.3);
+
+  --success: #34d399;
+  --danger: #f87171;
+  --border: #334155;
+
+  --radius: 12px;
+  --radius-sm: 8px;
+  --transition: all 0.15s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  width: 320px;
+  padding: 16px;
+  font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+  font-size: 14px;
+  line-height: 1.4;
+  color: var(--fg);
+  background: var(--bg-gradient);
+  position: relative;
+  overflow-x: hidden;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Ambient accent glow in the corner */
+body::before {
+  content: "";
+  position: absolute;
+  width: 150px;
+  height: 150px;
+  top: -40px;
+  left: -40px;
+  background: var(--accent);
+  border-radius: 50%;
+  filter: blur(80px);
+  opacity: 0.12;
+  pointer-events: none;
+  z-index: 0;
+}
+
+body > * {
+  position: relative;
+  z-index: 1;
+}
+
+/* ---- Header -------------------------------------------------------------- */
+
+.topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--card-border);
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.brand-icon {
+  width: 28px;
+  height: 28px;
+  flex-shrink: 0;
+  border-radius: var(--radius-sm);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #07131f;
+  background: linear-gradient(135deg, var(--accent), #2575fc);
+}
+
+.brand-icon svg {
+  width: 16px;
+  height: 16px;
+}
+
+.brand-name {
+  font-size: 16px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+
+.version-badge {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  padding: 3px 8px;
+  border-radius: 20px;
+  color: var(--accent-text);
+  background: var(--accent-soft);
+  border: 1px solid rgba(99, 102, 241, 0.3);
+}
+
+/* ---- Status banner ------------------------------------------------------- */
+
+.status {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  text-align: center;
+  padding: 9px 10px;
+  margin-bottom: 12px;
+  border-radius: var(--radius-sm);
+  font-size: 12.5px;
+  font-weight: 600;
+  border: 1px solid transparent;
+  transition: var(--transition);
+}
+
+.status.enabled {
+  color: var(--success);
+  background: rgba(16, 185, 129, 0.08);
+  border-color: rgba(16, 185, 129, 0.18);
+}
+
+.status.disabled {
+  color: var(--danger);
+  background: rgba(239, 68, 68, 0.08);
+  border-color: rgba(239, 68, 68, 0.18);
+}
+
+/* ---- Toggle cards -------------------------------------------------------- */
+
+.toggle-card {
+  background: var(--card);
+  border: 1px solid var(--card-border);
+  border-radius: var(--radius);
+  padding: 6px 12px;
+  margin-bottom: 12px;
+  backdrop-filter: blur(12px);
+}
+
+.toggle-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.toggle-row:last-child {
+  border-bottom: none;
+}
+
+.toggle-info {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+}
+
+.toggle-name {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--fg);
+}
+
+.toggle-desc {
+  font-size: 11px;
+  color: var(--muted);
+}
+
+/* ---- Toggle switch (styled checkbox) ------------------------------------- */
+
+.switch {
+  position: relative;
+  display: inline-block;
+  width: 42px;
+  height: 23px;
+  flex-shrink: 0;
+}
+
+.switch input {
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+.slider {
+  position: absolute;
+  inset: 0;
+  cursor: pointer;
+  background: #334155;
+  border: 1px solid transparent;
+  border-radius: 100px;
+  transition: var(--transition);
+}
+
+.slider::before {
+  content: "";
+  position: absolute;
+  height: 17px;
+  width: 17px;
+  left: 3px;
+  top: 2px;
+  background: #fff;
+  border-radius: 50%;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.4);
+  transition: var(--transition);
+}
+
+.switch input:checked + .slider {
+  background: var(--accent);
+  border-color: var(--accent);
+  box-shadow: 0 0 10px var(--accent-glow);
+}
+
+.switch input:checked + .slider::before {
+  transform: translateX(19px);
+}
+
+.switch input:focus-visible + .slider {
+  box-shadow: 0 0 0 3px var(--accent-glow);
+}
+
+/* "On" / "Off" state spans are kept in the DOM for the JS but hidden via the
+   [hidden] attribute; the switch itself communicates state. */
+.is-on {
+  color: var(--accent-text);
+}
+
+/* ==========================================================================
+   Popup & Click Hijack Blocker — per-page recovery
+   ========================================================================== */
+
+.ph-allow-site {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 4px 0 2px;
+  padding: 8px 0;
+  font-size: 12.5px;
+  color: var(--fg);
+  cursor: pointer;
+  border-top: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.ph-allow-site input {
+  width: 16px;
+  height: 16px;
+  accent-color: var(--accent);
+  cursor: pointer;
+}
+
+.ph-allow-site.is-disabled {
+  opacity: 0.5;
+}
+
+.ph-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.link-btn {
+  background: none;
+  border: none;
+  padding: 0;
+  color: var(--accent-text);
+  font-size: 12px;
+  font-weight: 600;
+  font-family: inherit;
+  cursor: pointer;
+}
+
+.link-btn:hover {
+  text-decoration: underline;
+}
+
+.ph-list {
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px solid var(--card-border);
+}
+
+.ph-entry {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 6px 0;
+}
+
+.ph-entry + .ph-entry {
+  border-top: 1px solid var(--card-border);
+}
+
+.ph-info {
+  min-width: 0;
+  flex: 1;
+}
+
+.ph-url {
+  font-size: 12px;
+  color: var(--fg);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.ph-meta {
+  font-size: 11px;
+  color: var(--muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.ph-open {
+  flex-shrink: 0;
+  padding: 4px 8px;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--accent-text);
+  background: transparent;
+  border: 1px solid var(--card-border);
+  border-radius: 6px;
+  cursor: pointer;
+  transition: var(--transition);
+}
+
+.ph-open:hover:not(:disabled) {
+  background: var(--accent-soft);
+  border-color: var(--card-border-hover);
+}
+
+.ph-open:disabled {
+  color: var(--muted);
+  cursor: not-allowed;
+}
+
+.ph-empty {
+  margin: 4px 0;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.ph-clear {
+  margin-top: 10px;
+}
+
+/* ==========================================================================
+   Buttons
+   ========================================================================== */
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  padding: 10px 14px;
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--card-border);
+  background: rgba(30, 41, 59, 0.7);
+  color: var(--fg);
+  cursor: pointer;
+  transition: var(--transition);
+}
+
+.btn:hover {
+  border-color: var(--card-border-hover);
+}
+
+.btn svg {
+  width: 15px;
+  height: 15px;
+}
+
+.btn-primary {
+  background: var(--accent);
+  color: #fff;
+  border-color: var(--accent);
+}
+
+.btn-primary:hover {
+  background: #4f46e5;
+  border-color: #4f46e5;
+  box-shadow: 0 0 12px var(--accent-glow);
+}
+
+.btn-block {
+  width: 100%;
+}

@@ -1,0 +1,797 @@
+/* ==========================================================================
+   Sieve — First-install onboarding page
+   Uses the same design system as options.css: deep navy control room,
+   indigo→sky accents, glassy cards over an ambient aurora and sieve mesh.
+   ========================================================================== */
+
+:root {
+  color-scheme: dark;
+
+  /* Surfaces */
+  --background: #0b1120;
+  --background-gradient: radial-gradient(
+    130% 120% at 50% -10%,
+    #101a33 0%,
+    #0b1120 52%,
+    #080c16 100%
+  );
+  --surface: #131b2e;
+  --surface-2: #18223a;
+  --foreground: #f1f5f9;
+  --foreground-muted: #9aa8bd;
+  --foreground-dim: #647089;
+
+  /* Cards / glass */
+  --card-bg: rgba(19, 27, 46, 0.72);
+  --card-gradient: linear-gradient(180deg, rgba(24, 34, 58, 0.72), rgba(13, 19, 35, 0.74));
+  --card-border: rgba(255, 255, 255, 0.08);
+  --card-border-hover: rgba(99, 102, 241, 0.4);
+  --card-shadow: 0 14px 34px -22px rgba(0, 0, 0, 0.75);
+  --card-shadow-hover: 0 28px 56px -30px rgba(0, 0, 0, 0.8);
+  --hairline: rgba(255, 255, 255, 0.06);
+
+  /* Brand accent */
+  --brand-1: #6366f1;
+  --brand-2: #2575fc;
+  --brand-3: #38bdf8;
+  --primary: #6366f1;
+  --primary-hover: #818cf8;
+  --primary-soft: rgba(99, 102, 241, 0.12);
+  --primary-glow: rgba(99, 102, 241, 0.28);
+  --primary-foreground: #ffffff;
+  --accent-text: #a5b4fc;
+
+  /* Secondary */
+  --secondary: #1e293b;
+  --secondary-hover: #273349;
+  --secondary-foreground: #e2e8f0;
+
+  /* Inputs */
+  --input-bg: rgba(9, 13, 24, 0.6);
+  --input-border: rgba(255, 255, 255, 0.1);
+  --input-shadow-focus: 0 0 0 3px rgba(99, 102, 241, 0.28);
+
+  /* Ambient */
+  --aurora-1: rgba(99, 102, 241, 0.22);
+  --aurora-2: rgba(37, 117, 252, 0.16);
+
+  /* Status */
+  --success: #34d399;
+  --warning: #fbbf24;
+  --destructive: #f87171;
+
+  /* Shape & motion */
+  --radius: 14px;
+  --radius-sm: 10px;
+  --radius-lg: 18px;
+  --ease: cubic-bezier(0.16, 1, 0.3, 1);
+  --transition: all 0.22s var(--ease);
+  --transition-fast: all 0.13s var(--ease);
+
+  --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+[hidden] {
+  display: none !important;
+}
+
+body {
+  position: relative;
+  font-family: var(--font-sans);
+  background: var(--background-gradient);
+  background-attachment: fixed;
+  color: var(--foreground);
+  line-height: 1.6;
+  font-size: 14px;
+  min-height: 100vh;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* ==========================================================================
+   Loading veil
+   ========================================================================== */
+
+.loading-veil {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1rem;
+  background: var(--background-gradient);
+  color: var(--foreground-muted);
+  font-size: 0.9rem;
+  letter-spacing: 0.01em;
+  transition: opacity 0.25s var(--ease), visibility 0.25s var(--ease);
+}
+
+.loading-veil[hidden] {
+  display: none;
+}
+
+.loading-spinner {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  border: 3px solid rgba(148, 163, 184, 0.18);
+  border-top-color: var(--primary-hover);
+  animation: veil-spin 0.7s linear infinite;
+}
+
+@keyframes veil-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .loading-spinner {
+    animation: none;
+  }
+}
+
+/* Ambient aurora */
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(36% 40% at 12% 6%, var(--aurora-1), transparent 70%),
+    radial-gradient(40% 44% at 88% 2%, var(--aurora-2), transparent 72%),
+    radial-gradient(50% 50% at 50% 116%, rgba(99, 102, 241, 0.12), transparent 70%);
+  filter: blur(24px);
+}
+
+/* Fine "sieve" mesh */
+body::after {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  opacity: 0.5;
+  background-image: radial-gradient(rgba(148, 163, 184, 0.09) 1px, transparent 1.4px);
+  background-size: 26px 26px;
+  -webkit-mask: radial-gradient(125% 100% at 50% 30%, transparent 45%, #000 100%);
+  mask: radial-gradient(125% 100% at 50% 30%, transparent 45%, #000 100%);
+}
+
+/* ==========================================================================
+   Layout
+   ========================================================================== */
+
+.onboarding {
+  position: relative;
+  z-index: 1;
+  max-width: 760px;
+  margin: 0 auto;
+  padding: 2.5rem 1.5rem 5rem;
+}
+
+.ob-header {
+  margin-bottom: 2.5rem;
+}
+
+.brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.85rem;
+}
+
+.brand-icon {
+  width: 44px;
+  height: 44px;
+  flex-shrink: 0;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #07131f;
+  background: linear-gradient(135deg, var(--brand-1), var(--brand-2));
+  box-shadow: 0 8px 20px -8px var(--primary-glow), inset 0 1px 0 rgba(255, 255, 255, 0.25);
+}
+
+.brand-icon svg {
+  width: 24px;
+  height: 24px;
+}
+
+.brand-text h1 {
+  font-size: 1.25rem;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  line-height: 1.2;
+  background: linear-gradient(120deg, #ffffff, #c7d2fe);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+.brand-text p {
+  font-size: 0.78rem;
+  letter-spacing: 0.02em;
+  color: var(--foreground-dim);
+}
+
+.ob-section {
+  margin-bottom: 2.5rem;
+  animation: rise 0.55s var(--ease) both;
+}
+
+.ob-section:nth-child(1) { animation-delay: 0.02s; }
+.ob-section:nth-child(2) { animation-delay: 0.06s; }
+.ob-section:nth-child(3) { animation-delay: 0.1s; }
+.ob-section:nth-child(4) { animation-delay: 0.14s; }
+.ob-section:nth-child(5) { animation-delay: 0.18s; }
+.ob-section:nth-child(6) { animation-delay: 0.22s; }
+.ob-section:nth-child(7) { animation-delay: 0.26s; }
+
+/* Section heads match options.css */
+.section-head {
+  margin-bottom: 1.1rem;
+  padding-bottom: 0.85rem;
+  border-bottom: 1px solid var(--hairline);
+}
+
+.section-title {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  font-size: 1.35rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: var(--foreground);
+}
+
+.section-title::before {
+  content: "";
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, var(--brand-1), var(--brand-3));
+  box-shadow: 0 0 12px var(--primary-glow);
+}
+
+.section-desc {
+  font-size: 0.95rem;
+  color: var(--foreground-muted);
+  margin-top: 0.35rem;
+  padding-left: 1.2rem;
+}
+
+/* Welcome section is intentionally larger and not card-wrapped */
+.welcome h1 {
+  font-size: clamp(2rem, 5vw, 2.75rem);
+  font-weight: 700;
+  letter-spacing: -0.03em;
+  line-height: 1.15;
+  margin-bottom: 0.75rem;
+  background: linear-gradient(120deg, #ffffff, #c7d2fe);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+.lead {
+  font-size: 1.1rem;
+  color: var(--foreground-muted);
+  margin-bottom: 0.5rem;
+  line-height: 1.65;
+}
+
+.subtle {
+  color: var(--foreground-dim);
+}
+
+/* ==========================================================================
+   Cards (shared with options.css)
+   ========================================================================== */
+
+.card {
+  position: relative;
+  overflow: hidden;
+  background: var(--card-gradient);
+  border: 1px solid var(--card-border);
+  border-radius: var(--radius);
+  padding: 1.5rem 1.6rem;
+  box-shadow: var(--card-shadow);
+  backdrop-filter: blur(12px) saturate(140%);
+  -webkit-backdrop-filter: blur(12px) saturate(140%);
+  transition: transform 0.22s var(--ease), border-color 0.22s var(--ease),
+    box-shadow 0.22s var(--ease);
+}
+
+.card::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  padding: 1px;
+  background: linear-gradient(
+    160deg,
+    rgba(255, 255, 255, 0.16),
+    rgba(255, 255, 255, 0.02) 42%,
+    transparent 72%
+  );
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  pointer-events: none;
+}
+
+.card::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 12%;
+  right: 12%;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, var(--brand-3), transparent);
+  opacity: 0;
+  transition: opacity 0.22s var(--ease);
+}
+
+.card:hover {
+  transform: translateY(-2px);
+  border-color: var(--card-border-hover);
+  box-shadow: var(--card-shadow-hover), 0 0 0 1px rgba(99, 102, 241, 0.08);
+}
+
+.card:hover::after {
+  opacity: 0.9;
+}
+
+/* ==========================================================================
+   Overview cards
+   ========================================================================== */
+
+.overview-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 1rem;
+}
+
+.overview-card {
+  --card-accent: hsl(var(--card-hue), 80%, 65%);
+  --card-glow: hsla(var(--card-hue), 80%, 55%, 0.15);
+  display: flex;
+  flex-direction: column;
+}
+
+.overview-card:hover {
+  border-color: hsla(var(--card-hue), 70%, 60%, 0.45);
+  box-shadow: var(--card-shadow-hover), 0 0 28px -6px var(--card-glow);
+}
+
+.overview-icon {
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-sm);
+  background: var(--card-glow);
+  color: var(--card-accent);
+  margin-bottom: 1rem;
+}
+
+.overview-icon svg {
+  width: 22px;
+  height: 22px;
+}
+
+.overview-card h3 {
+  font-size: 1rem;
+  font-weight: 650;
+  margin-bottom: 0.35rem;
+  color: var(--foreground);
+}
+
+.overview-card p {
+  font-size: 0.88rem;
+  color: var(--foreground-muted);
+  line-height: 1.55;
+}
+
+/* ==========================================================================
+   Wizard options
+   ========================================================================== */
+
+.wizard-options {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.wizard-option {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  grid-template-rows: auto auto;
+  column-gap: 1rem;
+  row-gap: 0.15rem;
+  align-items: center;
+  width: 100%;
+  text-align: left;
+  color: var(--foreground);
+  cursor: pointer;
+  user-select: none;
+}
+
+.wizard-option .wizard-icon {
+  grid-row: 1 / 3;
+  width: 44px;
+  height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-sm);
+  background: var(--primary-soft);
+  color: var(--primary-hover);
+  transition: var(--transition-fast);
+}
+
+.wizard-option:hover .wizard-icon {
+  background: rgba(99, 102, 241, 0.2);
+  box-shadow: 0 0 18px -4px var(--primary-glow);
+}
+
+.wizard-option .wizard-icon svg {
+  width: 22px;
+  height: 22px;
+}
+
+.wizard-option .wizard-title {
+  font-size: 1.05rem;
+  font-weight: 650;
+  letter-spacing: -0.01em;
+}
+
+.wizard-option .wizard-desc {
+  font-size: 0.88rem;
+  color: var(--foreground-muted);
+  line-height: 1.5;
+}
+
+.wizard-option.skip {
+  justify-content: center;
+  grid-template-columns: 1fr;
+  grid-template-rows: auto;
+  text-align: center;
+  margin-top: 0.5rem;
+  background: transparent;
+  border-style: dashed;
+  color: var(--foreground-dim);
+}
+
+.wizard-option.skip:hover {
+  background: rgba(255, 255, 255, 0.03);
+  color: var(--foreground);
+  border-color: var(--card-border-hover);
+}
+
+.wizard-option.skip .wizard-title {
+  font-weight: 500;
+}
+
+.wizard-option:disabled,
+.wizard-option.is-used {
+  opacity: 0.55;
+  cursor: default;
+  transform: none !important;
+  box-shadow: none !important;
+}
+
+.wizard-option:disabled::after,
+.wizard-option.is-used::after {
+  opacity: 0 !important;
+}
+
+/* ==========================================================================
+   PIN setup
+   ========================================================================== */
+
+.pin-form,
+.pin-success {
+  animation: rise 0.5s var(--ease) both;
+}
+
+.pin-success {
+  text-align: center;
+}
+
+.pin-success p {
+  color: var(--foreground-muted);
+  margin-bottom: 1rem;
+}
+
+.pin-hint {
+  margin-bottom: 1.25rem;
+  color: var(--foreground-muted);
+  font-size: 0.92rem;
+  line-height: 1.6;
+}
+
+.pin-fields {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  align-items: center;
+  gap: 0.85rem 1rem;
+  margin-bottom: 0.5rem;
+}
+
+.pin-label {
+  font-size: 0.92rem;
+  font-weight: 600;
+  color: var(--foreground);
+}
+
+.pin-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.75rem;
+  margin-top: 1.25rem;
+}
+
+.pin-error {
+  min-height: 1.2em;
+  margin-top: 0.6rem;
+  font-size: 0.85rem;
+  color: var(--destructive);
+}
+
+/* ==========================================================================
+   Confirmation
+   ========================================================================== */
+
+.confirmation {
+  animation: rise 0.5s var(--ease) both;
+}
+
+.confirmation-body {
+  color: var(--foreground-muted);
+  font-size: 0.95rem;
+  line-height: 1.65;
+}
+
+.confirmation-body p {
+  margin-bottom: 0.75rem;
+}
+
+.confirmation-body p:last-child {
+  margin-bottom: 0;
+}
+
+.confirmation-body ul {
+  margin: 0.75rem 0 0;
+  padding-left: 1.35rem;
+  color: var(--foreground);
+}
+
+.confirmation-body li {
+  margin-bottom: 0.35rem;
+}
+
+.confirmation-body li:last-child {
+  margin-bottom: 0;
+}
+
+/* ==========================================================================
+   Privacy & mention
+   ========================================================================== */
+
+.privacy .card p {
+  color: var(--foreground-muted);
+  font-size: 0.95rem;
+  line-height: 1.65;
+}
+
+.mention {
+  padding-top: 0.5rem;
+  border-top: 1px solid var(--hairline);
+}
+
+.mention .quiet {
+  color: var(--foreground-dim);
+  font-size: 0.85rem;
+  line-height: 1.55;
+}
+
+.mention .quiet a {
+  color: var(--accent-text);
+  text-decoration: none;
+}
+
+.mention .quiet a:hover {
+  text-decoration: underline;
+}
+
+/* ==========================================================================
+   Finish
+   ========================================================================== */
+
+.finish {
+  text-align: center;
+}
+
+.btn-finish {
+  padding: 0.85rem 2rem;
+  font-size: 1rem;
+}
+
+.reminder {
+  color: var(--foreground-dim);
+  font-size: 0.85rem;
+  margin-top: 1rem;
+}
+
+/* ==========================================================================
+   Inputs & buttons (shared with options.css)
+   ========================================================================== */
+
+.input {
+  width: 100%;
+  max-width: 260px;
+  padding: 0.62rem 0.9rem;
+  background: var(--input-bg);
+  border: 1px solid var(--input-border);
+  border-radius: var(--radius-sm);
+  color: var(--foreground);
+  font-family: inherit;
+  font-size: 0.95rem;
+  letter-spacing: 2px;
+  transition: var(--transition-fast);
+}
+
+.input:focus {
+  outline: none;
+  border-color: var(--primary);
+  box-shadow: var(--input-shadow-focus);
+}
+
+.input::placeholder {
+  color: var(--foreground-dim);
+  letter-spacing: normal;
+}
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  padding: 0.62rem 1.15rem;
+  font-family: inherit;
+  font-size: 0.875rem;
+  font-weight: 600;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--card-border);
+  background: var(--secondary);
+  color: var(--secondary-foreground);
+  cursor: pointer;
+  white-space: nowrap;
+  transition: var(--transition-fast);
+}
+
+.btn:hover {
+  background: var(--secondary-hover);
+  border-color: var(--card-border-hover);
+  transform: translateY(-1px);
+}
+
+.btn:active {
+  transform: translateY(0);
+}
+
+.btn:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px var(--primary-glow);
+}
+
+.btn-primary {
+  background: linear-gradient(135deg, var(--brand-1), var(--brand-2));
+  color: var(--primary-foreground);
+  border-color: transparent;
+  box-shadow: 0 10px 22px -14px var(--primary-glow);
+}
+
+.btn-primary:hover {
+  filter: brightness(1.08);
+  border-color: transparent;
+  box-shadow: 0 14px 28px -14px var(--primary-glow);
+}
+
+/* ==========================================================================
+   Scrollbar
+   ========================================================================== */
+
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(148, 163, 184, 0.22);
+  border: 2px solid transparent;
+  background-clip: padding-box;
+  border-radius: 999px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--primary);
+  background-clip: padding-box;
+}
+
+/* ==========================================================================
+   Animations
+   ========================================================================== */
+
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* ==========================================================================
+   Responsive
+   ========================================================================== */
+
+@media (max-width: 640px) {
+  .onboarding {
+    padding: 1.5rem 1rem 3rem;
+  }
+
+  .overview-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .wizard-option {
+    grid-template-columns: 1fr;
+    grid-template-rows: auto auto auto;
+    text-align: center;
+  }
+
+  .wizard-option .wizard-icon {
+    grid-row: auto;
+    margin: 0 auto 0.75rem;
+  }
+
+  .pin-fields {
+    grid-template-columns: 1fr;
+  }
+
+  .pin-label {
+    margin-bottom: -0.35rem;
+  }
+
+  .welcome h1 {
+    font-size: 1.8rem;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * {
+    transition: none !important;
+    animation: none !important;
+  }
+}

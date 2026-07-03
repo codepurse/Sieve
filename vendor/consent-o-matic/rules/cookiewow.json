@@ -1,0 +1,154 @@
+{
+	"$schema": "https://raw.githubusercontent.com/cavi-au/Consent-O-Matic/master/rules.schema.json",
+	"cookiewow": {
+		"detectors": [
+			{
+				"presentMatcher": {
+					"type": "css",
+					"target": {
+						"selector": ".cwc-banner-container"
+					}
+				},
+				"showingMatcher": {
+					"type": "css",
+					"target": {
+						"selector": ".cwc-banner-container",
+						"displayFilter": true
+					}
+				}
+			}
+		],
+		"methods": [
+			{
+				"name": "OPEN_OPTIONS",
+				"action": {
+					"type": "click",
+					"target": {
+						"selector": ".cwc-setting-button"
+					}
+				}
+			},
+			{
+				"name": "DO_CONSENT",
+				"action": {
+					"type": "list",
+					"actions": [
+						{
+							"type": "consent",
+							"consents": [
+								{
+									"type": "B",
+									"matcher": {
+										"type": "checkbox",
+										"target": {
+											"selector": "input"
+										},
+										"parent": {
+											"selector": ".cwc-category-item",
+											"childFilter": {
+												"target": {
+													"selector": ".cwc-category-item-title",
+													"textFilter": [
+														"Analytics",
+														"คุกกี้ในส่วนวิเคราะห์",
+														"访问分析Cookie",
+														"トラフィック分析Cookie"
+													]
+												}
+											}
+										}
+									},
+									"toggleAction": {
+										"type": "click",
+										"target": {
+											"selector": ".cwc-switch"
+										},
+										"parent": {
+											"selector": ".cwc-category-item",
+											"childFilter": {
+												"target": {
+													"selector": ".cwc-category-item-title",
+													"textFilter": [
+														"Analytics",
+														"คุกกี้ในส่วนวิเคราะห์",
+														"访问分析Cookie",
+														"トラフィック分析Cookie"
+													]
+												}
+											}
+										}
+									}
+								},
+								{
+									"type": "F",
+									"matcher": {
+										"type": "checkbox",
+										"target": {
+											"selector": "input"
+										},
+										"parent": {
+											"selector": ".cwc-category-item",
+											"childFilter": {
+												"target": {
+													"selector": ".cwc-category-item-title",
+													"textFilter": [
+														"Marketing",
+														"คุกกี้ในส่วนการตลาด",
+														"访问分析Cookie",
+														"トラフィック分析Cookie"
+													]
+												}
+											}
+										}
+									},
+									"toggleAction": {
+										"type": "click",
+										"target": {
+											"selector": ".cwc-switch"
+										},
+										"parent": {
+											"selector": ".cwc-category-item",
+											"childFilter": {
+												"target": {
+													"selector": ".cwc-category-item-title",
+													"textFilter": [
+														"Marketing",
+														"คุกกี้ในส่วนการตลาด",
+														"访问分析Cookie",
+														"トラフィック分析Cookie"
+													]
+												}
+											}
+										}
+									}
+								}
+							]
+						},
+						{
+							"type": "wait",
+							"waitTime": 250
+						}
+					]
+				}
+			},
+			{
+				"name": "SAVE_CONSENT",
+				"action": {
+					"type": "click",
+					"target": {
+						"selector": ".cwc-save-setting-wrapper button"
+					}
+				}
+			},
+			{
+				"name": "HIDE_CMP",
+				"action": {
+					"type": "hide",
+					"target": {
+						"selector": ".cwc-sdk-container"
+					}
+				}
+			}
+		]
+	}
+}

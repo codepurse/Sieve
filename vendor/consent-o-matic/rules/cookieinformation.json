@@ -1,0 +1,251 @@
+{
+    "$schema": "https://raw.githubusercontent.com/cavi-au/Consent-O-Matic/master/rules.schema.json",
+    "cookieinformation": {
+        "detectors": [
+            {
+                "presentMatcher": [
+                    {
+                        "type": "css",
+                        "target": {
+                            "selector": "#coiOverlay, #coiSummery, #coiConsentBanner, #coi-banner-wrapper, .coi-consent-summary"
+                        }
+                    }
+                ],
+                "showingMatcher": [
+                    {
+                        "type": "css",
+                        "target": {
+                            "selector": "#coiOverlay, #coiSummery, #coiConsentBanner, #coi-banner-wrapper, .coi-consent-summary",
+                            "displayFilter": true
+                        }
+                    }
+                ]
+            }
+        ],
+        "methods": [
+            {
+                "action": {
+                    "type": "click",
+                    "target": {
+                        "selector": ".coi-banner__nextpage, .summary-texts__show-details"
+                    }
+                },
+                "name": "OPEN_OPTIONS"
+            },
+            {
+                "action": {
+                    "type": "list",
+                    "actions": [
+                        {
+                            "type": "consent",
+                            "consents": [
+                                {
+                                    "matcher": {
+                                        "type": "checkbox",
+                                        "target": {
+                                            "selector": "input"
+                                        },
+                                        "parent": {
+                                            "selector": "#switch-cookie_cat_functional"
+                                        }
+                                    },
+                                    "toggleAction": {
+                                        "type": "click",
+                                        "target": {
+                                            "selector": "label, input"
+                                        },
+                                        "parent": {
+                                            "selector": "#switch-cookie_cat_functional"
+                                        }
+                                    },
+                                    "type": "A"
+                                },
+                                {
+                                    "matcher": {
+                                        "type": "checkbox",
+                                        "target": {
+                                            "selector": "input"
+                                        },
+                                        "parent": {
+                                            "selector": "#switch-cookie_cat_statistic"
+                                        }
+                                    },
+                                    "toggleAction": {
+                                        "type": "click",
+                                        "target": {
+                                            "selector": "label, input"
+                                        },
+                                        "parent": {
+                                            "selector": "#switch-cookie_cat_statistic"
+                                        }
+                                    },
+                                    "type": "A"
+                                },
+                                {
+                                    "matcher": {
+                                        "type": "checkbox",
+                                        "target": {
+                                            "selector": "input"
+                                        },
+                                        "parent": {
+                                            "selector": "#switch-cookie_cat_marketing"
+                                        }
+                                    },
+                                    "toggleAction": {
+                                        "type": "click",
+                                        "target": {
+                                            "selector": "label, input"
+                                        },
+                                        "parent": {
+                                            "selector": "#switch-cookie_cat_marketing"
+                                        }
+                                    },
+                                    "type": "F"
+                                }
+                            ]
+                        },
+                        {
+                            "type": "consent",
+                            "consents": [
+                                {
+                                    "matcher": {
+                                        "type": "checkbox",
+                                        "target": {
+                                            "selector": "#cookie_cat_functional"
+                                        }
+                                    },
+                                    "toggleAction": {
+                                        "type": "click",
+                                        "target": {
+                                            "selector": "#cookie_cat_functional"
+                                        }
+                                    },
+                                    "type": "A"
+                                },
+                                {
+                                    "matcher": {
+                                        "type": "checkbox",
+                                        "target": {
+                                            "selector": "#cookie_cat_statistic"
+                                        }
+                                    },
+                                    "toggleAction": {
+                                        "type": "click",
+                                        "target": {
+                                            "selector": "#cookie_cat_statistic"
+                                        }
+                                    },
+                                    "type": "B"
+                                },
+                                {
+                                    "matcher": {
+                                        "type": "checkbox",
+                                        "target": {
+                                            "selector": "#cookie_cat_marketing"
+                                        }
+                                    },
+                                    "toggleAction": {
+                                        "type": "click",
+                                        "target": {
+                                            "selector": "#cookie_cat_marketing"
+                                        }
+                                    },
+                                    "type": "F"
+                                }
+                            ]
+                        }
+                    ]
+                },
+                "name": "DO_CONSENT"
+            },
+            {
+                "action": {
+                    "type": "list",
+                    "actions": [
+                        {
+                            "type": "ifcss",
+                            "target": {
+                                "selector": "#coiConsentBanner #declineButton, #coiOverlay #declineButton,#declineButton",
+                                "displayFilter": true
+                            },
+                            "trueAction": {
+                                "type": "click",
+                                "target": {
+                                    "selector": "#coiConsentBanner #declineButton, #coiOverlay #declineButton,#declineButton"
+                                }
+                            },
+                            "falseAction": {
+                                "type": "ifcss",
+                                "target": {
+                                    "selector": "#coiConsentBanner #updateButton, #coiOverlay #updateButton,#updateButton",
+                                    "displayFilter": true
+                                },
+                                "trueAction": {
+                                    "type": "click",
+                                    "target": {
+                                        "selector": "#coiConsentBanner #updateButton, #coiOverlay #updateButton,#updateButton"
+                                    }
+                                },
+                                "falseAction": {
+                                    "type": "list",
+                                    "actions": [
+                                        {
+                                            "type": "click",
+                                            "target": {
+                                                "selector": "#coiOverlay button.coi-banner__accept",
+                                                "displayFilter": true
+                                            }
+                                        },
+                                        {
+                                            "type": "click",
+                                            "target": {
+                                                "selector": "#coiConsentBanner .bottom-bar__update-consent",
+                                                "displayFilter": true
+                                            }
+                                        }
+                                    ]
+                                }
+                            }
+                        }
+                    ]
+                },
+                "name": "SAVE_CONSENT"
+            },
+            {
+                "action": {
+                    "type": "list",
+                    "actions": [
+                        {
+                            "type": "hide",
+                            "target": {
+                                "selector": "#CoiBannerOverlay"
+                            }
+                        },
+                        {
+                            "type": "hide",
+                            "target": {
+                                "selector": "#coiOverlay"
+                            }
+                        },
+                        {
+                            "type": "hide",
+                            "target": {
+                                "selector": "#coiConsentBanner"
+                            }
+                        },
+                        {
+                            "type": "hide",
+                            "target": {
+                                "selector": "#CI-consent-popup"
+                            }
+                        }
+                    ]
+                },
+                "name": "HIDE_CMP"
+            },
+            {
+                "name": "UTILITY"
+            }
+        ]
+    }
+}

@@ -1,0 +1,198 @@
+{
+    "$schema": "https://raw.githubusercontent.com/cavi-au/Consent-O-Matic/master/rules.schema.json",
+    "sharethis": {
+        "detectors": [
+            {
+                "presentMatcher": [
+                    {
+                        "type": "css",
+                        "target": {
+                            "selector": "#st-cmp-v2"
+                        }
+                    }
+                ],
+                "showingMatcher": [
+                    {
+                        "type": "css",
+                        "target": {
+                            "selector": ".st-cmp-app"
+                        }
+                    }
+                ]
+            }
+        ],
+        "methods": [
+            {
+                "action": {
+                    "type": "list",
+                    "actions": [
+                        {
+                            "type": "click",
+                            "target": {
+                                "selector": ".app_gdpr .intro_showPurposes"
+                            }
+                        }
+                    ]
+                },
+                "name": "OPEN_OPTIONS"
+            },
+            {
+                "action": {
+                    "type": "foreach",
+                    "target": {
+                        "selector": ".st-switch"
+                    },
+                    "action": {
+                        "type": "list",
+                        "actions": [
+                            {
+                                "type": "ifcss",
+                                "target": {
+                                    "selector": "label",
+                                    "textFilter": [
+                                        "Develop and improve services",
+                                        "Understand audiences through statistics or combinations of data from different sources"
+                                    ]
+                                },
+                                "trueAction": {
+                                    "type": "consent",
+                                    "consents": [
+                                        {
+                                            "matcher": {
+                                                "type": "css",
+                                                "target": {
+                                                    "selector": "[data-checked='true']"
+                                                }
+                                            },
+                                            "toggleAction": {
+                                                "type": "click",
+                                                "target": {
+                                                    "selector": "span.slider"
+                                                }
+                                            },
+                                            "type": "B"
+                                        }
+                                    ]
+                                }
+                            },
+                            {
+                                "type": "ifcss",
+                                "target": {
+                                    "selector": "label",
+                                    "textFilter": [
+                                        "Store and/or access information on a device",
+                                        "Use precise geolocation data",
+                                        "Actively scan device characteristics for identification"
+                                    ]
+                                },
+                                "trueAction": {
+                                    "type": "consent",
+                                    "consents": [
+                                        {
+                                            "matcher": {
+                                                "type": "css",
+                                                "target": {
+                                                    "selector": "[data-checked='true']"
+                                                }
+                                            },
+                                            "toggleAction": {
+                                                "type": "click",
+                                                "target": {
+                                                    "selector": "span.slider"
+                                                }
+                                            },
+                                            "type": "D"
+                                        }
+                                    ]
+                                }
+                            },
+                            {
+                                "type": "ifcss",
+                                "target": {
+                                    "selector": "label",
+                                    "textFilter": [
+                                        "Create profiles to personalise content",
+                                        "Use profiles to select personalised content",
+                                        "Measure content performance",
+                                        "Use limited data to select content"
+                                    ]
+                                },
+                                "trueAction": {
+                                    "type": "consent",
+                                    "consents": [
+                                        {
+                                            "matcher": {
+                                                "type": "css",
+                                                "target": {
+                                                    "selector": "[data-checked='true']"
+                                                }
+                                            },
+                                            "toggleAction": {
+                                                "type": "click",
+                                                "target": {
+                                                    "selector": "span.slider"
+                                                }
+                                            },
+                                            "type": "E"
+                                        }
+                                    ]
+                                }
+                            },
+                            {
+                                "type": "ifcss",
+                                "target": {
+                                    "selector": "label",
+                                    "textFilter": [
+                                        "Create profiles for personalised advertising",
+                                        "Use limited data to select advertising",
+                                        "Use profiles to select personalised advertising",
+                                        "Measure advertising performance"
+                                    ]
+                                },
+                                "trueAction": {
+                                    "type": "consent",
+                                    "consents": [
+                                        {
+                                            "matcher": {
+                                                "type": "css",
+                                                "target": {
+                                                    "selector": "[data-checked='true']"
+                                                }
+                                            },
+                                            "toggleAction": {
+                                                "type": "click",
+                                                "target": {
+                                                    "selector": "span.slider"
+                                                }
+                                            },
+                                            "type": "F"
+                                        }
+                                    ]
+                                }
+                            }
+                        ]
+                    }
+                },
+                "name": "DO_CONSENT"
+            },
+            {
+                "action": {
+                    "type": "click",
+                    "target": {
+                        "selector": ".st-text",
+                        "textFilter": [
+                            "Save & Exit"
+                        ]
+                    }
+                },
+                "name": "SAVE_CONSENT"
+            },
+            {
+                "name": "HIDE_CMP"
+            },
+            {
+                "name": "UTILITY"
+            }
+        ]
+    }
+}

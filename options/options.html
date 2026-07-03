@@ -1,0 +1,690 @@
+<!DOCTYPE html>
+<!-- `preload` disables CSS transitions until options.js has applied the saved
+     state (then it removes the class), so toggles don't visibly flip on load. -->
+<html lang="en" class="preload">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Sieve Settings</title>
+    <link rel="stylesheet" href="options.css" />
+  </head>
+  <body>
+    <!-- Loading veil — shown only while <html> carries `preload` (i.e. until
+         options.js has read and applied the saved state). Covers the page so the
+         momentary all-toggles-off default is never visible on refresh. -->
+    <div class="loading-veil" role="status" aria-live="polite">
+      <div class="loading-spinner" aria-hidden="true"></div>
+      <p>Loading your settings…</p>
+    </div>
+
+    <div class="app">
+      <aside class="sidebar">
+        <div class="sidebar-brand">
+          <div class="brand-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg>
+          </div>
+          <div class="brand-text">
+            <h1>Sieve</h1>
+            <p>Clean Internet Suite</p>
+          </div>
+        </div>
+
+        <nav class="nav" aria-label="Settings sections">
+          <a class="nav-link" href="#section-about" data-target="section-about"><span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/><path d="M12 8v.01"/><path d="M12 11v2"/></svg></span><span>About</span></a>
+          <a class="nav-link" href="#section-dashboard" data-target="section-dashboard"><span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 3v18h18"/><path d="M18 17V9"/><path d="M13 17V5"/><path d="M8 17v-3"/></svg></span><span>Dashboard</span></a>
+          <a class="nav-link" href="#section-security" data-target="section-security"><span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg></span><span>Security</span></a>
+          <a class="nav-link" href="#section-comments" data-target="section-comments"><span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg></span><span>Language &amp; Comments</span></a>
+          <a class="nav-link" href="#section-blocking" data-target="section-blocking"><span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg></span><span>Site Blocking</span></a>
+          <a class="nav-link" href="#section-browsing" data-target="section-browsing"><span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18"/><path d="M9 3v6"/></svg></span><span>Browsing</span></a>
+          <a class="nav-link" href="#section-focus" data-target="section-focus"><span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg></span><span>Focus</span></a>
+          <a class="nav-link" href="#section-advanced" data-target="section-advanced"><span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg></span><span>Advanced</span></a>
+        </nav>
+
+        <div class="sidebar-footer">
+          <p class="sidebar-note">Sieve runs entirely on your device. Your settings never leave this browser.</p>
+        </div>
+      </aside>
+
+      <main class="main">
+        <!-- =============================== About ============================== -->
+        <section class="section" id="section-about">
+          <div class="section-head">
+            <h2 class="section-title">About</h2>
+            <p class="section-desc">A quick note from the developer.</p>
+          </div>
+
+          <section class="card dev-note">
+            <div class="card-header">
+              <h2 class="card-title">Why I made Sieve</h2>
+            </div>
+
+            <div class="dev-note-body">
+              <p>Hey — thanks for installing Sieve.</p>
+
+              <p>
+                Honestly, I made this because I got tired. The internet I grew up on
+                felt fun and open. Somewhere over the years it turned into scams,
+                nasty comments, endless feeds, and sites that trick you at every
+                click. It stopped feeling safe or clean — for kids, for grown-ups,
+                for pretty much anyone.
+              </p>
+
+              <p>
+                So I built the tool I wished existed: something that quietly cleans
+                all that up and gives you back a bit of control. It all runs on your
+                own device — nothing tracked, no account, no catch. That's it.
+              </p>
+
+              <p>
+                I just want the internet to feel a little more human again. Hope
+                Sieve helps.
+              </p>
+
+              <p class="dev-note-sign">— monolab</p>
+
+              <a
+                class="bmc-btn"
+                href="https://buymeacoffee.com/monolab.co"
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                  <path d="M18 8h1a4 4 0 0 1 0 8h-1" />
+                  <path d="M2 8h16v9a4 4 0 0 1-4 4H6a4 4 0 0 1-4-4V8z" />
+                  <line x1="6" y1="1" x2="6" y2="4" />
+                  <line x1="10" y1="1" x2="10" y2="4" />
+                  <line x1="14" y1="1" x2="14" y2="4" />
+                </svg>
+                <span>Buy me a coffee</span>
+              </a>
+            </div>
+          </section>
+        </section>
+
+        <!-- ========================== Dashboard =========================== -->
+        <section class="section" id="section-dashboard">
+          <div class="section-head">
+            <h2 class="section-title">Protection Dashboard</h2>
+            <p class="section-desc">What Sieve blocked today and this week.</p>
+          </div>
+
+          <section class="card dashboard-card">
+            <div class="dashboard-tabs" id="dashboard-tabs" role="tablist">
+              <button class="dashboard-tab active" data-period="today" type="button">Today</button>
+              <button class="dashboard-tab" data-period="week" type="button">This Week</button>
+            </div>
+
+            <div class="dashboard-hero" id="dashboard-toggle" role="button" tabindex="0"
+                 aria-expanded="false" aria-controls="dashboard-grid">
+              <div class="dashboard-hero-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><path d="m9 12 2 2 4-4"/></svg>
+              </div>
+              <div class="dashboard-hero-text">
+                <div class="dashboard-hero-count">
+                  <span class="dashboard-hero-num" id="dashboard-total-num">0</span>
+                  <span class="dashboard-hero-label" id="dashboard-total-label">things blocked today</span>
+                </div>
+                <p class="dashboard-hero-sub" id="dashboard-total-sub"></p>
+              </div>
+              <span class="dashboard-hero-chevron" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+              </span>
+            </div>
+
+            <div class="dashboard-list" id="dashboard-grid" hidden>
+              <!-- populated by options.js -->
+            </div>
+          </section>
+        </section>
+
+        <!-- ============================== Security ============================== -->
+        <section class="section" id="section-security">
+          <div class="section-head">
+            <h2 class="section-title">Security</h2>
+            <p class="section-desc">Lock your settings against impulse changes — yours or anyone else's.</p>
+          </div>
+
+          <section class="card" id="guardian-card">
+            <div class="card-header">
+              <h2 class="card-title">Guardian Lock <span class="badge" id="guardian-status">Off</span></h2>
+              <p class="card-description">
+                Set a PIN to lock your settings against your own impulses — or anyone
+                else's. With a PIN, turning any module off or getting past the pause
+                screen asks for the PIN; strengthening your protection stays free.
+                With no PIN, Sieve is fully under your own control.
+              </p>
+            </div>
+
+            <div class="field" id="guardian-setup">
+              <h3>Set a PIN</h3>
+              <div class="add-row">
+                <input id="guardian-new" class="input" type="password" inputmode="numeric"
+                       placeholder="New PIN (4+ digits)" autocomplete="new-password" />
+                <input id="guardian-confirm" class="input" type="password" inputmode="numeric"
+                       placeholder="Confirm PIN" autocomplete="new-password" />
+                <button id="guardian-enable" class="btn btn-primary">Turn on</button>
+              </div>
+              <p id="guardian-setup-error" class="error" role="alert"></p>
+            </div>
+
+            <div class="field" id="guardian-manage" hidden>
+              <h3>Change or remove PIN</h3>
+              <div class="add-row">
+                <input id="guardian-current" class="input" type="password" inputmode="numeric"
+                       placeholder="Current PIN" autocomplete="off" />
+                <input id="guardian-change" class="input" type="password" inputmode="numeric"
+                       placeholder="New PIN (optional)" autocomplete="new-password" />
+              </div>
+              <div class="add-row guardian-actions">
+                <button id="guardian-update" class="btn btn-primary">Change PIN</button>
+                <button id="guardian-disable" class="btn btn-danger">Turn off</button>
+              </div>
+              <p id="guardian-manage-error" class="error" role="alert"></p>
+            </div>
+          </section>
+        </section>
+
+        <!-- ========================= Language & Comments ======================= -->
+        <section class="section" id="section-comments">
+          <div class="section-head">
+            <h2 class="section-title">Language &amp; Comments</h2>
+            <p class="section-desc">Clean up profanity on pages and hide toxic comments.</p>
+          </div>
+
+          <section class="card">
+            <div class="card-header">
+              <h2 class="card-title">Bad Language Filter</h2>
+            </div>
+
+            <div class="field">
+              <h3>Replacement style</h3>
+              <p class="hint">How filtered words appear on the page.</p>
+              <div class="radio-group">
+                <label class="radio">
+                  <input type="radio" name="replacementStyle" value="funny" />
+                  <span>Funny words</span> <span class="eg">fudge</span>
+                </label>
+                <label class="radio">
+                  <input type="radio" name="replacementStyle" value="asterisks" />
+                  <span>Asterisks</span> <span class="eg">f***</span>
+                </label>
+                <label class="radio">
+                  <input type="radio" name="replacementStyle" value="blanks" />
+                  <span>Blanks</span> <span class="eg">████</span>
+                </label>
+              </div>
+            </div>
+
+            <div class="field">
+              <div class="switch-row">
+                <div class="switch-label">
+                  <span class="label">Family-safe mode</span>
+                  <span class="description">Also replace milder words (stupid, idiot, sucks…)</span>
+                </div>
+                <label class="switch">
+                  <input type="checkbox" id="family-safe" />
+                  <span class="slider"></span>
+                </label>
+              </div>
+            </div>
+
+            <div class="field">
+              <h3>Custom words</h3>
+              <p class="hint">Add your own words to filter, on top of the built-in list.</p>
+              <div class="add-row">
+                <input id="word-input" class="input" type="text" placeholder="word" autocomplete="off" />
+                <button id="word-add" class="btn btn-primary">Add</button>
+              </div>
+              <p id="word-error" class="error" role="alert"></p>
+              <ul id="word-list" class="domain-list"></ul>
+            </div>
+          </section>
+
+          <section class="card">
+            <div class="card-header">
+              <h2 class="card-title">Toxic Comment Hider</h2>
+              <p class="card-description">
+                Hides toxic comments on YouTube, Reddit, X/Twitter and Disqus using a
+                built-in word list — it works instantly with nothing to download. Turn
+                it on or off per site from the toolbar popup.
+              </p>
+            </div>
+
+            <div class="field">
+              <h3>Smart detection (optional)</h3>
+              <p class="hint">
+                Also catches toxic comments that contain no obvious bad words, using
+                an on-device AI model. Downloads about <strong>55&nbsp;MB</strong>
+                once, then runs <strong>100% on your device</strong> — no comment
+                text ever leaves your browser. The word-list filter keeps working
+                whether or not this is on.
+              </p>
+              <div class="switch-row">
+                <div class="switch-label">
+                  <span class="label">Enable smart toxicity detection</span>
+                  <span class="description">Downloads ~55&nbsp;MB, one time</span>
+                </div>
+                <label class="switch">
+                  <input type="checkbox" id="toxic-model-toggle" />
+                  <span class="slider"></span>
+                </label>
+              </div>
+              <div id="toxic-model-progress" class="model-progress" hidden>
+                <div class="model-bar"><div id="toxic-model-bar-fill" class="model-bar-fill"></div></div>
+                <span id="toxic-model-progress-text">0%</span>
+              </div>
+              <p id="toxic-model-status" class="model-status" role="status"></p>
+              <button id="toxic-model-remove" class="link-danger" hidden>Remove downloaded model</button>
+            </div>
+
+            <div class="field">
+              <h3>Run on these sites</h3>
+              <p class="hint">Choose which comment sections the hider works on. Toggle a site on or off here.</p>
+              <div class="switch-row">
+                <div class="switch-label"><span class="label">YouTube</span></div>
+                <label class="switch"><input type="checkbox" id="toxic-site-youtube" /><span class="slider"></span></label>
+              </div>
+              <div class="switch-row">
+                <div class="switch-label"><span class="label">Reddit</span></div>
+                <label class="switch"><input type="checkbox" id="toxic-site-reddit" /><span class="slider"></span></label>
+              </div>
+              <div class="switch-row">
+                <div class="switch-label"><span class="label">X / Twitter</span></div>
+                <label class="switch"><input type="checkbox" id="toxic-site-twitter" /><span class="slider"></span></label>
+              </div>
+              <div class="switch-row">
+                <div class="switch-label"><span class="label">Disqus</span></div>
+                <label class="switch"><input type="checkbox" id="toxic-site-disqus" /><span class="slider"></span></label>
+              </div>
+            </div>
+
+            <div class="field">
+              <h3>Sensitivity</h3>
+              <p class="hint">How aggressively comments are hidden.</p>
+              <div class="radio-group">
+                <label class="radio">
+                  <input type="radio" name="toxicSensitivity" value="strict" />
+                  <span>Strict</span> <span class="eg">hide anything flagged</span>
+                </label>
+                <label class="radio">
+                  <input type="radio" name="toxicSensitivity" value="moderate" />
+                  <span>Moderate</span> <span class="eg">recommended</span>
+                </label>
+                <label class="radio">
+                  <input type="radio" name="toxicSensitivity" value="light" />
+                  <span>Light</span> <span class="eg">only clearly abusive</span>
+                </label>
+              </div>
+            </div>
+
+            <div class="field">
+              <h3>Custom words</h3>
+              <p class="hint">
+                Add your own words or phrases to hide, on top of the built-in list.
+                Leetspeak variants (f4ck, sh1t) are detected automatically — just add
+                the plain word.
+              </p>
+              <div class="add-row">
+                <input id="toxic-word-input" class="input" type="text" placeholder="word or phrase" autocomplete="off" />
+                <button id="toxic-word-add" class="btn btn-primary">Add</button>
+              </div>
+              <p id="toxic-word-error" class="error" role="alert"></p>
+              <ul id="toxic-word-list" class="domain-list"></ul>
+            </div>
+          </section>
+        </section>
+
+        <!-- ============================ Site Blocking ========================== -->
+        <section class="section" id="section-blocking">
+          <div class="section-head">
+            <h2 class="section-title">Site Blocking</h2>
+            <p class="section-desc">Block gambling, scams, trading, piracy, malware, and phishing.</p>
+          </div>
+
+          <section class="card">
+            <div class="card-header">
+              <h2 class="card-title">Gambling Blocker</h2>
+              <p class="card-description">
+                The main gambling &amp; betting on/off switch is in the toolbar popup. This
+                extra toggle also blocks prediction markets.
+              </p>
+            </div>
+
+            <div class="field">
+              <div class="switch-row">
+                <div class="switch-label">
+                  <span class="label">Block prediction markets</span>
+                  <span class="description">Blocks Polymarket, Kalshi, and similar betting platforms rebranded as “forecasting markets.”</span>
+                </div>
+                <label class="switch">
+                  <input type="checkbox" id="prediction-market-toggle" />
+                  <span class="slider"></span>
+                </label>
+              </div>
+            </div>
+
+          </section>
+
+          <section class="card">
+            <div class="card-header">
+              <h2 class="card-title">Financial Protection</h2>
+              <p class="card-description">
+                Three independent, opt-in blockers — all <strong>off by default</strong>,
+                so turn on only what you want. The shared <em>Allowlist</em> (its own card
+                below) applies here too: any domain you allow there is never blocked here.
+              </p>
+            </div>
+
+            <div class="field">
+              <div class="switch-row">
+                <div class="switch-label">
+                  <span class="label">Block crypto &amp; investment scams</span>
+                  <span class="description">Blocks known crypto scams, phishing, and fraud sites. Auto-updated daily.</span>
+                </div>
+                <label class="switch">
+                  <input type="checkbox" id="fp-scam-toggle" />
+                  <span class="slider"></span>
+                </label>
+              </div>
+              <p id="fp-scam-updated" class="hint meta" role="status">Scam list last updated: never</p>
+            </div>
+
+            <div class="field">
+              <div class="switch-row">
+                <div class="switch-label">
+                  <span class="label">Block trading &amp; exchange sites</span>
+                  <span class="description">Blocks legitimate exchanges and trading platforms (Coinbase, Robinhood, forex, etc.) — for staying away from speculative trading.</span>
+                </div>
+                <label class="switch">
+                  <input type="checkbox" id="fp-trading-toggle" />
+                  <span class="slider"></span>
+                </label>
+              </div>
+            </div>
+
+            <div class="field">
+              <div class="switch-row">
+                <div class="switch-label">
+                  <span class="label">Block MLM / multi-level marketing sites</span>
+                  <span class="description">Blocks known multi-level marketing company sites — recruitment-based schemes where most participants lose money, often paired with unproven health claims.</span>
+                </div>
+                <label class="switch">
+                  <input type="checkbox" id="fp-mlm-toggle" />
+                  <span class="slider"></span>
+                </label>
+              </div>
+            </div>
+          </section>
+
+          <section class="card">
+            <div class="card-header">
+              <h2 class="card-title">Safety Shield</h2>
+              <p class="card-description">
+                Independent, opt-in blockers — all <strong>off by default</strong>, so
+                turn on only what you want. Most lists auto-update on a schedule (the
+                gore/shock and dating lists are curated and ship with Sieve). The shared
+                <em>Allowlist</em> (its own card below) applies here too: any domain you
+                allow there is never blocked here.
+              </p>
+            </div>
+
+            <div class="field">
+              <div class="switch-row">
+                <div class="switch-label">
+                  <span class="label">Block piracy &amp; illegal streaming</span>
+                  <span class="description">Blocks torrent, warez, and illegal streaming sites (often malware-ridden). Auto-updated.</span>
+                </div>
+                <label class="switch">
+                  <input type="checkbox" id="ss-piracy-toggle" />
+                  <span class="slider"></span>
+                </label>
+              </div>
+              <p id="ss-piracy-updated" class="hint meta" role="status">Piracy list last updated: never</p>
+            </div>
+
+            <div class="field">
+              <div class="switch-row">
+                <div class="switch-label">
+                  <span class="label">Block malware &amp; phishing sites</span>
+                  <span class="description">Blocks known phishing, fake login, and malware sites. Auto-updated.</span>
+                </div>
+                <label class="switch">
+                  <input type="checkbox" id="ss-safety-toggle" />
+                  <span class="slider"></span>
+                </label>
+              </div>
+              <p id="ss-safety-updated" class="hint meta" role="status">Safety lists last updated: never</p>
+            </div>
+
+            <div class="field">
+              <div class="switch-row">
+                <div class="switch-label">
+                  <span class="label">Block cryptojacking / hidden miners</span>
+                  <span class="description">Blocks sites that secretly use your device to mine crypto (drains battery, slows your computer). Auto-updated.</span>
+                </div>
+                <label class="switch">
+                  <input type="checkbox" id="ss-cryptojacking-toggle" />
+                  <span class="slider"></span>
+                </label>
+              </div>
+              <p id="ss-cryptojacking-updated" class="hint meta" role="status">Cryptojacking list last updated: never</p>
+            </div>
+
+            <div class="field">
+              <div class="switch-row">
+                <div class="switch-label">
+                  <span class="label">Block AI content farms / spam sites</span>
+                  <span class="description">Blocks mass-produced AI-generated spam articles, fake reviews, and content-farm sites cluttering search results. Auto-updated.</span>
+                </div>
+                <label class="switch">
+                  <input type="checkbox" id="ss-aislop-toggle" />
+                  <span class="slider"></span>
+                </label>
+              </div>
+              <p id="ss-aislop-updated" class="hint meta" role="status">AI content-farm list last updated: never</p>
+            </div>
+
+            <div class="field">
+              <div class="switch-row">
+                <div class="switch-label">
+                  <span class="label">Block fraud &amp; scam sites</span>
+                  <span class="description">Blocks known fraud, scam, and fake-shop sites (fake stores, refund scams, impersonation, and similar). Auto-updated.</span>
+                </div>
+                <label class="switch">
+                  <input type="checkbox" id="ss-fraud-toggle" />
+                  <span class="slider"></span>
+                </label>
+              </div>
+              <p id="ss-fraud-updated" class="hint meta" role="status">Fraud list last updated: never</p>
+            </div>
+
+            <div class="field">
+              <div class="switch-row">
+                <div class="switch-label">
+                  <span class="label">Block known gore / shock sites</span>
+                  <span class="description">Blocks a curated list of known gore and shock-content sites. (Full graphic-content image filtering is planned for a future version.)</span>
+                </div>
+                <label class="switch">
+                  <input type="checkbox" id="ss-goreshock-toggle" />
+                  <span class="slider"></span>
+                </label>
+              </div>
+            </div>
+
+            <div class="field">
+              <div class="switch-row">
+                <div class="switch-label">
+                  <span class="label">Block dating sites</span>
+                  <span class="description">Blocks a curated list of mainstream and hookup dating sites (Tinder, Bumble, Match, Grindr, Ashley Madison, and similar) — for shared or younger-user browsers, or your own focus. Off by default; it's your choice.</span>
+                </div>
+                <label class="switch">
+                  <input type="checkbox" id="ss-dating-toggle" />
+                  <span class="slider"></span>
+                </label>
+              </div>
+            </div>
+          </section>
+
+          <section class="card">
+            <div class="card-header">
+              <h2 class="card-title">Blocked sites</h2>
+              <p class="card-description">
+                Your personal block list. Sites you add here are <strong>always
+                blocked</strong>, no matter which blockers are on.
+              </p>
+            </div>
+            <div class="field">
+              <div class="add-row">
+                <input id="block-input" class="input" type="text" placeholder="example.com" autocomplete="off" />
+                <button id="block-add" class="btn btn-primary">Add</button>
+              </div>
+              <p id="block-error" class="error" role="alert"></p>
+              <ul id="block-list" class="domain-list"></ul>
+            </div>
+          </section>
+
+          <section class="card">
+            <div class="card-header">
+              <h2 class="card-title">Allowlist (always allow)</h2>
+              <p class="card-description">
+                Sites here are <strong>never blocked</strong>, even if they're on a
+                blocklist. Applies to <em>every</em> blocker — gambling, prediction markets,
+                and all Financial Protection &amp; Safety Shield lists.
+              </p>
+            </div>
+            <div class="field">
+              <div class="add-row">
+                <input id="allow-input" class="input" type="text" placeholder="example.com" autocomplete="off" />
+                <button id="allow-add" class="btn btn-primary">Add</button>
+              </div>
+              <p id="allow-error" class="error" role="alert"></p>
+              <ul id="allow-list" class="domain-list"></ul>
+            </div>
+          </section>
+        </section>
+
+        <!-- ============================== Browsing ============================= -->
+        <section class="section" id="section-browsing">
+          <div class="section-head">
+            <h2 class="section-title">Browsing</h2>
+            <p class="section-desc">Strip manipulative “dark patterns” from the pages you visit.</p>
+          </div>
+
+          <section class="card">
+            <div class="card-header">
+              <h2 class="card-title">Dark Pattern Blocker</h2>
+              <p class="card-description">
+                Removes manipulative design tricks as you browse — fake countdown
+                timers, guilt-trip buttons, pre-ticked checkboxes, broken cookie
+                banners, and fake scarcity messages.
+              </p>
+            </div>
+
+            <div class="field">
+              <div class="switch-row">
+                <div class="switch-label">
+                  <span class="label">Enable Dark Pattern Blocker</span>
+                  <span class="description">Master switch for all the cleanups below</span>
+                </div>
+                <label class="switch"><input type="checkbox" id="dark-patterns-toggle" /><span class="slider"></span></label>
+              </div>
+            </div>
+
+            <div class="field">
+              <h3>What to clean up</h3>
+              <div class="switch-row">
+                <div class="switch-label"><span class="label">Fake countdown timers</span><span class="description">Remove bogus “offer ends in…” timers</span></div>
+                <label class="switch"><input type="checkbox" id="dark-pattern-timers-toggle" /><span class="slider"></span></label>
+              </div>
+              <div class="switch-row">
+                <div class="switch-label"><span class="label">Guilt-trip buttons</span><span class="description">Rewrite shaming “No thanks, I hate saving” copy</span></div>
+                <label class="switch"><input type="checkbox" id="dark-pattern-guilt-copy-toggle" /><span class="slider"></span></label>
+              </div>
+              <div class="switch-row">
+                <div class="switch-label"><span class="label">Pre-ticked checkboxes</span><span class="description">Flag opt-ins that were checked for you</span></div>
+                <label class="switch"><input type="checkbox" id="dark-pattern-checkboxes-toggle" /><span class="slider"></span></label>
+              </div>
+              <div class="switch-row">
+                <div class="switch-label"><span class="label">Cookie banner fixer</span><span class="description">Tidy intrusive cookie-consent walls</span></div>
+                <label class="switch"><input type="checkbox" id="dark-pattern-cookies-toggle" /><span class="slider"></span></label>
+              </div>
+              <div class="switch-row">
+                <div class="switch-label">
+                  <span class="label">Auto-reject non-essential cookies</span>
+                  <span class="description">Automatically rejects non-essential cookies on sites we recognize. Falls back to simplifying the banner on sites we don't.</span>
+                  <span class="description" id="cookie-autoreject-count">Auto-rejected cookies on 0 sites this week</span>
+                  <span class="credit">Cookie rules from <a href="https://github.com/cavi-au/Consent-O-Matic" target="_blank" rel="noopener noreferrer">Consent-O-Matic</a> — © CAVI, Aarhus University (MIT).</span>
+                </div>
+                <label class="switch"><input type="checkbox" id="dark-pattern-cookie-autoreject-toggle" /><span class="slider"></span></label>
+              </div>
+              <div class="switch-row">
+                <div class="switch-label"><span class="label">Fake scarcity messages</span><span class="description">Dim “Only 2 left!” pressure tactics</span></div>
+                <label class="switch"><input type="checkbox" id="dark-pattern-scarcity-toggle" /><span class="slider"></span></label>
+              </div>
+            </div>
+          </section>
+        </section>
+
+        <!-- =============================== Focus =============================== -->
+        <section class="section" id="section-focus">
+          <div class="section-head">
+            <h2 class="section-title">Focus</h2>
+            <p class="section-desc">Set daily limits on endless feeds.</p>
+          </div>
+
+          <section class="card">
+            <div class="card-header">
+              <h2 class="card-title">Doomscroll Stopper</h2>
+            </div>
+
+            <div class="field">
+              <h3>Tracked sites &amp; limits</h3>
+              <p class="hint">
+                Pick which feeds to watch and the <strong>daily</strong> time limit for each —
+                it's your total for the whole day and doesn't reset when you refresh or
+                reopen the tab. A limit of <strong>0</strong> turns it off.
+              </p>
+              <div id="ds-sites" class="ds-sites"></div>
+            </div>
+          </section>
+        </section>
+
+        <!-- ============================== Advanced ============================= -->
+        <section class="section" id="section-advanced">
+          <div class="section-head">
+            <h2 class="section-title">Advanced</h2>
+            <p class="section-desc">Extra protections and experimental options.</p>
+          </div>
+
+          <section class="card">
+            <div class="card-header">
+              <h2 class="card-title">URL Shortener Resolver</h2>
+            </div>
+
+            <div class="field">
+              <div class="switch-row">
+                <div class="switch-label">
+                  <span class="label">Also check links behind URL shorteners</span>
+                  <span class="description">Reveals what's really behind shortened links (bit.ly, tinyurl, etc.) and checks it against your enabled protections, before you click through.</span>
+                </div>
+                <label class="switch">
+                  <input type="checkbox" id="url-shortener-resolver-toggle" />
+                  <span class="slider"></span>
+                </label>
+              </div>
+            </div>
+          </section>
+        </section>
+
+        <footer class="footer">
+          Sieve · Clean Internet Suite — open and local-first.
+        </footer>
+      </main>
+    </div>
+
+    <script src="../common/guardian.js"></script>
+    <script src="../common/guardian-prompt.js"></script>
+    <script src="../common/toxic-model-cache.js"></script>
+    <script src="options.js"></script>
+  </body>
+</html>

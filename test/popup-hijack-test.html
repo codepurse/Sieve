@@ -1,0 +1,267 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Sieve — Popup &amp; Click Hijack Blocker test harness (STRICT)</title>
+    <style>
+      :root { --ok:#16a34a; --bad:#dc2626; --muted:#64748b; --border:#cbd5e1; --accent:#0284c7; }
+      body { font-family: system-ui,-apple-system,"Segoe UI",sans-serif; max-width:860px; margin:0 auto; padding:24px; color:#0f172a; line-height:1.5; }
+      h1 { font-size:22px; } h2 { font-size:16px; margin-top:28px; border-bottom:2px solid var(--border); padding-bottom:4px; }
+      .status { padding:10px 12px; border-radius:8px; background:#f1f5f9; border:1px solid var(--border); font-size:14px; }
+      .card { border:1px solid var(--border); border-radius:10px; padding:14px 16px; margin:12px 0; }
+      .card h3 { margin:0 0 4px; font-size:15px; } .expect { font-size:12px; color:var(--muted); margin:0 0 10px; } .expect b { color:#0f172a; }
+      button.run, .panel { padding:7px 12px; font-size:13px; border:1px solid var(--accent); background:#fff; color:var(--accent); border-radius:7px; cursor:pointer; }
+      button.run:hover { background:#e0f2fe; }
+      .panel { display:block; background:#f8fafc; border:1px dashed var(--border); color:#0f172a; cursor:default; }
+      .result { margin-left:10px; font-size:13px; font-weight:600; } .result.ok { color:var(--ok); } .result.bad { color:var(--bad); } .result.idle { color:var(--muted); font-weight:400; }
+      .legend { font-size:13px; color:var(--muted); } code { background:#f1f5f9; padding:1px 5px; border-radius:4px; font-size:12px; }
+      .stretch-card { position:relative; border:1px solid var(--border); border-radius:8px; padding:16px; margin-top:8px; background:#f8fafc; }
+    </style>
+  </head>
+  <body>
+    <h1>Sieve — Popup &amp; Click Hijack Blocker test harness <span style="color:#dc2626">(STRICT)</span></h1>
+
+    <div class="status" id="env-status">Checking environment…</div>
+
+    <p class="legend">
+      <b>How to use:</b> serve this folder over <code>http://localhost</code>
+      (<code>python -m http.server</code>), load the unpacked extension, open this page.
+      Watch the console for <code>[Sieve] Blocked…</code> lines and the popup's count.
+    </p>
+    <p class="legend">
+      <b>Strict mode</b> blocks ALL script-driven new windows by default and shows an on-page
+      <b>Allow</b> prompt. So the <b>B-tests must BLOCK</b> (a prompt appears) and the
+      <b>A-tests must stay ALLOWED</b> (no prompt — these are normal links, downloads, etc.).
+      Run with the module <b>OFF</b> first (B-tests will FAIL = dormant, A-tests PASS), then
+      <b>ON</b> (everything PASS). Each block pops the real Allow prompt; this harness dismisses
+      it automatically so tests can run back-to-back.
+    </p>
+
+    <h2>1 · Script-driven new windows — must BLOCK</h2>
+
+    <div class="card">
+      <h3>B1 — window.open (cross-origin)</h3>
+      <p class="expect">Expected: <b>BLOCK</b> (prompt appears; a fake window is returned).</p>
+      <button class="run" id="b1">Run window.open</button> <span class="result idle" id="r-b1">not run</span>
+    </div>
+    <div class="card">
+      <h3>B2 — window.open (SAME-origin)</h3>
+      <p class="expect">Strict blocks same-origin popups too. Expected: <b>BLOCK</b>.</p>
+      <button class="run" id="b2">Run same-origin window.open</button> <span class="result idle" id="r-b2">not run</span>
+    </div>
+    <div class="card">
+      <h3>B3 — scripted a.click() on a cross-origin target=_blank link</h3>
+      <p class="expect">The classic no-<code>window.open</code> popunder. Expected: <b>BLOCK</b>.</p>
+      <button class="run" id="b3">Run scripted link click</button> <span class="result idle" id="r-b3">not run</span>
+    </div>
+    <div class="card">
+      <h3>B4 — scripted form.submit() to a new window</h3>
+      <p class="expect">Expected: <b>BLOCK</b>.</p>
+      <button class="run" id="b4">Run scripted form submit</button> <span class="result idle" id="r-b4">not run</span>
+    </div>
+    <div class="card">
+      <h3>B5 — dispatchEvent(new MouseEvent('click')) on a _blank link</h3>
+      <p class="expect">Expected: <b>BLOCK</b>.</p>
+      <button class="run" id="b5">Run dispatched click</button> <span class="result idle" id="r-b5">not run</span>
+    </div>
+
+    <h2>2 · Must NOT break (false-positive guards)</h2>
+
+    <div class="card">
+      <h3>A1 — normal visible "open in new tab" link (real click)</h3>
+      <p class="expect">Click the link yourself. Expected: <b>ALLOWED</b> (no prompt; we don't gate genuine link clicks).</p>
+      <a href="https://example.com/?sieve-normal" target="_blank" id="a1" class="run" style="text-decoration:none;display:inline-block">Open example.com in a new tab</a>
+      <span class="result idle" id="r-a1">not run</span>
+    </div>
+    <div class="card">
+      <h3>A2 — file download via scripted a.click() (download attr + blob)</h3>
+      <p class="expect">How download libraries work. Expected: <b>ALLOWED</b> (download guard; no prompt).</p>
+      <div class="panel" id="a2">▾ Click to fire a scripted download ▾</div>
+      <span class="result idle" id="r-a2">not run</span>
+    </div>
+    <div class="card">
+      <h3>A3 — whitelisted site (manual)</h3>
+      <p class="expect">
+        Tick <b>"Allow popups on this site"</b> in the Sieve popup, then re-run <b>B1</b>. Expected:
+        the popup is <b>ALLOWED</b> (no prompt) because this host is whitelisted. Untick to restore blocking.
+      </p>
+    </div>
+
+    <h2>3 · Overlay removal</h2>
+    <div class="card">
+      <h3>B6 — transparent full-page click-catcher overlay</h3>
+      <p class="expect">Full-viewport, transparent, high z-index, clickable. Expected: <b>REMOVED</b>.</p>
+      <button class="run" id="b6">Inject overlay</button> <span class="result idle" id="r-b6">not run</span>
+    </div>
+    <div class="card">
+      <h3>A4 — dimmed modal backdrop (legit)</h3>
+      <p class="expect">Full-viewport, high z-index, visible dark background. Expected: <b>KEPT</b>.</p>
+      <button class="run" id="a4">Inject backdrop</button> <span class="result idle" id="r-a4">not run</span>
+    </div>
+
+    <h2>4 · Hidden-link cleanup</h2>
+    <div class="card">
+      <h3>B7 — off-screen cross-origin _blank link</h3>
+      <p class="expect">fixed; left:-9999px; rendered box. Expected: <b>REMOVED</b>.</p>
+      <button class="run" id="b7">Inject off-screen link</button> <span class="result idle" id="r-b7">not run</span>
+    </div>
+    <div class="card">
+      <h3>A5 — stretched-link over a card (legit)</h3>
+      <p class="expect">absolute; inset:0; transparent; on-screen; cross-origin _blank. Expected: <b>KEPT</b>.</p>
+      <div class="stretch-card" id="stretch-card">A clickable card linked via a transparent stretched anchor.</div>
+      <button class="run" id="a5">Inject stretched-link</button> <span class="result idle" id="r-a5">not run</span>
+    </div>
+
+    <h2>5 · Recovery (manual)</h2>
+    <div class="card">
+      <p class="expect" style="font-size:13px">
+        When a popup is blocked you get an on-page prompt: <b>Allow</b> (opens it once),
+        <b>Always allow this site</b> (whitelists the host), or <b>✕</b>. The Sieve popup also lists
+        every blocked URL with <b>Open anyway</b>, and <b>Clear list</b> resets the count.
+      </p>
+    </div>
+
+    <script>
+      const XO = "https://example.com/?sieve-xo";
+      const XO2 = "https://example.net/?sieve-ad";
+
+      function show(id, ok, msg) {
+        const el = document.getElementById(id);
+        el.className = "result " + (ok ? "ok" : "bad");
+        el.textContent = (ok ? "PASS — " : "FAIL — ") + msg;
+      }
+
+      // A block is observable because the MAIN script injects #sieve-ph-prompt-host
+      // (its shadow root is closed, but the host element is visible to us).
+      function promptShown() {
+        const h = document.getElementById("sieve-ph-prompt-host");
+        return !!h && h.style.display !== "none";
+      }
+      function clearPrompt() {
+        const h = document.getElementById("sieve-ph-prompt-host");
+        if (h) h.remove(); // the blocker recreates it on the next block
+      }
+
+      // Window.open test: blocked iff the prompt appears. Close any real window
+      // (module OFF) so we don't spam tabs.
+      function openTest(resId, url, shouldBlock) {
+        let w = null;
+        try { w = window.open(url, "_blank"); } catch (e) {}
+        setTimeout(() => {
+          const blocked = promptShown();
+          if (w && typeof w.close === "function") { try { w.close(); } catch (e) {} }
+          clearPrompt();
+          report(resId, blocked, shouldBlock);
+        }, 60);
+      }
+
+      // Scripted-action test: fire `trigger()`; blocked iff a prompt appeared and
+      // the element's real click/submit never ran. A capture listener both detects
+      // "allowed" (it fires) and cancels the real navigation/download.
+      function scriptedTest(resId, el, evType, trigger, shouldBlock) {
+        let fired = false;
+        const on = (e) => { fired = true; try { e.preventDefault(); } catch (_) {} };
+        el.addEventListener(evType, on, true);
+        try { trigger(); } catch (e) {}
+        setTimeout(() => {
+          el.removeEventListener(evType, on, true);
+          try { el.remove(); } catch (_) {}
+          const blocked = !fired && promptShown();
+          clearPrompt();
+          report(resId, blocked, shouldBlock);
+        }, 60);
+      }
+
+      function report(resId, blocked, shouldBlock) {
+        if (shouldBlock) show(resId, blocked, blocked ? "blocked (prompt shown)" : "NOT blocked");
+        else show(resId, !blocked, blocked ? "WRONGLY blocked" : "allowed");
+      }
+
+      function blankAnchor(href, dl) {
+        const a = document.createElement("a");
+        a.href = href; a.target = "_blank"; a.textContent = "x";
+        if (dl) a.setAttribute("download", "sieve-test.txt");
+        a.style.cssText = "position:absolute;left:-9999px;";
+        document.body.appendChild(a);
+        return a;
+      }
+
+      // --- Section 1: must block ---
+      document.getElementById("b1").addEventListener("click", () => openTest("r-b1", XO, true));
+      document.getElementById("b2").addEventListener("click", () => openTest("r-b2", location.href, true));
+      document.getElementById("b3").addEventListener("click", () => {
+        const a = blankAnchor(XO2);
+        scriptedTest("r-b3", a, "click", () => a.click(), true);
+      });
+      document.getElementById("b4").addEventListener("click", () => {
+        const f = document.createElement("form");
+        f.method = "GET"; f.action = XO2; f.target = "_blank";
+        f.style.cssText = "position:absolute;left:-9999px;";
+        document.body.appendChild(f);
+        scriptedTest("r-b4", f, "submit", () => f.submit(), true);
+      });
+      document.getElementById("b5").addEventListener("click", () => {
+        const a = blankAnchor(XO2);
+        scriptedTest("r-b5", a, "click", () => a.dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true })), true);
+      });
+
+      // --- Section 2: must not break ---
+      document.getElementById("a1").addEventListener("click", (e) => {
+        e.preventDefault(); // don't actually navigate during the test
+        const blocked = promptShown();
+        clearPrompt();
+        report("r-a1", blocked, false);
+      });
+      document.getElementById("a2").addEventListener("click", () => {
+        const blobUrl = URL.createObjectURL(new Blob(["sieve"], { type: "text/plain" }));
+        const a = blankAnchor(blobUrl, true);
+        scriptedTest("r-a2", a, "click", () => a.click(), false);
+      });
+
+      // --- DOM tests (overlay + link), unchanged behavior ---
+      function domTest(resId, make, shouldRemove, delay = 800) {
+        const el = make();
+        setTimeout(() => {
+          const there = document.body.contains(el);
+          if (shouldRemove) show(resId, !there, there ? "still present" : "removed by Sieve");
+          else show(resId, there, there ? "kept (correct)" : "WRONGLY removed");
+          if (there) { try { el.remove(); } catch (e) {} }
+        }, delay);
+      }
+      document.getElementById("b6").addEventListener("click", () => domTest("r-b6", () => {
+        const o = document.createElement("div");
+        o.style.cssText = "position:fixed;inset:0;width:100vw;height:100vh;z-index:2147483647;background:transparent;cursor:pointer;";
+        o.addEventListener("click", () => {});
+        document.body.appendChild(o); return o;
+      }, true));
+      document.getElementById("a4").addEventListener("click", () => domTest("r-a4", () => {
+        const o = document.createElement("div");
+        o.style.cssText = "position:fixed;inset:0;width:100vw;height:100vh;z-index:9999;background:rgba(0,0,0,0.5);cursor:pointer;";
+        document.body.appendChild(o); return o;
+      }, false));
+      document.getElementById("b7").addEventListener("click", () => domTest("r-b7", () => {
+        const a = document.createElement("a");
+        a.href = XO2; a.target = "_blank"; a.textContent = "decoy";
+        a.style.cssText = "position:fixed;left:-9999px;top:0;width:120px;height:24px;";
+        document.body.appendChild(a); return a;
+      }, true));
+      document.getElementById("a5").addEventListener("click", () => domTest("r-a5", () => {
+        const a = document.createElement("a");
+        a.href = XO; a.target = "_blank";
+        a.style.cssText = "position:absolute;inset:0;background:transparent;";
+        document.getElementById("stretch-card").appendChild(a); return a;
+      }, false));
+
+      // --- Environment banner ---
+      (function () {
+        const el = document.getElementById("env-status");
+        const injected = window.__sievePopupHijackActive === true;
+        el.innerHTML = injected
+          ? "✅ Sieve interceptor is injected. Set the <b>Popup &amp; Click Hijack Blocker</b> toggle " +
+            "(OFF = B-tests FAIL/dormant, A-tests PASS; ON = everything PASS)."
+          : "⚠️ Sieve interceptor NOT detected. Load the unpacked extension and serve over http(s).";
+      })();
+    </script>
+  </body>
+</html>

@@ -1,0 +1,48 @@
+{
+	"$schema": "https://raw.githubusercontent.com/cavi-au/Consent-O-Matic/master/rules.schema.json",
+  "umf.dk": {
+    "detectors": [
+      {
+        "presentMatcher": {
+          "parent": null,
+          "target": {
+            "selector": "#portal-cookieoptout"
+          },
+          "type": "css"
+        },
+        "showingMatcher": {
+          "parent": null,
+          "target": {
+            "selector": "#portal-cookieoptout"
+          },
+          "type": "css"
+        }
+      }
+    ],
+    "methods": [
+      {
+        "action": {
+          "consents": [
+            {
+              "falseAction": {
+                "target": {
+                  "selector": "#portal-cookieoptout a[href='./#cookieoptout']"
+                },
+                "type": "click"
+              },
+              "trueAction": {
+                "target": {
+                  "selector": "#portal-cookieoptout a[href='./#cookieoptin']"
+                },
+                "type": "click"
+              },
+              "type": "B"
+            }
+          ],
+          "type": "consent"
+        },
+        "name": "DO_CONSENT"
+      }
+    ]
+  }
+}

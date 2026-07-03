@@ -1,0 +1,40 @@
+{
+  "cookieyes": {
+    "detectors": [
+      {
+        "presentMatcher": [
+          { "type": "css", "target": { "selector": ".cky-consent-container" } }
+        ],
+        "showingMatcher": [
+          { "type": "css", "target": { "selector": ".cky-consent-container", "displayFilter": true } }
+        ]
+      }
+    ],
+    "methods": [
+      {
+        "name": "DO_CONSENT",
+        "action": {
+          "type": "ifcss",
+          "target": { "selector": "[data-cky-tag='reject-button']" },
+          "trueAction": {
+            "type": "click",
+            "target": { "selector": "[data-cky-tag='reject-button']" }
+          },
+          "falseAction": {
+            "type": "list",
+            "actions": [
+              { "type": "click", "target": { "selector": "[data-cky-tag='settings-button']" } },
+              { "type": "waitcss", "target": { "selector": "[data-cky-tag='detail-reject-button']" }, "retries": 15, "waitTime": 150 },
+              { "type": "click", "target": { "selector": "[data-cky-tag='detail-reject-button']" } }
+            ]
+          }
+        }
+      },
+      {
+        "name": "HIDE_CMP",
+        "action": { "type": "hide", "target": { "selector": ".cky-consent-container" } }
+      },
+      { "name": "UTILITY" }
+    ]
+  }
+}
