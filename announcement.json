@@ -1,0 +1,9 @@
+{
+  "id": "2026-07-welcome",
+  "active": true,
+  "level": "info",
+  "title": "Thanks for installing Sieve 👋",
+  "message": "This little banner is fetched straight from the project's GitHub repo — no server, no account. Edit announcement.json to post updates, or set \"active\": false to hide it.",
+  "url": "https://github.com/codepurse/Sieve",
+  "linkText": "View the project"
+}

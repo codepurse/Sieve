@@ -192,6 +192,8 @@ function optionsDefaults() {
     cookieAutoRejectStats: null,
     // Protection Dashboard — remember whether the breakdown is expanded
     dashboardExpanded: false,
+    // Announcement banner — id of the last message the user dismissed
+    dismissedAnnouncementId: "",
   };
   for (const t of DARK_PATTERN_TYPES) {
     d[t.key] = t.default !== undefined ? t.default : true;
@@ -299,6 +301,10 @@ async function applyStoredSettings(store) {
 
   // Doomscroll needs the bundled site list (a fast, local fetch).
   await setupDoomscroll(store);
+
+  // Announcement banner — fetched from the repo over the network. Fire-and-forget
+  // so a slow/failed fetch never delays revealing the page.
+  setupAnnouncement(store);
 }
 
 // ===========================================================================
@@ -1141,4 +1147,79 @@ function escapeHtml(str) {
     .replace(/</g, "&lt;")
     .replace(/>/g, "&gt;")
     .replace(/"/g, "&quot;");
+}
+
+// ===========================================================================
+// Announcement banner — a backend-free way to show a message to all users.
+// Host a small JSON file in the repo and edit it to broadcast; the options page
+// fetches it on open. No account, no database. Expected shape (all optional
+// except `message`):
+//   {
+//     "id": "2026-07-release",     // change this whenever you post a NEW message
+//     "active": true,               // set false to hide without deleting
+//     "level": "info",              // info | update | warning (styles the accent)
+//     "title": "Sieve 1.3 is out",
+//     "message": "What's new: …",
+//     "url": "https://…",           // optional call-to-action link
+//     "linkText": "Read more"
+//   }
+// ---------------------------------------------------------------------------
+// Point this at the raw file in YOUR repo after pushing (replace the username).
+// raw.githubusercontent.com serves the file directly; <all_urls> host permission
+// lets the extension page fetch it.
+const ANNOUNCEMENT_URL =
+  "https://raw.githubusercontent.com/codepurse/Sieve/main/announcement.json";
+
+async function setupAnnouncement(store) {
+  const el = document.getElementById("announcement");
+  if (!el) return;
+
+  let data;
+  try {
+    const res = await fetch(ANNOUNCEMENT_URL, { cache: "no-cache" });
+    if (!res.ok) return; // 404 (not posted yet) / server error → show nothing
+    data = await res.json();
+  } catch {
+    return; // offline / blocked / malformed → fail silently, never nag
+  }
+
+  if (!data || data.active === false || !data.message) return;
+
+  // A stable id lets "dismiss" stick until you post a genuinely new message.
+  const id = String(data.id || data.message);
+  const dismissed =
+    (store && store.dismissedAnnouncementId) ||
+    (await chrome.storage.local.get({ dismissedAnnouncementId: "" })).dismissedAnnouncementId;
+  if (dismissed === id) return;
+
+  const titleEl = document.getElementById("announcement-title");
+  const textEl = document.getElementById("announcement-text");
+  const linkEl = document.getElementById("announcement-link");
+  const dismissBtn = document.getElementById("announcement-dismiss");
+
+  // Text only (never innerHTML) — the message is trusted content, but rendering
+  // it as text keeps the banner XSS-proof regardless of what's in the file.
+  if (titleEl) {
+    titleEl.textContent = data.title || "";
+    titleEl.hidden = !data.title;
+  }
+  if (textEl) textEl.textContent = data.message;
+
+  el.dataset.level = ["info", "update", "warning"].includes(data.level) ? data.level : "info";
+
+  // Optional link — only render if it's a real http(s) URL.
+  if (linkEl && data.url && /^https?:\/\//i.test(String(data.url))) {
+    linkEl.href = data.url;
+    linkEl.textContent = data.linkText || "Learn more";
+    linkEl.hidden = false;
+  }
+
+  el.hidden = false;
+
+  if (dismissBtn) {
+    dismissBtn.addEventListener("click", () => {
+      el.hidden = true;
+      chrome.storage.local.set({ dismissedAnnouncementId: id }).catch(() => {});
+    });
+  }
 }

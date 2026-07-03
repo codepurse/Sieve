@@ -1147,6 +1147,106 @@ input:checked + .slider::before {
 }
 
 /* ==========================================================================
+   Announcement banner (fetched from the repo)
+   ========================================================================== */
+
+.announcement {
+  position: relative;
+  display: flex;
+  align-items: flex-start;
+  gap: 0.9rem;
+  margin-bottom: 1.75rem;
+  padding: 1rem 1.15rem;
+  background: var(--card-gradient);
+  border: 1px solid var(--card-border);
+  border-left: 3px solid var(--primary);
+  border-radius: var(--radius);
+  box-shadow: var(--card-shadow);
+  animation: announcement-in 0.3s var(--ease);
+}
+
+@keyframes announcement-in {
+  from { opacity: 0; transform: translateY(-6px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* Level accents — the left edge + icon tint carry the meaning */
+.announcement[data-level="info"] { border-left-color: var(--brand-3); }
+.announcement[data-level="update"] { border-left-color: var(--success); }
+.announcement[data-level="warning"] { border-left-color: var(--warning); }
+
+.announcement-icon {
+  flex-shrink: 0;
+  display: flex;
+  margin-top: 0.1rem;
+  color: var(--accent-text);
+}
+.announcement[data-level="update"] .announcement-icon { color: var(--success); }
+.announcement[data-level="warning"] .announcement-icon { color: var(--warning); }
+
+.announcement-icon svg {
+  width: 20px;
+  height: 20px;
+}
+
+.announcement-body {
+  flex: 1;
+  min-width: 0;
+}
+
+.announcement-title {
+  font-size: 0.98rem;
+  font-weight: 650;
+  color: var(--foreground);
+}
+
+.announcement-title:not([hidden]) + .announcement-text {
+  margin-top: 0.25rem;
+}
+
+.announcement-text {
+  font-size: 0.88rem;
+  line-height: 1.55;
+  color: var(--foreground-muted);
+  white-space: pre-line;
+}
+
+.announcement-link {
+  display: inline-block;
+  margin-top: 0.55rem;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--accent-text);
+  text-decoration: none;
+}
+
+.announcement-link:hover {
+  text-decoration: underline;
+}
+
+.announcement-dismiss {
+  flex-shrink: 0;
+  display: flex;
+  padding: 0.25rem;
+  border: none;
+  background: transparent;
+  color: var(--foreground-dim);
+  cursor: pointer;
+  border-radius: var(--radius-sm);
+  transition: var(--transition-fast);
+}
+
+.announcement-dismiss:hover {
+  color: var(--foreground);
+  background: var(--input-bg);
+}
+
+.announcement-dismiss svg {
+  width: 18px;
+  height: 18px;
+}
+
+/* ==========================================================================
    Dashboard
    ========================================================================== */
 

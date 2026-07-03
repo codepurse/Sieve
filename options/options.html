@@ -46,6 +46,23 @@
       </aside>
 
       <main class="main">
+        <!-- ===== Announcement banner — fetched from announcement.json in the
+             repo (no backend). Hidden unless there's an active, undismissed
+             message. Populated by options.js → setupAnnouncement(). ===== -->
+        <div class="announcement" id="announcement" data-level="info" role="status" hidden>
+          <span class="announcement-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m3 11 18-5v12L3 14v-3z"/><path d="M11.6 16.8a3 3 0 1 1-5.8-1.6"/></svg>
+          </span>
+          <div class="announcement-body">
+            <h3 class="announcement-title" id="announcement-title"></h3>
+            <p class="announcement-text" id="announcement-text"></p>
+            <a class="announcement-link" id="announcement-link" target="_blank" rel="noopener noreferrer" hidden></a>
+          </div>
+          <button class="announcement-dismiss" id="announcement-dismiss" type="button" aria-label="Dismiss this message">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+          </button>
+        </div>
+
         <!-- =============================== About ============================== -->
         <section class="section" id="section-about">
           <div class="section-head">

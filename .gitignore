@@ -2,8 +2,22 @@
 # never shipped loose. Run `npm install` to recreate.
 node_modules/
 
+# Chrome-generated build output. Created automatically when the unpacked
+# extension is loaded (it indexes the declarativeNetRequest rulesets). Never
+# hand-edited, always regenerated — should not be in the repo.
+_metadata/
+
+# Local tooling / editor state (Claude Code, uploads scratch) — machine-specific.
+.claude/
+.uploads/
+
 # esbuild's own metafile / logs, if ever emitted
 *.log
+
+# Packaged extension artifacts / signing keys — never commit these
+*.zip
+*.crx
+*.pem
 
 # OS cruft
 .DS_Store
