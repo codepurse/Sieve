@@ -24,12 +24,12 @@
 
   // Defaults used until (and unless) the options page writes per-site settings.
   // A time limit of 0 means "this limit is off".
-  const DEFAULT_SITE_SETTINGS = { enabled: true, timeLimitMinutes: 15 };
+  const DEFAULT_SITE_SETTINGS = { enabled: false, timeLimitMinutes: 15 };
 
   // --- live state ---------------------------------------------------------
   let site = null;                       // matched entry from site-configs.json
   let settings = DEFAULT_SITE_SETTINGS;  // this site's limit
-  let moduleEnabled = true;              // master Doomscroll Stopper toggle
+  let moduleEnabled = false;             // master Doomscroll Stopper toggle (opt-in, off by default)
   let stoppedToday = false;              // user chose "Stop for today"
 
   let statsDate = "";      // the date the in-memory total belongs to
@@ -90,7 +90,7 @@
   // --- read settings + "stopped for today" from storage ------------------
   async function loadSettings() {
     const stored = await chrome.storage.local.get({
-      doomscrollEnabled: true,
+      doomscrollEnabled: false,
       doomscrollSites: {},
       doomscrollStoppedDates: {},
     });

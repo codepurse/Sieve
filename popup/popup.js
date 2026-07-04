@@ -49,7 +49,8 @@ document.addEventListener("DOMContentLoaded", () => {
     document.getElementById("doomscroll-toggle"),
     document.getElementById("doomscroll-state"),
     "doomscrollEnabled",
-    "the Doomscroll Stopper"
+    "the Doomscroll Stopper",
+    false // opt-in: off by default on first run
   );
 
   document.getElementById("open-settings").addEventListener("click", () => {
@@ -81,7 +82,7 @@ const MODULE_DEFAULTS = {
   // Core modules (shown in the popup)
   badLanguageEnabled: true,
   gamblingEnabled: true,
-  doomscrollEnabled: true,
+  doomscrollEnabled: false,
   darkPatternsEnabled: true,
   toxicHiderEnabled: true,
   popupHijackEnabled: false,

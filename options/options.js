@@ -719,7 +719,7 @@ async function setupGuardian(store) {
 // Doomscroll Stopper (Module 2A) — per-site tracking, limits, today's stats.
 // ===========================================================================
 
-const DS_SITE_DEFAULTS = { enabled: true, timeLimitMinutes: 15 };
+const DS_SITE_DEFAULTS = { enabled: false, timeLimitMinutes: 15 };
 
 // Local date "YYYY-MM-DD" — matches the content script and service worker.
 function dsTodayStr() {
