@@ -1,6 +1,6 @@
 {
   "name": "sieve",
-  "version": "1.2.0",
+  "version": "1.0.0",
   "private": true,
   "description": "Build tooling for Sieve's optional TensorFlow.js toxicity model (Module 4A, Layer 2). The extension itself is plain JS loaded directly by the manifest; only the optional Layer-2 bundle is produced by esbuild.",
   "scripts": {

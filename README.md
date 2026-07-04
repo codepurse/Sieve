@@ -4,7 +4,7 @@
 
 ![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)
 ![Manifest V3](https://img.shields.io/badge/Manifest-V3-blue.svg)
-![Version](https://img.shields.io/badge/version-1.2.0-green.svg)
+![Version](https://img.shields.io/badge/version-1.0.0-green.svg)
 ![Runs on-device](https://img.shields.io/badge/privacy-100%25%20on--device-brightgreen.svg)
 
 Sieve blocks the stuff that makes the internet feel hostile — scams, gambling,
