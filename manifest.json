@@ -1,6 +1,7 @@
 {
   "manifest_version": 3,
-  "name": "Sieve",
+  "name": "Sieve – Content Filter & Site Blocker",
+  "short_name": "Sieve",
   "version": "1.0.0",
   "description": "Clean Internet Suite — blocks gambling, dark patterns, and doomscrolling.",
   "icons": {
