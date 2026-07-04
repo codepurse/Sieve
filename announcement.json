@@ -1,9 +1,10 @@
 {
-  "id": "2026-07-welcome",
+  "id": "2026-07-blocknsfw-promo",
   "active": true,
   "level": "info",
-  "title": "Thanks for installing Sieve 👋",
-  "message": "This little banner is fetched straight from the project's GitHub repo — no server, no account. Edit announcement.json to post updates, or set \"active\": false to hide it.",
-  "url": "https://github.com/codepurse/Sieve",
-  "linkText": "View the project"
+  "title": "Also blocking porn & adult content? 👋",
+  "message": "Sieve focuses on scams, gore, gambling, toxic comments, and digital wellbeing — it doesn't touch adult content by design. If you're looking for that specifically, check out BlockNSFW, a separate extension by the same developer.",
+  "url": "https://chromewebstore.google.com/detail/blocknsfw-%E2%80%93-porn-adult-co/fiecjgpoilkhmoieaboolkfmgbnhlhop",
+  "urlFirefox": "https://addons.mozilla.org/en-US/firefox/addon/blocknsfw-porn-adult-content/",
+  "linkText": "View BlockNSFW"
 }

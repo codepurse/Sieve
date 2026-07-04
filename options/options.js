@@ -1160,7 +1160,11 @@ function escapeHtml(str) {
 //     "level": "info",              // info | update | warning (styles the accent)
 //     "title": "Sieve 1.3 is out",
 //     "message": "What's new: …",
-//     "url": "https://…",           // optional call-to-action link
+//     "url": "https://…",           // optional call-to-action link (default / Chrome)
+//     "urlFirefox": "https://…",    // optional override used only on Firefox —
+//                                    // e.g. an addons.mozilla.org link when `url`
+//                                    // points at the Chrome Web Store. Falls back
+//                                    // to `url` when omitted.
 //     "linkText": "Read more"
 //   }
 // ---------------------------------------------------------------------------
@@ -1169,6 +1173,11 @@ function escapeHtml(str) {
 // lets the extension page fetch it.
 const ANNOUNCEMENT_URL =
   "https://raw.githubusercontent.com/codepurse/Sieve/main/announcement.json";
+
+// Firefox extension pages load from moz-extension://; every Chromium browser
+// (Chrome, Edge, Brave, Opera) uses chrome-extension://. No special permission
+// needed — this just reads the current page's own URL scheme.
+const IS_FIREFOX = location.protocol === "moz-extension:";
 
 async function setupAnnouncement(store) {
   const el = document.getElementById("announcement");
@@ -1207,9 +1216,12 @@ async function setupAnnouncement(store) {
 
   el.dataset.level = ["info", "update", "warning"].includes(data.level) ? data.level : "info";
 
-  // Optional link — only render if it's a real http(s) URL.
-  if (linkEl && data.url && /^https?:\/\//i.test(String(data.url))) {
-    linkEl.href = data.url;
+  // Optional link — Firefox gets `urlFirefox` when provided (e.g. an AMO page
+  // instead of a Chrome Web Store one), otherwise everyone gets `url`. Only
+  // rendered if the resolved value is a real http(s) URL.
+  const linkUrl = (IS_FIREFOX && data.urlFirefox) || data.url;
+  if (linkEl && linkUrl && /^https?:\/\//i.test(String(linkUrl))) {
+    linkEl.href = linkUrl;
     linkEl.textContent = data.linkText || "Learn more";
     linkEl.hidden = false;
   }

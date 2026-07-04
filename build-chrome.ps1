@@ -101,7 +101,23 @@ if ($Zip) {
     $ZipPath = Join-Path $ScriptDir "dist\sieve-chrome.zip"
     if (Test-Path $ZipPath) { Remove-Item $ZipPath -Force }
     Write-Host "==> Creating $ZipPath" -ForegroundColor Cyan
-    Compress-Archive -Path (Join-Path $OutDir "*") -DestinationPath $ZipPath
+
+    # Use .NET ZipFile so entry paths use forward slashes. Compress-Archive on
+    # Windows PowerShell 5.1 writes backslash separators (rules\gambling-rules.json),
+    # which Chrome tolerates but the Edge Partner Center validator rejects
+    # ("ZIP file doesn't contain the rules/gambling-rules.json file"). The same
+    # package is valid for both Chrome and Edge once entries use forward slashes.
+    [System.Reflection.Assembly]::LoadWithPartialName("System.IO.Compression.FileSystem") | Out-Null
+    $ZipStream = [System.IO.Compression.ZipFile]::Open($ZipPath, "Create")
+    try {
+        $files = Get-ChildItem -Path $OutDir -Recurse -File
+        foreach ($f in $files) {
+            $rel = $f.FullName.Substring($OutDir.Length).TrimStart('\', '/') -replace '\\', '/'
+            [System.IO.Compression.ZipFileExtensions]::CreateEntryFromFile($ZipStream, $f.FullName, $rel, "Optimal") | Out-Null
+        }
+    } finally {
+        $ZipStream.Dispose()
+    }
 }
 
 Write-Host "==> Chrome build complete: $OutDir" -ForegroundColor Green
