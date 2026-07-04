@@ -18,6 +18,10 @@ sieve-phase3-prompt.md
 sieve-phase4-prompt.md
 sieve-financial-protection-prompt.md
 
+# Store listing / marketing image sources (HTML promo tiles + screenshots).
+# Used to generate Chrome Web Store assets locally; not part of the extension.
+store-assets/
+
 # esbuild's own metafile / logs, if ever emitted
 *.log
 

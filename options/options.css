@@ -227,14 +227,16 @@ body::after {
   display: flex;
   align-items: center;
   justify-content: center;
-  color: #07131f;
-  background: linear-gradient(135deg, var(--brand-1), var(--brand-2));
-  box-shadow: 0 8px 20px -8px var(--primary-glow), inset 0 1px 0 rgba(255, 255, 255, 0.25);
+  background: transparent;
+  box-shadow: 0 8px 20px -10px var(--primary-glow);
 }
 
+.brand-icon img,
 .brand-icon svg {
-  width: 22px;
-  height: 22px;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  display: block;
 }
 
 .brand-text h1 {
