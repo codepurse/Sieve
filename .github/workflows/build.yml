@@ -1,0 +1,111 @@
+name: Build extension bundles
+
+on:
+  push:
+    branches:
+      - main
+      - master
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        shell: pwsh
+        run: npm ci --no-audit --no-fund
+
+      # Sieve (unlike BlockNSFW) generates two bundles at build time. Rebuild
+      # them from source so CI fails if the toxicity model or the vendored
+      # cookie engine no longer compiles — not just if a committed file changed.
+      - name: Build toxicity model bundle
+        shell: pwsh
+        run: npm run build
+
+      - name: Build cookie engine + rules
+        shell: pwsh
+        run: node build-cookie-engine.mjs
+
+      - name: Package Chrome build
+        shell: pwsh
+        run: powershell -ExecutionPolicy Bypass -File .\build-chrome.ps1 -Zip
+
+      - name: Package Firefox build
+        shell: pwsh
+        run: powershell -ExecutionPolicy Bypass -File .\build-firefox.ps1 -Zip
+
+      - name: Validate expected outputs
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Stop"
+
+          $required = @(
+            "dist\chrome\manifest.json",
+            "dist\chrome\background\service-worker.js",
+            "dist\chrome\content\cookie-engine.bundle.js",
+            "dist\chrome\content\toxic-model.bundle.js",
+            "dist\chrome\data\cookie-rules.json",
+            "dist\chrome\rules\gambling-rules.json",
+            "dist\chrome\popup\popup.html",
+            "dist\chrome\options\options.html",
+            "dist\firefox\manifest.json",
+            "dist\firefox\background\service-worker.js",
+            "dist\firefox\content\cookie-engine.bundle.js",
+            "dist\firefox\content\toxic-model.bundle.js",
+            "dist\firefox\data\cookie-rules.json",
+            "dist\firefox\rules\gambling-rules.json",
+            "dist\firefox\popup\popup.html",
+            "dist\firefox\options\options.html"
+          )
+          foreach ($path in $required) {
+            if (-not (Test-Path $path)) { throw "Missing build output: $path" }
+          }
+
+          # Dev-only trees must never be shipped.
+          $forbidden = @("node_modules", "src", "vendor", "test", "_metadata")
+          foreach ($browser in @("chrome", "firefox")) {
+            foreach ($dir in $forbidden) {
+              $p = "dist\$browser\$dir"
+              if (Test-Path $p) { throw "Dev-only path leaked into build: $p" }
+            }
+          }
+
+          # Each build must carry the correct manifest.
+          if ((Get-Content "dist\chrome\manifest.json" -Raw) -notmatch '"service_worker"') {
+            throw "Chrome manifest is missing the service_worker background."
+          }
+          if ((Get-Content "dist\firefox\manifest.json" -Raw) -notmatch '"gecko"') {
+            throw "Firefox manifest is missing browser_specific_settings.gecko."
+          }
+
+      - name: Lint Firefox build with web-ext
+        shell: pwsh
+        continue-on-error: true
+        run: npx --yes web-ext lint --source-dir dist/firefox --output text
+
+      - name: Upload Chrome artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: sieve-chrome
+          path: |
+            dist/chrome
+            dist/sieve-chrome.zip
+
+      - name: Upload Firefox artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: sieve-firefox
+          path: |
+            dist/firefox
+            dist/sieve-firefox.zip

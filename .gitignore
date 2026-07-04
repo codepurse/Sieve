@@ -11,8 +11,18 @@ _metadata/
 .claude/
 .uploads/
 
+# Internal build/planning prompts — working notes, kept locally, not published.
+sieve-phases.md
+sieve-phase2-prompt.md
+sieve-phase3-prompt.md
+sieve-phase4-prompt.md
+sieve-financial-protection-prompt.md
+
 # esbuild's own metafile / logs, if ever emitted
 *.log
+
+# Packaged extension builds produced by build-chrome.ps1 / build-firefox.ps1
+dist/
 
 # Packaged extension artifacts / signing keys — never commit these
 *.zip

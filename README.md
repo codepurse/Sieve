@@ -66,8 +66,10 @@ no build step required.
 4. Click **Load unpacked** and select the project folder.
 5. Pin Sieve from the toolbar and open its options to configure the modules.
 
-> Tested on Chrome / Chromium browsers (Chrome, Edge, Brave, Opera). Firefox
-> support is a future goal.
+> Tested on Chrome / Chromium browsers (Chrome, Edge, Brave, Opera). A Firefox
+> build target exists (`npm run build:firefox`) but is still experimental — the
+> optional on-device toxicity model relies on the offscreen API, which Firefox
+> does not support, so that one feature is skipped there.
 
 ---
 
@@ -86,6 +88,39 @@ node build-cookie-engine.mjs   # rebuild the Consent-O-Matic cookie engine + rul
 Rebuild only if you change the toxicity model or the cookie engine — otherwise
 the committed bundles are all you need.
 
+### Packaging for Chrome & Firefox
+
+To produce clean, store-ready builds (and zips) for each browser, use the
+PowerShell build scripts. Each one copies only the runtime files into
+`dist/<browser>/` — dev-only folders (`node_modules/`, `src/`, `vendor/`,
+`test/`, …) are excluded — verifies the required bundles are present, and
+optionally zips the result.
+
+```bash
+npm run build:chrome    # → dist/chrome/   + dist/sieve-chrome.zip
+npm run build:firefox   # → dist/firefox/  + dist/sieve-firefox.zip
+npm run build:all       # both of the above
+```
+
+The npm scripts run with `-Bundle -Zip`, so they **regenerate the esbuild
+bundles first** and then package. To run a script directly with different
+options:
+
+```powershell
+# copy only (uses the committed bundles, no rebuild, no zip)
+powershell -ExecutionPolicy Bypass -File .\build-chrome.ps1
+
+# copy + zip, still using the committed bundles
+powershell -ExecutionPolicy Bypass -File .\build-firefox.ps1 -Zip
+
+# regenerate bundles, then copy + zip
+powershell -ExecutionPolicy Bypass -File .\build-chrome.ps1 -Bundle -Zip
+```
+
+Chrome builds from `manifest.json`; Firefox builds from `manifest.firefox.json`
+(renamed to `manifest.json` in the output). Build output under `dist/` is
+git-ignored.
+
 ---
 
 ## Project structure
@@ -102,7 +137,11 @@ pages/        Blocked-site interstitial + onboarding
 offscreen/    Offscreen document for the toxicity model
 vendor/       Vendored Consent-O-Matic (MIT) — do not edit by hand
 src/          esbuild entry points for the optional bundles
+dist/         Packaged builds produced by the build scripts (git-ignored)
 ```
+
+Chrome loads `manifest.json`; the Firefox packaging uses `manifest.firefox.json`.
+`build-chrome.ps1` / `build-firefox.ps1` produce the per-browser bundles.
 
 ---
 

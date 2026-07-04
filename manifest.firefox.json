@@ -1,0 +1,128 @@
+{
+  "manifest_version": 3,
+  "name": "Sieve",
+  "version": "1.2.0",
+  "description": "Clean Internet Suite — blocks gambling, dark patterns, and doomscrolling.",
+  "icons": {
+    "16": "icons/icon-16.png",
+    "48": "icons/icon-48.png",
+    "128": "icons/icon-128.png"
+  },
+  "permissions": ["storage", "unlimitedStorage", "declarativeNetRequest", "alarms", "webNavigation", "tabs"],
+  "host_permissions": ["<all_urls>"],
+  "background": {
+    "scripts": ["background/service-worker.js"],
+    "type": "module"
+  },
+  "action": {
+    "default_popup": "popup/popup.html",
+    "default_title": "Sieve",
+    "default_icon": {
+      "16": "icons/icon-16.png",
+      "48": "icons/icon-48.png",
+      "128": "icons/icon-128.png"
+    }
+  },
+  "options_ui": {
+    "page": "options/options.html",
+    "open_in_tab": true
+  },
+  "content_scripts": [
+    {
+      "matches": ["<all_urls>"],
+      "js": ["content/bad-language.js"],
+      "run_at": "document_idle"
+    },
+    {
+      "matches": ["<all_urls>"],
+      "js": [
+        "content/dark-patterns.js",
+        "content/patterns/timers.js",
+        "content/patterns/guilt-copy.js",
+        "content/patterns/checkboxes.js",
+        "content/patterns/cookies.js",
+        "content/patterns/scarcity.js"
+      ],
+      "run_at": "document_idle"
+    },
+    {
+      "matches": ["<all_urls>"],
+      "js": ["content/cookie-engine.bundle.js", "content/cookie-autoreject.js"],
+      "run_at": "document_idle"
+    },
+    {
+      "matches": [
+        "*://*.twitter.com/*",
+        "*://*.x.com/*",
+        "*://*.instagram.com/*",
+        "*://*.tiktok.com/*",
+        "*://*.reddit.com/*",
+        "*://*.facebook.com/*",
+        "*://*.youtube.com/*"
+      ],
+      "js": ["common/guardian.js", "content/pause-overlay.js", "content/doomscroll.js"],
+      "run_at": "document_idle"
+    },
+    {
+      "matches": [
+        "*://*.youtube.com/*",
+        "*://*.reddit.com/*",
+        "*://*.twitter.com/*",
+        "*://*.x.com/*"
+      ],
+      "js": ["content/comment-collapse.js", "content/profanity-filter.js", "content/toxic-model.js"],
+      "run_at": "document_idle"
+    },
+    {
+      "matches": ["*://*.disqus.com/*"],
+      "js": ["content/comment-collapse.js", "content/profanity-filter.js", "content/toxic-model.js"],
+      "all_frames": true,
+      "run_at": "document_idle"
+    },
+    {
+      "matches": ["<all_urls>"],
+      "js": ["content/popup-hijack-blocker.js"],
+      "run_at": "document_start",
+      "world": "MAIN",
+      "all_frames": true
+    },
+    {
+      "matches": ["<all_urls>"],
+      "js": ["content/popup-hijack-bridge.js", "content/overlay-detector.js", "content/link-hijack-detector.js"],
+      "run_at": "document_start",
+      "all_frames": true
+    },
+    {
+      "matches": ["<all_urls>"],
+      "js": ["content/url-shortener-intercept.js"],
+      "run_at": "document_start",
+      "all_frames": true
+    }
+  ],
+  "declarative_net_request": {
+    "rule_resources": [
+      {
+        "id": "gambling_ruleset",
+        "enabled": true,
+        "path": "rules/gambling-rules.json"
+      },
+      {
+        "id": "prediction_market_ruleset",
+        "enabled": false,
+        "path": "rules/prediction-market-rules.json"
+      }
+    ]
+  },
+  "web_accessible_resources": [
+    {
+      "resources": ["data/wordlist.json", "data/mild-words.json", "data/site-configs.json", "data/profanity-list.json", "data/profanity-custom.json", "data/cookie-rules.json", "data/url-shorteners.json", "pages/blocked.html", "pages/blocked.js"],
+      "matches": ["<all_urls>"]
+    }
+  ],
+  "browser_specific_settings": {
+    "gecko": {
+      "id": "sieve@extension.local",
+      "strict_min_version": "128.0"
+    }
+  }
+}
