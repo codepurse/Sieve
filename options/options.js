@@ -145,7 +145,7 @@ function setupCheckbox(id, storageKey, currentValue, actionName) {
 function optionsDefaults() {
   const d = {
     // Bad Language Filter
-    replacementStyle: "funny",
+    replacementStyle: "blanks",
     familySafe: false,
     customWords: [],
     // Gambling Blocker — opt-in prediction-markets sub-toggle

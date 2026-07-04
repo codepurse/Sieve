@@ -47,7 +47,7 @@
   async function loadSettings() {
     const s = await chrome.storage.local.get({
       badLanguageEnabled: true,
-      replacementStyle: "funny",
+      replacementStyle: "blanks",
       familySafe: false,
       customWords: [],
     });
