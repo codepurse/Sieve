@@ -172,7 +172,11 @@
   function startObserver() {
     if (observer) return;
     observer = new MutationObserver(onMutations);
-    observer.observe(document.body, { childList: true, subtree: true, characterData: true });
+    // Only childList/subtree: onMutations reacts to added element nodes. We don't
+    // observe characterData — text-only edits produced records the callback threw
+    // away, so watching them just added observer overhead on live pages (clocks,
+    // tickers, chat). Detectors that need re-sampling (timers) poll on their own.
+    observer.observe(document.body, { childList: true, subtree: true });
   }
 
   function stopObserver() {

@@ -24,6 +24,7 @@
   let ctx = null;
   const cache = new Map(); // signature -> { value, count, lastSeen }
   let cacheLoaded = false;
+  let persistTimer = null; // debounce handle for writing the cache back to storage
 
   // ---------------------------------------------------------------------------
   // Cross-load tracking
@@ -41,19 +42,44 @@
     cacheLoaded = true;
   }
 
-  async function recordSample(sig, value) {
+  // Update the in-memory cache and schedule a single, debounced write-back.
+  // The old code did a full storage get+set PER matching element (severe thrash
+  // on product grids) and wrote back the raw stored object, so expired entries
+  // were never pruned on disk. Now the in-memory `cache` is the source of truth
+  // and we persist it (pruned) at most once per burst.
+  function recordSample(sig, value) {
     const existing = cache.get(sig);
-    let next;
-    if (existing && existing.value === value) {
-      next = { value, count: existing.count + 1, lastSeen: Date.now() };
-    } else {
-      next = { value, count: 1, lastSeen: Date.now() };
-    }
+    const next =
+      existing && existing.value === value
+        ? { value, count: existing.count + 1, lastSeen: Date.now() }
+        : { value, count: 1, lastSeen: Date.now() };
     cache.set(sig, next);
+    schedulePersist();
+  }
 
-    const stored = await chrome.storage.local.get({ [STORAGE_KEY]: {} });
-    stored[STORAGE_KEY][sig] = next;
-    await chrome.storage.local.set({ [STORAGE_KEY]: stored[STORAGE_KEY] });
+  function schedulePersist() {
+    if (persistTimer !== null) return;
+    persistTimer = setTimeout(persistCache, 1000);
+  }
+
+  async function persistCache() {
+    persistTimer = null;
+    // Write from the in-memory cache, dropping anything past MAX_AGE_MS so old
+    // signatures can't accumulate forever (the on-disk unbounded-growth bug).
+    const now = Date.now();
+    const out = {};
+    for (const [sig, data] of cache) {
+      if (data.lastSeen && now - data.lastSeen > MAX_AGE_MS) {
+        cache.delete(sig);
+        continue;
+      }
+      out[sig] = data;
+    }
+    try {
+      await chrome.storage.local.set({ [STORAGE_KEY]: out });
+    } catch (e) {
+      // Best-effort: a failed write just means we re-learn these counts later.
+    }
   }
 
   function makeSignature(text) {
@@ -125,7 +151,7 @@
     }
   }
 
-  async function processElement(el) {
+  function processElement(el) {
     if (ctx.isMarked(el)) return;
 
     const text = (el.textContent || "").trim();
@@ -134,7 +160,7 @@
     if (!hasUrgencyContext(el)) return;
 
     const sig = makeSignature(text);
-    await recordSample(sig, value);
+    recordSample(sig, value);
 
     const sample = cache.get(sig);
     if (sample && sample.count >= HIT_THRESHOLD) {
@@ -163,7 +189,7 @@
     while ((node = walker.nextNode())) {
       const el = node.parentElement;
       if (!el || ctx.isMarked(el)) continue;
-      await processElement(el);
+      processElement(el);
     }
   }
 

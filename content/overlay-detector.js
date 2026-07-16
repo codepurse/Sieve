@@ -129,19 +129,23 @@
     if (!el || el.nodeType !== 1) return false;
     if (NEVER_REMOVE.has(el.tagName)) return false;
 
-    const cs = safeStyle(el);
-    if (!cs) return false;
-    if (cs.display === "none" || cs.visibility === "hidden") return false;
-
+    // a) covers the viewport — do this cheap geometry test FIRST. Almost no
+    // element covers the whole viewport, and getBoundingClientRect is far cheaper
+    // than getComputedStyle; bailing here avoids forcing a style recalc for the
+    // thousands of candidates that fail coverage. (display:none has a zero rect,
+    // so it's rejected here too; visibility:hidden is caught by the cs check.)
     let rect;
     try {
       rect = el.getBoundingClientRect();
     } catch {
       return false;
     }
-
-    // a) covers the viewport
     if (!coversViewport(rect)) return false;
+
+    const cs = safeStyle(el);
+    if (!cs) return false;
+    if (cs.display === "none" || cs.visibility === "hidden") return false;
+
     // b) see-through
     if (!isSeeThrough(cs)) return false;
     // c) high z-index

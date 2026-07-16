@@ -25,6 +25,7 @@
   let activeMap = {}; // word -> clean alternative (null = no funny alternative)
   let pattern = null; // compiled whole-word regex
   let recordedForPage = false; // shared stats: only record once per page
+  let modifiedAny = false; // did we change any node? gates the restore walk
 
   // --- Load a bundled JSON file -------------------------------------------
   async function loadJson(path) {
@@ -135,13 +136,42 @@
     if (cleaned !== original) {
       if (node.__sieveOriginal === undefined) node.__sieveOriginal = original;
       node.nodeValue = cleaned;
+      modifiedAny = true;
       recordBadLanguageBlock();
     }
   }
 
-  // --- Scan an entire subtree ---------------------------------------------
-  function scanSubtree(root) {
-    for (const node of collectTextNodes(root)) scanNode(node);
+  // --- Idle-batched scanning ----------------------------------------------
+  // The initial full-page scan (and large added subtrees) can touch tens of
+  // thousands of text nodes. Mirror profanity-filter.js: collect the nodes, then
+  // mask them in requestIdleCallback slices so the page is never blocked by one
+  // long task on load.
+  const ric =
+    window.requestIdleCallback || ((cb) => setTimeout(() => cb({ timeRemaining: () => 16 }), 0));
+  let scanQueue = [];
+  let flushScheduled = false;
+
+  function scheduleFlush() {
+    if (flushScheduled) return;
+    flushScheduled = true;
+    ric((deadline) => {
+      flushScheduled = false;
+      let processed = 0;
+      while (scanQueue.length && (deadline.timeRemaining() > 4 || processed < 50)) {
+        scanNode(scanQueue.shift());
+        processed++;
+        if (processed >= 400) break; // hard cap per slice
+      }
+      if (scanQueue.length) scheduleFlush();
+    });
+  }
+
+  // --- Queue every scannable text node under a root for idle processing ----
+  function enqueueSubtree(root) {
+    const nodes = collectTextNodes(root);
+    if (nodes.length === 0) return;
+    for (const n of nodes) scanQueue.push(n);
+    scheduleFlush();
   }
 
   // --- Put back every word the filter replaced ----------------------------
@@ -167,7 +197,7 @@
             if (added.nodeType === Node.TEXT_NODE) {
               if (shouldScan(added)) scanNode(added);
             } else if (added.nodeType === Node.ELEMENT_NODE) {
-              scanSubtree(added);
+              enqueueSubtree(added);
             }
           }
         }
@@ -182,7 +212,7 @@
     const words = Object.keys(activeMap);
     if (words.length === 0) return;
     pattern = buildPattern(words);
-    scanSubtree(document.body);
+    enqueueSubtree(document.body);
     observer = createObserver();
     observer.observe(document.body, { childList: true, subtree: true, characterData: true });
   }
@@ -193,7 +223,15 @@
       observer.disconnect();
       observer = null;
     }
-    restoreOriginals();
+    // Drop any not-yet-processed nodes so a disabled filter stops working.
+    scanQueue = [];
+    // Only walk the whole document to restore text if we actually changed
+    // something. On a normal load (filter off, or nothing matched) this skips a
+    // full-page TreeWalker that previously ran on every init regardless.
+    if (modifiedAny) {
+      restoreOriginals();
+      modifiedAny = false;
+    }
   }
 
   // --- Apply current settings (called on load and on any settings change) -
