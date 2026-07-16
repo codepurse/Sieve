@@ -48,17 +48,24 @@ page content is **never copied, stored, or transmitted** anywhere.
 
 ## Network activity (full transparency)
 
-Sieve makes outbound network requests for one reason only: to **download
-publicly available blocklists** (for example, lists of known gambling, scam,
-malware, and phishing domains) so protection stays current. If you enable the
-optional on-device toxicity model, that model is likewise **downloaded once and
-cached** for local use.
+Sieve makes outbound network requests only to **download files to your device** —
+never to upload anything about you. Specifically:
 
-These are **downloads to your device**. They do not include your identity, your
+- **Blocklists** — publicly available lists (for example, known gambling, scam,
+  malware, and phishing domains) are downloaded so protection stays current.
+- **Optional toxicity model** — if you enable smart toxic-comment detection, that
+  on-device model is **downloaded once and cached** for local use.
+- **Announcement check** — when you open Sieve's settings page, it fetches a small
+  public JSON file from the project's GitHub repository to see whether there's an
+  optional in-app notice to show (for example, a new feature). It sends no
+  information about you, and if the file is unreachable nothing is shown. You can
+  dismiss any notice permanently.
+
+These are all **downloads to your device**. They do not include your identity, your
 browsing history, page content, or any personal information beyond the normal
-network request needed to fetch a file. As with any web request, the host
-serving a list or the model may observe your IP address. No user data is sent
-in the other direction.
+network request needed to fetch a file. As with any web request, the host serving
+a file (a blocklist provider, the model host, or GitHub for the announcement) may
+observe your IP address. No user data is sent in the other direction.
 
 ---
 

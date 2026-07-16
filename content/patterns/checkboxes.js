@@ -99,11 +99,13 @@
   }
 
   function scan(root, ctx) {
-    const before = ctx.counts().byType?.[TYPE] || 0;
     const selector = "input[type='checkbox']";
     const checkboxes = root.matches?.(selector) ? [root] : Array.from(root.querySelectorAll(selector));
     for (const checkbox of checkboxes) processCheckbox(checkbox, ctx);
-    return (ctx.counts().byType?.[TYPE] || 0) - before;
+    // Each processed checkbox already reports itself via ctx.report(). Return 0 so
+    // the coordinator (dark-patterns.js scanRoot) doesn't tally the same
+    // interventions a second time. (Matches the timers/scarcity convention.)
+    return 0;
   }
 
   window.SieveDarkPatterns.register(TYPE, { scan });

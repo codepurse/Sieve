@@ -65,7 +65,11 @@ function renderList(listEl, items) {
   }
 }
 
-function setupSection({ storageKey, inputId, addBtnId, listId, errorId, normalize, validate, invalidMsg, initialItems }) {
+// gateAddAction / gateRemoveAction: when set, that mutation WEAKENS protection
+// (e.g. allowlisting a site, or un-blocking one) and must pass the Guardian PIN
+// gate. The opposite mutation strengthens protection and is always free. Mirrors
+// the "allow this site" gate on the blocked page (pages/blocked.js).
+function setupSection({ storageKey, inputId, addBtnId, listId, errorId, normalize, validate, invalidMsg, initialItems, gateAddAction, gateRemoveAction }) {
   const input = document.getElementById(inputId);
   const addBtn = document.getElementById(addBtnId);
   const listEl = document.getElementById(listId);
@@ -82,6 +86,8 @@ function setupSection({ storageKey, inputId, addBtnId, listId, errorId, normaliz
       return;
     }
     errorEl.textContent = "";
+    // Gate weakening adds (e.g. allowlisting a site) behind the PIN.
+    if (gateAddAction && !(await SieveGuardian.confirmUnlock(gateAddAction))) return;
     const list = await getList(storageKey);
     if (!list.includes(value)) {
       list.push(value);
@@ -93,6 +99,8 @@ function setupSection({ storageKey, inputId, addBtnId, listId, errorId, normaliz
   }
 
   async function remove(item) {
+    // Gate weakening removes (e.g. un-blocking a site) behind the PIN.
+    if (gateRemoveAction && !(await SieveGuardian.confirmUnlock(gateRemoveAction))) return;
     const list = (await getList(storageKey)).filter((x) => x !== item);
     await setList(storageKey, list);
     await refresh();
@@ -268,6 +276,8 @@ async function applyStoredSettings(store) {
     validate: isValidDomain,
     invalidMsg: "Please enter a valid domain (e.g. example.com).",
     initialItems: store.customBlocks,
+    // Un-blocking a site weakens protection → gate. Adding a block strengthens it.
+    gateRemoveAction: "Remove a site from your Blocked list",
   });
   setupSection({
     storageKey: "allowlist",
@@ -279,6 +289,8 @@ async function applyStoredSettings(store) {
     validate: isValidDomain,
     invalidMsg: "Please enter a valid domain (e.g. example.com).",
     initialItems: store.allowlist,
+    // Allowlisting a site bypasses every blocker → weakens protection → gate.
+    gateAddAction: "Allow a site (this bypasses all blockers)",
   });
 
   // Remaining sections all read from the snapshot only, so they apply state
@@ -487,6 +499,9 @@ async function setupToxicModel(store) {
 
   removeBtn.addEventListener("click", async () => {
     if (busy) return;
+    // Removing the model turns smart detection off + deletes the download — the
+    // same weakening the toggle-off gates, so it needs the PIN too.
+    if (!(await SieveGuardian.confirmUnlock("Remove smart toxic detection"))) return;
     await SieveModelCache.clear();
     await chrome.storage.local.set({ toxicModelEnabled: false, toxicModelReady: false });
     await render();
@@ -660,6 +675,7 @@ async function setupGuardian(store) {
 
   const currentPin = document.getElementById("guardian-current");
   const changePin = document.getElementById("guardian-change");
+  const changeConfirm = document.getElementById("guardian-change-confirm");
   const updateBtn = document.getElementById("guardian-update");
   const disableBtn = document.getElementById("guardian-disable");
   const manageError = document.getElementById("guardian-manage-error");
@@ -675,7 +691,7 @@ async function setupGuardian(store) {
     manageBox.hidden = !on;
     setupError.textContent = "";
     manageError.textContent = "";
-    newPin.value = confirmPin.value = currentPin.value = changePin.value = "";
+    newPin.value = confirmPin.value = currentPin.value = changePin.value = changeConfirm.value = "";
   }
 
   enableBtn.addEventListener("click", async () => {
@@ -698,6 +714,10 @@ async function setupGuardian(store) {
     }
     if (!isValidPin(changePin.value)) {
       manageError.textContent = "New PIN must be at least 4 digits.";
+      return;
+    }
+    if (changePin.value !== changeConfirm.value) {
+      manageError.textContent = "New PINs don't match.";
       return;
     }
     await SieveGuardian.setPin(changePin.value);
@@ -775,6 +795,10 @@ function dsRenderSite(site, settings, minutesToday, allSettings) {
   limits.append(time.wrap);
   row.append(limits);
 
+  // Track the last committed limit so we can tell whether an edit weakens it.
+  // (0 = "limit off"; a larger number = more lenient — see content/doomscroll.js.)
+  let lastLimit = dsClampInt(time.input.value);
+
   function persist() {
     allSettings[site.id] = {
       enabled: toggle.checked,
@@ -794,7 +818,17 @@ function dsRenderSite(site, settings, minutesToday, allSettings) {
     persist();
     applyDim();
   });
-  time.input.addEventListener("change", persist);
+  time.input.addEventListener("change", async () => {
+    const next = dsClampInt(time.input.value);
+    // Weakening = turning the limit off (→0) or raising it. Strengthening is free.
+    const weakens = next === 0 ? lastLimit !== 0 : lastLimit !== 0 && next > lastLimit;
+    if (weakens && !(await SieveGuardian.confirmUnlock(`Raise the Doomscroll limit on ${site.name}`))) {
+      time.input.value = String(lastLimit); // revert (programmatic set won't re-fire change)
+      return;
+    }
+    lastLimit = next;
+    persist();
+  });
   applyDim();
   return row;
 }

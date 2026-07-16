@@ -134,7 +134,9 @@
     if (isVisuallySuppressed(rejectBtn) || isTiny(rejectBtn)) {
       normalizeButtons(acceptBtn, rejectBtn, ctx);
       ctx.mark(banner, TYPE);
-      return 1;
+      // normalizeButtons() already reports via ctx.report(). Return 0 so the
+      // coordinator (dark-patterns.js scanRoot) doesn't double-count this.
+      return 0;
     }
 
     return 0;

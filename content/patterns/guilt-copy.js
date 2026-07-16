@@ -91,7 +91,6 @@
   }
 
   function scan(root, ctx) {
-    let count = 0;
     const selector = "button, a, [role='button']";
     const elements = root.matches?.(selector) ? [root] : Array.from(root.querySelectorAll(selector));
 
@@ -99,13 +98,12 @@
       if (!looksLikeButton(el) || ctx.isMarked(el)) continue;
       const text = (el.textContent || "").trim();
       if (text.length > 80) continue; // too long to be a button; probably a paragraph
-      if (isGuiltTrip(text)) {
-        rewriteButton(el, ctx);
-        count++;
-      }
+      if (isGuiltTrip(text)) rewriteButton(el, ctx);
     }
 
-    return count;
+    // rewriteButton() already reports each rewrite via ctx.report(). Return 0 so
+    // the coordinator (dark-patterns.js scanRoot) doesn't double-count these.
+    return 0;
   }
 
   window.SieveDarkPatterns.register(TYPE, { scan });

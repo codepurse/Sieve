@@ -46,7 +46,9 @@ tracking, nothing leaves your browser.
 
 Sieve is built to be trustworthy by design:
 
-- **No account, no sign-up, no telemetry.** Nothing is sent anywhere.
+- **No account, no sign-up, no telemetry, no tracking.** Sieve only *downloads*
+  files (blocklists, the optional toxicity model, and a settings-page announcement
+  check) — it never uploads anything about you. See [PRIVACY.md](PRIVACY.md).
 - **All processing is local**, including the optional toxicity model.
 - Settings and stats live only in your browser's local storage.
 
