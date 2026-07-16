@@ -10,8 +10,12 @@
   if (window.__sieveBadLanguageActive) return;
   window.__sieveBadLanguageActive = true;
 
-  // Parents whose text must never be touched (code, styles, editable fields).
+  // Tags whose text we must never touch (code, styles, editable fields). These
+  // are checked up the whole ANCESTOR chain, not just the immediate parent:
+  // syntax highlighters wrap code in nested <span>s inside <pre><code>, so a text
+  // node's direct parent is often a <span>, not CODE/PRE.
   const SKIP_TAGS = new Set(["SCRIPT", "STYLE", "NOSCRIPT", "TEXTAREA", "CODE", "PRE"]);
+  const SKIP_SELECTOR = "script,style,noscript,textarea,code,pre";
 
   // Bundled word lists, loaded once.
   let baseWords = null; // data/wordlist.json
@@ -96,18 +100,33 @@
 
   // --- Decide whether a text node is safe to scan -------------------------
   function shouldScan(node) {
-    const parent = node.parentNode;
+    const parent = node.parentElement;
     if (!parent) return false;
-    if (SKIP_TAGS.has(parent.nodeName)) return false;
+    // isContentEditable is inherited, so testing the immediate parent is enough.
     if (parent.isContentEditable) return false;
+    // Skip tags, however, must be checked up the ancestor chain (see SKIP_TAGS).
+    if (parent.closest(SKIP_SELECTOR)) return false;
     return true;
   }
 
   // --- Collect every scannable text node under a root ---------------------
   function collectTextNodes(root) {
-    const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, {
+    // If the whole subtree sits inside a skip context (e.g. an added node inside
+    // an existing <pre>), reject it in one check rather than per text node.
+    if (root.nodeType === Node.ELEMENT_NODE && root.closest(SKIP_SELECTOR)) return [];
+
+    // Walk elements + text so we can PRUNE skip-tag / editable subtrees wholesale
+    // (FILTER_REJECT skips the element and everything under it) instead of testing
+    // each text node's ancestry individually.
+    const walker = document.createTreeWalker(root, NodeFilter.SHOW_ELEMENT | NodeFilter.SHOW_TEXT, {
       acceptNode(node) {
-        return shouldScan(node) ? NodeFilter.FILTER_ACCEPT : NodeFilter.FILTER_REJECT;
+        if (node.nodeType === Node.ELEMENT_NODE) {
+          if (SKIP_TAGS.has(node.nodeName) || node.isContentEditable) {
+            return NodeFilter.FILTER_REJECT; // prune this element and its subtree
+          }
+          return NodeFilter.FILTER_SKIP; // descend into it, but don't collect it
+        }
+        return NodeFilter.FILTER_ACCEPT; // a text node with clean ancestry
       },
     });
     const nodes = [];
