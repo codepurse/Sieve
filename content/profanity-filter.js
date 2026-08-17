@@ -130,6 +130,7 @@
     "toxicSiteToggles",
     "toxicCustomWords",
     "toxicExceptions",
+    "siteCleanup",
   ];
 
   async function loadSettings() {
@@ -139,6 +140,7 @@
       toxicSiteToggles: {},
       toxicCustomWords: [],
       toxicExceptions: [],
+      siteCleanup: {},
     });
     return {
       enabled: s.toxicHiderEnabled,
@@ -146,12 +148,23 @@
       siteToggles: s.toxicSiteToggles || {},
       customWords: s.toxicCustomWords || [],
       exceptions: s.toxicExceptions || [],
+      siteCleanup: s.siteCleanup || {},
     };
+  }
+
+  // Site Cleanup can hide YouTube's comments outright (content/youtube-clean.css).
+  // When it does, there is nothing readable left to score, so scanning would just
+  // burn CPU on hidden nodes — the two modules agree that hiding wins.
+  function hiddenBySiteCleanup() {
+    if (site.name !== "youtube") return false;
+    const yt = (settings.siteCleanup || {}).youtube || {};
+    return !!yt.enabled && !!yt.hideComments;
   }
 
   // True if the hider should be active on THIS site right now.
   function isActiveHere() {
     if (!settings.enabled) return false;
+    if (hiddenBySiteCleanup()) return false;
     return settings.siteToggles[site.name] !== false; // default on
   }
 

@@ -187,8 +187,13 @@
       toxicSensitivity: "moderate",
       toxicHiderEnabled: true,
       toxicSiteToggles: {},
+      siteCleanup: {},
     });
-    const siteOn = s.toxicHiderEnabled && s.toxicSiteToggles[site.name] !== false;
+    // Site Cleanup hiding YouTube's comments outright wins: don't run the model
+    // over nodes nobody can see. Mirrors isActiveHere() in profanity-filter.js.
+    const yt = (s.siteCleanup || {}).youtube || {};
+    const cleanedAway = site.name === "youtube" && !!yt.enabled && !!yt.hideComments;
+    const siteOn = s.toxicHiderEnabled && s.toxicSiteToggles[site.name] !== false && !cleanedAway;
     enabled = s.toxicModelEnabled && siteOn;
     threshold = THRESHOLDS[s.toxicSensitivity] || THRESHOLDS.moderate;
   }
@@ -201,7 +206,7 @@
 
   chrome.storage.onChanged.addListener((changes, area) => {
     if (area !== "local") return;
-    const keys = ["toxicModelEnabled", "toxicSensitivity", "toxicHiderEnabled", "toxicSiteToggles"];
+    const keys = ["toxicModelEnabled", "toxicSensitivity", "toxicHiderEnabled", "toxicSiteToggles", "siteCleanup"];
     if (keys.some((k) => k in changes)) apply();
   });
 

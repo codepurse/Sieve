@@ -1610,6 +1610,101 @@ input:checked + .slider::before {
 }
 
 /* ==========================================================================
+   Site Cleanup — grouped per-site switches (rendered by setupSiteCleanup)
+   ========================================================================== */
+
+/* Dimmed while the card's master switch is off, matching .ds-site.is-off */
+.sc-group.is-off {
+  opacity: 0.55;
+}
+
+/* ==========================================================================
+   What's New — release notes (rendered from CHANGELOG in options.js)
+   ========================================================================== */
+
+/* Unread dot on the sidebar link, pushed to the far edge of the row */
+.nav-dot {
+  width: 7px;
+  height: 7px;
+  margin-left: auto;
+  flex-shrink: 0;
+  border-radius: 999px;
+  background: linear-gradient(180deg, var(--brand-1), var(--brand-3));
+  box-shadow: 0 0 8px var(--primary-glow);
+}
+
+.whatsnew-list {
+  list-style: none;
+  margin: 1.25rem 0 0;
+  padding: 0;
+}
+
+/* Each release hangs off a shared vertical timeline rule */
+.whatsnew-release {
+  position: relative;
+  padding: 0 0 1.35rem 1.35rem;
+  border-left: 1px solid var(--card-border);
+}
+
+.whatsnew-release:last-child {
+  padding-bottom: 0;
+  border-left-color: transparent;
+}
+
+/* Node on the timeline, aligned with the version row */
+.whatsnew-release::before {
+  content: "";
+  position: absolute;
+  left: -4.5px;
+  top: 0.45rem;
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  background: var(--secondary);
+  border: 1px solid var(--card-border);
+}
+
+.whatsnew-release:first-child::before {
+  background: linear-gradient(180deg, var(--brand-1), var(--brand-3));
+  border-color: transparent;
+  box-shadow: 0 0 10px var(--primary-glow);
+}
+
+.whatsnew-head {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+}
+
+.whatsnew-version {
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--foreground);
+  letter-spacing: 0.01em;
+}
+
+.whatsnew-date {
+  font-size: 0.8rem;
+  color: var(--foreground-dim);
+}
+
+.whatsnew-items {
+  margin: 0.6rem 0 0;
+  padding-left: 1.1rem;
+}
+
+.whatsnew-items li {
+  font-size: 0.875rem;
+  line-height: 1.65;
+  color: var(--foreground-muted);
+}
+
+.whatsnew-items li + li {
+  margin-top: 0.4rem;
+}
+
+/* ==========================================================================
    Responsive — collapse sidebar into a horizontal nav strip
    ========================================================================== */
 
