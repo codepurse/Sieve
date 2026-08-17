@@ -597,6 +597,58 @@ body::after {
   min-width: 160px;
 }
 
+/* Bulk list entry (paste / import / export). Collapsed by default so the
+   single-entry row stays the obvious path and the card keeps its shape; the
+   panel is built by setupSection() in options.js for every list. */
+.bulk {
+  margin-top: 0.6rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm, 8px);
+  padding: 0.5rem 0.7rem;
+  background: var(--surface-2, transparent);
+}
+
+.bulk > summary {
+  cursor: pointer;
+  font-size: 0.85rem;
+  color: var(--foreground-muted);
+  list-style: none;
+}
+
+.bulk > summary::-webkit-details-marker {
+  display: none;
+}
+
+.bulk > summary::before {
+  content: "＋ ";
+  color: var(--foreground-dim);
+}
+
+.bulk[open] > summary::before {
+  content: "− ";
+}
+
+.bulk > summary:hover {
+  color: var(--foreground);
+}
+
+.bulk-text {
+  width: 100%;
+  margin-top: 0.6rem;
+  font-family: var(--font-mono, ui-monospace, monospace);
+  font-size: 0.85rem;
+  line-height: 1.5;
+  resize: vertical;
+}
+
+.bulk-actions {
+  margin-top: 0.6rem;
+}
+
+.bulk-status:empty {
+  display: none;
+}
+
 .guardian-actions {
   margin-top: 0.6rem;
 }

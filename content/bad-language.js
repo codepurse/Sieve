@@ -27,7 +27,8 @@
   // Active filtering state.
   let observer = null;
   let activeMap = {}; // word -> clean alternative (null = no funny alternative)
-  let pattern = null; // compiled whole-word regex
+  let pattern = null; // compiled whole-word regex (literal entries)
+  let customPatterns = []; // user /regex/ entries, compiled separately
   let recordedForPage = false; // shared stats: only record once per page
   let modifiedAny = false; // did we change any node? gates the restore walk
 
@@ -64,11 +65,19 @@
     };
   }
 
+  // A custom word written as /…/ is a regular expression rather than a literal,
+  // so one entry covers many spellings. Literals keep their existing
+  // whole-word behaviour, so lists written before this are unaffected.
+  function isRegexWord(word) {
+    return typeof KeywordPattern !== "undefined" && KeywordPattern.isRegexEntry(word);
+  }
+
   // --- Build the active word -> replacement map from current settings -----
   function buildActiveMap() {
     const map = { ...baseWords };
     if (settings.familySafe) Object.assign(map, mildWords);
     for (const word of settings.customWords) {
+      if (isRegexWord(word)) continue; // a pattern has no single key to map
       const key = word.toLowerCase();
       if (!(key in map)) map[key] = null; // custom word: no funny alternative
     }
@@ -77,8 +86,33 @@
 
   // --- Build one case-insensitive, whole-word regex -----------------------
   function buildPattern(words) {
-    const escaped = words.map((w) => w.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"));
-    return new RegExp("\\b(" + escaped.join("|") + ")\\b", "gi");
+    const literals = words.filter((w) => !isRegexWord(w));
+    const escaped = literals.map((w) => w.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"));
+    return escaped.length ? new RegExp("\\b(" + escaped.join("|") + ")\\b", "gi") : null;
+  }
+
+  // Each user pattern compiled separately, with `g` added so replace() covers
+  // every occurrence. KeywordPattern refuses `g` on the patterns it hands back
+  // because a shared global regex breaks repeated .test() calls through
+  // lastIndex — String.replace resets it, so adding g here is safe, and needed.
+  //
+  // compileEntry() also runs the slow-pattern guard, so a catastrophic pattern
+  // that somehow reached storage is skipped rather than run against page text.
+  function buildCustomPatterns(words) {
+    if (typeof KeywordPattern === "undefined") return [];
+    const out = [];
+    for (const word of words) {
+      if (!isRegexWord(word)) continue;
+      const compiled = KeywordPattern.compileEntry(word);
+      if (!compiled) continue; // invalid or unsafe — ignore this entry
+      try {
+        const flags = compiled.flags.includes("g") ? compiled.flags : compiled.flags + "g";
+        out.push(new RegExp(compiled.source, flags));
+      } catch (_) {
+        /* skip */
+      }
+    }
+    return out;
   }
 
   // --- Decide the replacement for one matched word ------------------------
@@ -95,7 +129,11 @@
 
   // --- Replace every matched word in a string -----------------------------
   function cleanText(text) {
-    return text.replace(pattern, (match) => computeReplacement(match));
+    let out = pattern ? text.replace(pattern, (match) => computeReplacement(match)) : text;
+    for (const re of customPatterns) {
+      out = out.replace(re, (match) => computeReplacement(match));
+    }
+    return out;
   }
 
   // --- Decide whether a text node is safe to scan -------------------------
@@ -229,7 +267,10 @@
     await loadData();
     activeMap = buildActiveMap();
     const words = Object.keys(activeMap);
-    if (words.length === 0) return;
+    customPatterns = buildCustomPatterns(settings.customWords || []);
+    // A list of nothing but regex entries still has work to do, so this can no
+    // longer bail on an empty word map alone.
+    if (words.length === 0 && customPatterns.length === 0) return;
     pattern = buildPattern(words);
     enqueueSubtree(document.body);
     observer = createObserver();
