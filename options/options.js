@@ -1194,6 +1194,7 @@ async function setupAccessCode() {
   const enabledEl = document.getElementById("access-code-enabled");
   const scopeEl = document.getElementById("access-code-scope-all");
   const lengthEl = document.getElementById("access-code-length");
+  const optionsEl = document.getElementById("access-code-options");
   const statusEl = document.getElementById("access-code-status");
   const AC = window.SieveAccessCode;
   if (!field || !AC) return;
@@ -1206,11 +1207,12 @@ async function setupAccessCode() {
     enabledEl.checked = config.enabled;
     scopeEl.checked = config.scope === "all";
     lengthEl.value = String(config.length);
-    scopeEl.disabled = !config.enabled;
-    lengthEl.disabled = !config.enabled;
+    // Reveal the sub-settings instead of disabling them. Greyed-out controls
+    // that cannot be clicked and do not say why read as a broken page.
+    if (optionsEl) optionsEl.hidden = !config.enabled;
     statusEl.textContent = config.enabled
       ? `On — ${config.length} characters, ${config.scope === "all" ? "on every change" : "decisive changes only"}.`
-      : "Off — your PIN alone protects these settings.";
+      : "Off — your PIN alone protects these settings. Turn it on to choose the length and when it is asked for.";
   }
 
   enabledEl.addEventListener("change", async () => {

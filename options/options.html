@@ -258,28 +258,33 @@
                   <span class="slider"></span>
                 </label>
               </div>
-              <div class="switch-row">
-                <div class="switch-label">
-                  <span class="label">Ask on every change</span>
-                  <span class="description">Not just the decisive ones. More friction, more protection.</span>
+              <!-- Revealed only once the code is on. These settings mean nothing
+                   while it is off, and showing them greyed out reads as broken. -->
+              <div id="access-code-options" class="sub-settings" hidden>
+                <div class="switch-row">
+                  <div class="switch-label">
+                    <span class="label">Ask on every change</span>
+                    <span class="description">Not just the decisive ones. More friction, more protection.</span>
+                  </div>
+                  <label class="switch">
+                    <input type="checkbox" id="access-code-scope-all" />
+                    <span class="slider"></span>
+                  </label>
                 </div>
-                <label class="switch">
-                  <input type="checkbox" id="access-code-scope-all" />
-                  <span class="slider"></span>
-                </label>
-              </div>
-              <p class="hint">
-                Left off, the code guards the decisive moments only: turning a protection off,
-                getting past the pause screen, allowing a blocked site, or weakening the code
-                itself. Small edits still just need your PIN.
-              </p>
-              <div class="add-row">
-                <select class="input" id="access-code-length">
-                  <option value="32">32 characters — a short pause</option>
-                  <option value="64">64 characters — recommended</option>
-                  <option value="128">128 characters — a long pause</option>
-                  <option value="256">256 characters — maximum deterrent</option>
-                </select>
+                <p class="hint">
+                  Left off, the code guards the decisive moments only: turning a protection off,
+                  getting past the pause screen, allowing a blocked site, or weakening the code
+                  itself. Small edits still just need your PIN.
+                </p>
+                <label class="sub-label" for="access-code-length">Code length</label>
+                <div class="add-row">
+                  <select class="input" id="access-code-length">
+                    <option value="32">32 characters — a short pause</option>
+                    <option value="64">64 characters — recommended</option>
+                    <option value="128">128 characters — a long pause</option>
+                    <option value="256">256 characters — maximum deterrent</option>
+                  </select>
+                </div>
               </div>
               <p id="access-code-status" class="hint"></p>
             </div>

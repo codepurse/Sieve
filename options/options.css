@@ -597,6 +597,32 @@ body::after {
   min-width: 160px;
 }
 
+/* Settings that belong to the toggle above them (currently the access code's
+   length and scope). Indented behind an accent rail so the relationship is
+   visible, and revealed only when the parent toggle is on — a disabled control
+   with no explanation of why reads as a broken page. */
+.sub-settings {
+  margin: 0.5rem 0 0.2rem;
+  padding: 0.15rem 0 0.15rem 0.9rem;
+  border-left: 2px solid var(--primary-soft);
+}
+
+.sub-settings[hidden] {
+  display: none;
+}
+
+.sub-settings .switch-row:first-child {
+  padding-top: 0.2rem;
+}
+
+.sub-label {
+  display: block;
+  margin: 0.7rem 0 0.35rem;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--foreground-muted);
+}
+
 /* Bulk list entry (paste / import / export). Collapsed by default so the
    single-entry row stays the obvious path and the card keeps its shape; the
    panel is built by setupSection() in options.js for every list. */
