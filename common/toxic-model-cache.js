@@ -23,7 +23,22 @@
   const NS = (self.SieveModelCache = self.SieveModelCache || {});
 
   const CACHE_NAME = "sieve-toxicity-model-v1";
-  const BASE = "https://storage.googleapis.com/tfjs-models/savedmodel/";
+
+  // Cache entries are keyed by CANONICAL_BASE regardless of which mirror served
+  // the bytes, so switching mirrors never orphans an existing download. It stays
+  // the Google URL because that is what already-downloaded users have in their
+  // cache — changing it would make every one of them re-download 55 MB.
+  const CANONICAL_BASE = "https://storage.googleapis.com/tfjs-models/savedmodel/";
+
+  // Tried in order. Our own mirror is first: multiple users could not reach
+  // Google's bucket at all (a VPN, a custom DNS resolver or a browser shield
+  // refusing the request before it left the browser), and "download failed"
+  // with no way forward is worse than a slower host. Google stays as the
+  // fallback in case the mirror is the one being blocked.
+  const MIRRORS = [
+    "https://raw.githubusercontent.com/codepurse/Sieve/main/models/",
+    "https://storage.googleapis.com/tfjs-models/savedmodel/",
+  ];
 
   // Each model = a model.json (whose manifest lists the weight shards) plus any
   // non-weight extra files it needs (the encoder ships a vocabulary).
@@ -32,20 +47,52 @@
     { dir: "universal_sentence_encoder", extras: ["vocab.json"] },
   ];
 
+  // The path of a file relative to whichever base serves it, e.g.
+  // "toxicity/group1-shard1of7". Cache keys are canonical; fetches are not.
+  function canonicalUrl(relPath) {
+    return CANONICAL_BASE + relPath;
+  }
+
+  function relPathOf(canonical) {
+    return canonical.startsWith(CANONICAL_BASE) ? canonical.slice(CANONICAL_BASE.length) : canonical;
+  }
+
+  // Fetches one file, trying each mirror in turn. Only the last failure is
+  // reported, since that is the one the user can act on — but every attempt is
+  // logged so a mirror going bad is visible rather than merely slow.
+  async function fetchFromMirrors(relPath) {
+    let lastError = null;
+    for (const base of MIRRORS) {
+      const url = base + relPath;
+      try {
+        const res = await fetch(url);
+        if (!res.ok) {
+          lastError = new Error(relPath + " HTTP " + res.status);
+          console.warn("[Sieve] mirror returned HTTP " + res.status + ": " + url);
+          continue;
+        }
+        return res;
+      } catch (err) {
+        lastError = err;
+        console.warn("[Sieve] mirror unreachable: " + url + " (" + (err && err.message) + ")");
+      }
+    }
+    throw lastError || new Error("No mirror could serve " + relPath);
+  }
+
   // Read a model.json (from cache if present, else network) and return its URL +
   // the URLs of its weight shards. `allowNetwork=false` makes this fully offline.
   async function modelFiles(cache, dir, allowNetwork) {
-    const modelJsonUrl = BASE + dir + "/model.json";
+    const modelJsonUrl = canonicalUrl(dir + "/model.json");
     let res = await cache.match(modelJsonUrl);
     if (!res) {
       if (!allowNetwork) return null;
-      res = await fetch(modelJsonUrl);
-      if (!res.ok) throw new Error("model.json HTTP " + res.status + " (" + dir + ")");
+      res = await fetchFromMirrors(dir + "/model.json");
       await cache.put(modelJsonUrl, res.clone());
     }
     const json = await res.clone().json();
     const shards = (json.weightsManifest || []).flatMap((w) => w.paths || []);
-    return { modelJsonUrl, shardUrls: shards.map((s) => BASE + dir + "/" + s) };
+    return { modelJsonUrl, shardUrls: shards.map((s) => canonicalUrl(dir + "/" + s)) };
   }
 
   // Full list of every URL that makes up the model.
@@ -55,7 +102,7 @@
       const f = await modelFiles(cache, m.dir, allowNetwork);
       if (!f) return null; // offline check: a model.json is missing → not ready
       urls.push(f.modelJsonUrl);
-      for (const e of m.extras) urls.push(BASE + m.dir + "/" + e);
+      for (const e of m.extras) urls.push(canonicalUrl(m.dir + "/" + e));
       urls.push(...f.shardUrls);
     }
     return urls;
@@ -88,12 +135,20 @@
         total += n;
         continue;
       }
+      // Ask the mirrors, not the canonical URL. This used to HEAD the canonical
+      // host — the very host that may be unreachable — and swallow the failure,
+      // so every size came back 0, the total was 0, and the progress bar sat at
+      // nothing for the whole download. A user reported exactly that.
       let n = 0;
-      try {
-        const h = await fetch(u, { method: "HEAD" });
-        n = Number(h.headers.get("content-length")) || 0;
-      } catch {
-        /* size unknown — counts as 0 toward the total */
+      for (const base of MIRRORS) {
+        try {
+          const h = await fetch(base + relPathOf(u), { method: "HEAD" });
+          if (!h.ok) continue;
+          n = Number(h.headers.get("content-length")) || 0;
+          if (n > 0) break;
+        } catch {
+          /* try the next mirror */
+        }
       }
       sizes.push(n);
       total += n;
@@ -121,8 +176,8 @@
         report();
         continue;
       }
-      const res = await fetch(u);
-      if (!res.ok) throw new Error(u + " -> HTTP " + res.status);
+      const res = await fetchFromMirrors(relPathOf(u));
+      const expected = Number(res.headers.get("content-length")) || 0;
 
       // Stream so we can count bytes for the progress bar.
       const reader = res.body.getReader();
@@ -138,6 +193,16 @@
       // Rebuild a Response from the bytes, preserving content-type so TF.js
       // reads model.json / weight shards correctly in Step 7.
       const body = new Blob(chunks);
+
+      // A short file must not be cached. A truncated weight shard still loads
+      // as a model — it just behaves wrongly, which is far harder to notice
+      // than a failed download and impossible for a user to diagnose.
+      if (expected > 0 && body.size !== expected) {
+        throw new Error(
+          relPathOf(u) + " is incomplete (" + body.size + " of " + expected + " bytes)"
+        );
+      }
+
       const headers = new Headers();
       const ct = res.headers.get("content-type");
       if (ct) headers.set("content-type", ct);
