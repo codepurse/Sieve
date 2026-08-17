@@ -228,7 +228,12 @@
       // Allowlisting WEAKENS protection, so gate it behind the Guardian PIN when
       // one is set. In Personal mode (no PIN) confirmUnlock resolves immediately.
       if (window.SieveGuardian && SieveGuardian.confirmUnlock) {
-        const ok = await SieveGuardian.confirmUnlock(`Allow ${domain} and stop blocking it`);
+        // Critical: this is the moment someone stands in front of a blocked site
+        // and decides to let themselves in, which is exactly what the access
+        // code exists for.
+        const ok = await SieveGuardian.confirmUnlock(`Allow ${domain} and stop blocking it`, {
+          critical: true,
+        });
         if (!ok) return;
       }
 

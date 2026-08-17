@@ -239,6 +239,50 @@
               </div>
               <p id="guardian-manage-error" class="error" role="alert"></p>
             </div>
+
+            <div class="field" id="access-code-field" hidden>
+              <h3>Access code</h3>
+              <p class="hint">
+                A second step after your PIN. A random code appears and you retype it by hand —
+                copy and paste are switched off, and a typo gives you a fresh one. It isn't a
+                secret; the code is shown to you. The point is the minute of deliberate effort,
+                which is usually long enough for an urge to pass.
+              </p>
+              <div class="switch-row">
+                <div class="switch-label">
+                  <span class="label">Require an access code</span>
+                  <span class="description">Off by default. Turning it off again also needs the code.</span>
+                </div>
+                <label class="switch">
+                  <input type="checkbox" id="access-code-enabled" />
+                  <span class="slider"></span>
+                </label>
+              </div>
+              <div class="switch-row">
+                <div class="switch-label">
+                  <span class="label">Ask on every change</span>
+                  <span class="description">Not just the decisive ones. More friction, more protection.</span>
+                </div>
+                <label class="switch">
+                  <input type="checkbox" id="access-code-scope-all" />
+                  <span class="slider"></span>
+                </label>
+              </div>
+              <p class="hint">
+                Left off, the code guards the decisive moments only: turning a protection off,
+                getting past the pause screen, allowing a blocked site, or weakening the code
+                itself. Small edits still just need your PIN.
+              </p>
+              <div class="add-row">
+                <select class="input" id="access-code-length">
+                  <option value="32">32 characters — a short pause</option>
+                  <option value="64">64 characters — recommended</option>
+                  <option value="128">128 characters — a long pause</option>
+                  <option value="256">256 characters — maximum deterrent</option>
+                </select>
+              </div>
+              <p id="access-code-status" class="hint"></p>
+            </div>
           </section>
 
           <section class="card" id="desktop-guard-card">
@@ -786,6 +830,7 @@
     </div>
 
     <script src="../common/guardian.js"></script>
+    <script src="../common/access-code.js"></script>
     <script src="../common/guardian-prompt.js"></script>
     <script src="../common/keyword-pattern.js"></script>
     <script src="../common/toxic-model-cache.js"></script>

@@ -85,6 +85,8 @@
       ],
       "js": [
         "common/guardian.js",
+        "common/access-code.js",
+        "common/guardian-prompt.js",
         "content/pause-overlay.js",
         "content/doomscroll.js"
       ],

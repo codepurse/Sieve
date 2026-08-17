@@ -549,6 +549,7 @@ async function applyStoredSettings(store) {
   setupSiteCleanup(store);         // per-site page cleanup (YouTube)
   setupToxicHider(store);          // Module 4A
   setupGuardian(store);            // self-lock PIN status panel
+  setupAccessCode();               // optional second layer over that PIN
   setupDarkPatterns(store);        // Module 3A — relocated from the popup
   setupToxicSites(store);          // per-site toggles — relocated from the popup
 
@@ -1183,6 +1184,88 @@ const MIN_LOCK_LENGTH = 4;
 
 function isValidPin(pin) {
   return typeof pin === "string" && pin.length >= MIN_LOCK_LENGTH;
+}
+
+// Access code settings. Only shown while a PIN is set, because the code is a
+// second layer over the PIN rather than a lock of its own — offering it in
+// Personal mode would promise protection it cannot give.
+async function setupAccessCode() {
+  const field = document.getElementById("access-code-field");
+  const enabledEl = document.getElementById("access-code-enabled");
+  const scopeEl = document.getElementById("access-code-scope-all");
+  const lengthEl = document.getElementById("access-code-length");
+  const statusEl = document.getElementById("access-code-status");
+  const AC = window.SieveAccessCode;
+  if (!field || !AC) return;
+
+  async function render() {
+    const pinSet = await SieveGuardian.isEnabled();
+    field.hidden = !pinSet;
+    if (!pinSet) return;
+    const config = await AC.getConfig();
+    enabledEl.checked = config.enabled;
+    scopeEl.checked = config.scope === "all";
+    lengthEl.value = String(config.length);
+    scopeEl.disabled = !config.enabled;
+    lengthEl.disabled = !config.enabled;
+    statusEl.textContent = config.enabled
+      ? `On — ${config.length} characters, ${config.scope === "all" ? "on every change" : "decisive changes only"}.`
+      : "Off — your PIN alone protects these settings.";
+  }
+
+  enabledEl.addEventListener("change", async () => {
+    const config = await AC.getConfig();
+    // Turning it ON tightens protection and is free. Turning it OFF removes a
+    // deterrent, so it must survive the deterrent itself.
+    if (config.enabled && !enabledEl.checked) {
+      const ok = await SieveGuardian.confirmUnlock("Turn off the access code", { critical: true });
+      if (!ok) {
+        enabledEl.checked = true;
+        return;
+      }
+    }
+    await AC.setConfig({ ...config, enabled: enabledEl.checked });
+    await render();
+  });
+
+  scopeEl.addEventListener("change", async () => {
+    const config = await AC.getConfig();
+    // Narrowing the scope means fewer moments guarded — gated. Widening is free.
+    if (config.scope === "all" && !scopeEl.checked) {
+      const ok = await SieveGuardian.confirmUnlock("Ask for the code less often", { critical: true });
+      if (!ok) {
+        scopeEl.checked = true;
+        return;
+      }
+    }
+    await AC.setConfig({ ...config, scope: scopeEl.checked ? "all" : "critical" });
+    await render();
+  });
+
+  lengthEl.addEventListener("change", async () => {
+    const config = await AC.getConfig();
+    const next = AC.normalizeConfig({ length: Number(lengthEl.value) }).length;
+    // A shorter code is a weaker deterrent, so shortening is gated.
+    if (config.enabled && next < config.length) {
+      const ok = await SieveGuardian.confirmUnlock("Shorten the access code", { critical: true });
+      if (!ok) {
+        lengthEl.value = String(config.length);
+        return;
+      }
+    }
+    await AC.setConfig({ ...config, length: next });
+    await render();
+  });
+
+  // The panel only exists while a PIN does, so follow that flag rather than
+  // reaching into setupGuardian's render. Setting or clearing the PIN in the
+  // card above shows or hides this one without a reload.
+  chrome.storage.onChanged.addListener((changes, area) => {
+    if (area === "local" && changes.guardianPinHash) render();
+  });
+
+  await render();
+  return render;
 }
 
 async function setupGuardian(store) {
