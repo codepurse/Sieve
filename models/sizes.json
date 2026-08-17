@@ -1,0 +1,19 @@
+{
+  "toxicity/model.json": 173234,
+  "toxicity/group1-shard1of7": 4194304,
+  "toxicity/group1-shard2of7": 4194304,
+  "toxicity/group1-shard3of7": 4194304,
+  "toxicity/group1-shard4of7": 4194304,
+  "toxicity/group1-shard5of7": 4194304,
+  "toxicity/group1-shard6of7": 4194304,
+  "toxicity/group1-shard7of7": 4086004,
+  "universal_sentence_encoder/model.json": 247026,
+  "universal_sentence_encoder/vocab.json": 218327,
+  "universal_sentence_encoder/group1-shard1of7": 4194304,
+  "universal_sentence_encoder/group1-shard2of7": 4194304,
+  "universal_sentence_encoder/group1-shard3of7": 4194304,
+  "universal_sentence_encoder/group1-shard4of7": 4194304,
+  "universal_sentence_encoder/group1-shard5of7": 4194304,
+  "universal_sentence_encoder/group1-shard6of7": 4194304,
+  "universal_sentence_encoder/group1-shard7of7": 2737832
+}

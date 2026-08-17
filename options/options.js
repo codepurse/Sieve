@@ -193,6 +193,8 @@ function optionsDefaults() {
     // Doomscroll Stopper
     doomscrollSites: {},
     doomscrollStats: {},
+    // Site Cleanup — per-site page surgery, e.g. { youtube: { enabled, … } }
+    siteCleanup: {},
     // Guardian — presence of a hash means a PIN is set
     guardianPinHash: "",
     // Dark Pattern Blocker — master + cookie-autoreject tally (per-type keys added below)
@@ -202,6 +204,8 @@ function optionsDefaults() {
     dashboardExpanded: false,
     // Announcement banner — id of the last message the user dismissed
     dismissedAnnouncementId: "",
+    // What's New — version whose release notes the user has already seen
+    seenWhatsNewVersion: "",
   };
   for (const t of DARK_PATTERN_TYPES) {
     d[t.key] = t.default !== undefined ? t.default : true;
@@ -303,6 +307,8 @@ async function applyStoredSettings(store) {
   // protection toggles.
   setupCheckbox("url-shortener-resolver-toggle", "urlShortenerResolverEnabled", store.urlShortenerResolverEnabled, "Turn off URL Shortener Resolver");
 
+  setupWhatsNew(store);            // release notes bundled with the extension
+  setupSiteCleanup(store);         // per-site page cleanup (YouTube)
   setupToxicHider(store);          // Module 4A
   setupGuardian(store);            // self-lock PIN status panel
   setupDarkPatterns(store);        // Module 3A — relocated from the popup
@@ -358,6 +364,238 @@ function setupNav() {
   }
 
   links[0].classList.add("active");
+}
+
+// ===========================================================================
+// What's New — release notes that ship inside the extension. Add a new entry at
+// the TOP for each release and keep `version` in step with manifest.json: the
+// matching entry gets the "Current" badge, and the sidebar shows a dot until
+// those notes have been looked at. Nothing here is fetched, so an older install
+// never advertises changes it doesn't actually have.
+// ===========================================================================
+
+const CHANGELOG = [
+  {
+    version: "1.2.0",
+    date: "August 2026",
+    items: [
+      "New Site Cleanup section — hide the distracting parts of YouTube without blocking it: the home feed, Shorts, comments, recommended videos, end cards, thumbnails, the top bar, and autoplay.",
+      "A Shorts link now opens in the normal player instead of the swipe feed when Shorts are hidden.",
+      "New What's New section, so every release explains itself.",
+    ],
+  },
+  {
+    version: "1.1.0",
+    date: "July 2026",
+    items: [
+      "Guardian Lock now gates every action that weakens your protection — turning a module off, raising a Doomscroll time limit, allowlisting a site, or getting past the pause screen.",
+      "Doomscroll Stopper is opt-in: limits stay off until you switch on the feeds you want capped.",
+      "New Desktop Guard card in Security.",
+      "Faster page filtering — idle-time batching, tighter DOM observers, and cheaper text scanning, so busy pages stay smooth.",
+      "Firefox build, a published privacy policy, and refreshed icons.",
+    ],
+  },
+  {
+    version: "1.0.0",
+    date: "July 2026",
+    items: [
+      "First release — bad-language filter, toxic comment hider, dark-pattern blocker with cookie auto-reject, popup & click-hijack blocker, gambling / financial / safety blocklists, URL shortener resolver, Doomscroll Stopper, Guardian Lock, and the protection dashboard.",
+    ],
+  },
+];
+
+function setupWhatsNew(store) {
+  const list = document.getElementById("whatsnew-list");
+  if (!list) return;
+
+  const current = chrome.runtime.getManifest().version;
+
+  list.textContent = "";
+  for (const release of CHANGELOG) {
+    const entry = svEl("li", "whatsnew-release");
+
+    const head = svEl("div", "whatsnew-head");
+    head.append(svEl("span", "whatsnew-version", `v${release.version}`));
+    if (release.version === current) head.append(svEl("span", "badge on", "Current"));
+    head.append(svEl("span", "whatsnew-date", release.date));
+    entry.append(head);
+
+    const items = svEl("ul", "whatsnew-items");
+    for (const text of release.items) items.append(svEl("li", "", text));
+    entry.append(items);
+
+    list.append(entry);
+  }
+
+  // Sidebar dot: shown until the notes for the running version have been seen.
+  const dot = document.getElementById("whatsnew-dot");
+  const section = document.getElementById("section-whatsnew");
+  if (!dot || !section || store.seenWhatsNewVersion === current) return;
+  dot.hidden = false;
+
+  let done = false;
+  function markSeen() {
+    if (done) return;
+    done = true;
+    dot.hidden = true;
+    chrome.storage.local.set({ seenWhatsNewVersion: current });
+  }
+
+  const link = document.querySelector('.nav-link[data-target="section-whatsnew"]');
+  if (link) link.addEventListener("click", markSeen);
+  if ("IntersectionObserver" in window) {
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (!entries.some((e) => e.isIntersecting)) return;
+        observer.disconnect();
+        markSeen();
+      },
+      { threshold: 0.4 }
+    );
+    observer.observe(section);
+  }
+}
+
+// Small element helper — mirrors dsEl() in the Doomscroll section.
+function svEl(tag, className, text) {
+  const el = document.createElement(tag);
+  if (className) el.className = className;
+  if (text !== undefined) el.textContent = text;
+  return el;
+}
+
+// ===========================================================================
+// Site Cleanup — hide parts of a site you still want to use. Each site is a
+// card of grouped switches; content/site-cleanup.js turns them into classes on
+// <html> and content/youtube-clean.css does the hiding.
+//
+// Everything defaults to OFF: switching one on strengthens protection (free),
+// switching it off weakens it (Guardian PIN gate), same as every other module.
+// Settings live under ONE nested key so more sites don't mean dozens of new
+// storage keys: siteCleanup: { youtube: { enabled, hideShorts, … } }
+// ===========================================================================
+
+const SITE_CLEANUP_SITES = [
+  {
+    id: "youtube",
+    name: "YouTube",
+    masterLabel: "Clean up YouTube",
+    masterDesc: "Master switch for everything below",
+    groups: [
+      {
+        title: "Feeds & pages",
+        items: [
+          { key: "hideHome", label: "Hide home feed", desc: "Empties the home page — search and subscriptions still work" },
+          { key: "hideShorts", label: "Hide Shorts", desc: "Removes Shorts shelves and the sidebar entry; a Shorts link opens in the normal player instead of the swipe feed" },
+          { key: "hideSubscriptions", label: "Hide Subscriptions", desc: "Empties the Subscriptions feed and removes its sidebar entry" },
+          { key: "hideExplore", label: "Hide Explore", desc: "Removes Trending, Music, Movies and Gaming from the sidebar" },
+        ],
+      },
+      {
+        title: "Distractions",
+        items: [
+          { key: "hideRecommended", label: "Hide recommended videos", desc: "Clears the up-next list beside a video. Live chat and playlists stay" },
+          { key: "hideComments", label: "Hide comments", desc: "Hides the comment section entirely — the Toxic Comment Hider then skips YouTube, since there's nothing left to read" },
+          { key: "disableEndCards", label: "Hide end cards", desc: "Removes the video suggestions laid over the end of a video" },
+          { key: "disableAutoplay", label: "Turn off autoplay", desc: "Flips YouTube's own autoplay switch off when a video opens. Depends on YouTube's player controls, so it's the one setting here that can break when YouTube changes" },
+        ],
+      },
+      {
+        title: "Appearance",
+        items: [
+          { key: "hideThumbnails", label: "Hide thumbnails", desc: "Blanks video thumbnails; titles stay readable. Channel avatars are left alone" },
+          { key: "blurThumbnails", label: "Blur thumbnails", desc: "A softer alternative to hiding them" },
+          { key: "hideTopBar", label: "Hide the top bar", desc: "Removes the masthead, including the search box" },
+          { key: "blackAndWhite", label: "Black & white", desc: "Drains the colour from every YouTube page, the video included" },
+        ],
+      },
+    ],
+  },
+];
+
+// One switch row in a Site Cleanup card, matching the markup used by the
+// Dark Pattern Blocker's rows.
+function scRow(label, desc) {
+  const row = svEl("div", "switch-row");
+  const text = svEl("div", "switch-label");
+  text.append(svEl("span", "label", label));
+  if (desc) text.append(svEl("span", "description", desc));
+
+  const input = document.createElement("input");
+  input.type = "checkbox";
+  const toggle = svEl("label", "switch");
+  toggle.append(input, svEl("span", "slider"));
+
+  row.append(text, toggle);
+  return { row, input };
+}
+
+function setupSiteCleanup(store) {
+  // The whole nested key, so writing one site never drops another one's settings.
+  const all = store.siteCleanup && typeof store.siteCleanup === "object" ? { ...store.siteCleanup } : {};
+
+  for (const site of SITE_CLEANUP_SITES) {
+    const host = document.getElementById(`sc-${site.id}-body`);
+    if (!host) continue;
+
+    host.textContent = ""; // re-rendering replaces the rows, never doubles them
+    const settings = { ...(all[site.id] || {}) };
+    const subs = []; // { key, label, input, group }
+
+    function persist() {
+      all[site.id] = settings;
+      chrome.storage.local.set({ siteCleanup: all });
+    }
+
+    // Master switch.
+    const masterField = svEl("div", "field");
+    const master = scRow(site.masterLabel, site.masterDesc);
+    masterField.append(master.row);
+    host.append(masterField);
+    master.input.checked = !!settings.enabled;
+
+    // Grouped sub-switches.
+    for (const group of site.groups) {
+      const field = svEl("div", "field sc-group");
+      field.append(svEl("h3", "", group.title));
+      for (const item of group.items) {
+        const { row, input } = scRow(item.label, item.desc);
+        input.checked = !!settings[item.key];
+        field.append(row);
+        subs.push({ ...item, input, group: field });
+      }
+      host.append(field);
+    }
+
+    // Sub-switches only mean anything while the master is on. Hiding a thumbnail
+    // outright also makes blurring it moot, so that pair is mutually exclusive.
+    function refreshEnabled() {
+      const on = master.input.checked;
+      for (const s of subs) {
+        const shadowed = s.key === "blurThumbnails" && !!settings.hideThumbnails;
+        s.input.disabled = !on || shadowed;
+        s.group.classList.toggle("is-off", !on);
+      }
+    }
+
+    master.input.addEventListener("change", async () => {
+      if (!(await SieveGuardian.gateToggleOff(master.input, `Turn off ${site.name} cleanup`))) return;
+      settings.enabled = master.input.checked;
+      refreshEnabled();
+      persist();
+    });
+
+    for (const s of subs) {
+      s.input.addEventListener("change", async () => {
+        if (!(await SieveGuardian.gateToggleOff(s.input, `Turn off “${s.label}” on ${site.name}`))) return;
+        settings[s.key] = s.input.checked;
+        refreshEnabled();
+        persist();
+      });
+    }
+
+    refreshEnabled();
+  }
 }
 
 // ===========================================================================
@@ -424,6 +662,36 @@ async function setupToxicModel(store) {
   // after a successful download (and cleared on remove/failure); if it ever goes
   // stale (e.g. the browser evicts the cache), the toggle-ON handler below calls
   // isReady() and re-downloads, so correctness self-heals at the moment of use.
+  // Turns a download failure into something the user can act on. The three
+  // causes need three different responses, and "try again" only helps one:
+  //   - the request never left the browser  -> a VPN, DNS filter or shield
+  //   - the server answered with an error    -> genuinely retry later
+  //   - the browser refused to store it      -> free up disk space
+  function describeDownloadFailure(err) {
+    const message = String((err && err.message) || err || "");
+
+    // fetch() rejects with a TypeError when the request is blocked before it
+    // reaches the network, which is what a DNS filter or browser shield does.
+    // Only a fetch rejection means "blocked". A bare TypeError is not enough:
+    // a coding mistake throws one too, and reporting that as a network problem
+    // sends the user chasing their VPN over a bug in this extension.
+    if (/failed to fetch|networkerror|load failed|network request failed/i.test(message)) {
+      return `Download blocked before it reached the network. A VPN, custom DNS or browser shield is usually the cause — allow storage.googleapis.com and try again. (${message})`;
+    }
+    if (/quota|storage|exceeded/i.test(message) || (err && err.name === "QuotaExceededError")) {
+      return "Not enough storage to save the model (it needs about 55 MB). Free up disk space and try again.";
+    }
+    const http = /HTTP (\d{3})/.exec(message);
+    if (http) {
+      return `The server refused the download (HTTP ${http[1]}). This is not on your end — please try again later.`;
+    }
+    if (/caches|indexeddb|securityerror/i.test(message)) {
+      return "This browser would not let the extension store the model. Check that site data is not blocked for extensions.";
+    }
+    const name = (err && err.name) ? err.name : "Error";
+    return `Download failed (${name}: ${message || "no message"}). Still protected by the word list.`;
+  }
+
   async function render(snapshot) {
     // Initial render uses the page's batched snapshot; later renders (after a
     // toggle/remove) pass nothing and read the two flags fresh.
@@ -490,7 +758,10 @@ async function setupToxicModel(store) {
       await chrome.storage.local.set({ toxicModelEnabled: false, toxicModelReady: false });
       toggle.checked = false;
       showProgress(false);
-      setStatus("Download failed — still protected by the word list. Try again.", "error");
+      // "Try again" was the only guidance, and retrying does not help when the
+      // cause is a VPN, a DNS filter or a full disk. Users reported being stuck
+      // on this with no way to find out why, so name the likely cause.
+      setStatus(describeDownloadFailure(err), "error");
     } finally {
       busy = false;
       toggle.disabled = false;

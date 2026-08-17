@@ -1,0 +1,170 @@
+/* content/youtube-clean.css
+ * Sieve — YouTube cleanup (Site Cleanup module).
+ *
+ * The manifest injects this file on every youtube.com page at document_start, so
+ * it is parsed before YouTube paints. Every rule is scoped to a class on <html>
+ * that content/site-cleanup.js adds from the user's settings, which means the
+ * file is completely inert until a toggle is switched on — and hiding never
+ * depends on JavaScript winning a race with YouTube's renderer.
+ *
+ * This is the ONLY place that knows YouTube's markup. When YouTube renames an
+ * element, fixing it is a CSS edit, not a code change. Selectors were verified
+ * against youtube.com in August 2026:
+ *   home feed      ytd-browse[page-subtype="home"] > ytd-rich-grid-renderer
+ *   shorts shelves ytd-reel-shelf-renderer, ytm-shorts-lockup-view-model
+ *   nav entries    ytd-guide-entry-renderer / ytd-mini-guide-entry-renderer
+ *   watch sidebar  ytd-watch-next-secondary-results-renderer, #related
+ *   top bar        #masthead-container (56px, via --ytd-toolbar-height)
+ *
+ * Note: several rules use :has(), so they need Chrome 105+ / Firefox 121+. On
+ * anything older those specific rules are ignored — the page stays usable, the
+ * element just isn't hidden.
+ */
+
+/* ==========================================================================
+   Home feed
+   ========================================================================== */
+
+html.sv-yt-hide-home ytd-browse[page-subtype="home"] ytd-rich-grid-renderer #contents,
+html.sv-yt-hide-home ytd-browse[page-subtype="home"] ytd-feed-filter-chip-bar-renderer {
+  display: none !important;
+}
+
+/* A blank page reads as breakage, so say who emptied it. */
+html.sv-yt-hide-home ytd-browse[page-subtype="home"] ytd-rich-grid-renderer::after {
+  content: "Home feed hidden by Sieve";
+  display: block;
+  padding: 5rem 1rem;
+  text-align: center;
+  font: 500 0.95rem/1.6 "Roboto", system-ui, sans-serif;
+  opacity: 0.5;
+}
+
+/* ==========================================================================
+   Shorts — shelves, individual items, and the nav entries that lead there
+   ========================================================================== */
+
+html.sv-yt-hide-shorts ytd-reel-shelf-renderer,
+html.sv-yt-hide-shorts ytd-rich-shelf-renderer[is-shorts],
+html.sv-yt-hide-shorts ytm-shorts-lockup-view-model,
+html.sv-yt-hide-shorts ytd-item-section-renderer:has(ytd-reel-shelf-renderer),
+html.sv-yt-hide-shorts ytd-rich-section-renderer:has(ytm-shorts-lockup-view-model),
+html.sv-yt-hide-shorts grid-shelf-view-model:has(ytm-shorts-lockup-view-model),
+html.sv-yt-hide-shorts ytd-guide-entry-renderer:has(a[title="Shorts"]),
+html.sv-yt-hide-shorts ytd-guide-entry-renderer:has(a[href^="/shorts"]),
+html.sv-yt-hide-shorts ytd-mini-guide-entry-renderer:has(a[title="Shorts"]),
+html.sv-yt-hide-shorts ytd-mini-guide-entry-renderer:has(a[href^="/shorts"]) {
+  display: none !important;
+}
+
+/* ==========================================================================
+   Comments
+   ========================================================================== */
+
+html.sv-yt-hide-comments #comments,
+html.sv-yt-hide-comments ytd-comments {
+  display: none !important;
+}
+
+/* ==========================================================================
+   Recommended videos — the watch-page sidebar list only. #secondary itself is
+   left alone so live chat and playlist panels keep working.
+   ========================================================================== */
+
+html.sv-yt-hide-recommended ytd-watch-next-secondary-results-renderer,
+html.sv-yt-hide-recommended #related {
+  display: none !important;
+}
+
+/* ==========================================================================
+   Thumbnails — hide or blur. Scoped to video thumbnails; channel avatars
+   (yt-img-shadow / #avatar) are deliberately left visible.
+   ========================================================================== */
+
+html.sv-yt-hide-thumbs ytd-thumbnail img,
+html.sv-yt-hide-thumbs yt-thumbnail-view-model img,
+html.sv-yt-hide-thumbs ytm-shorts-lockup-view-model img,
+html.sv-yt-hide-thumbs yt-lockup-view-model yt-image img {
+  /* visibility, not display: the card keeps its shape so layout stays sane */
+  visibility: hidden !important;
+}
+
+html.sv-yt-blur-thumbs ytd-thumbnail img,
+html.sv-yt-blur-thumbs yt-thumbnail-view-model img,
+html.sv-yt-blur-thumbs ytm-shorts-lockup-view-model img,
+html.sv-yt-blur-thumbs yt-lockup-view-model yt-image img {
+  filter: blur(18px) !important;
+  /* keep the blur from bleeding past the thumbnail's rounded corners */
+  clip-path: inset(0 round 12px);
+}
+
+/* ==========================================================================
+   Subscriptions
+   ========================================================================== */
+
+html.sv-yt-hide-subs ytd-guide-entry-renderer:has(a[href="/feed/subscriptions"]),
+html.sv-yt-hide-subs ytd-mini-guide-entry-renderer:has(a[href="/feed/subscriptions"]),
+html.sv-yt-hide-subs ytd-browse[page-subtype="subscriptions"] #contents {
+  display: none !important;
+}
+
+html.sv-yt-hide-subs ytd-browse[page-subtype="subscriptions"]::after {
+  content: "Subscriptions hidden by Sieve";
+  display: block;
+  padding: 5rem 1rem;
+  text-align: center;
+  font: 500 0.95rem/1.6 "Roboto", system-ui, sans-serif;
+  opacity: 0.5;
+}
+
+/* ==========================================================================
+   Explore — the guide's "Explore" section (Trending / Music / Movies / Gaming)
+   and the pages behind it. Matched by the hrefs inside the section, since CSS
+   can't match the section's heading text.
+   ========================================================================== */
+
+html.sv-yt-hide-explore ytd-guide-section-renderer:has(a[href="/gaming"]),
+html.sv-yt-hide-explore ytd-guide-section-renderer:has(a[href^="/feed/storefront"]),
+html.sv-yt-hide-explore ytd-guide-entry-renderer:has(a[href^="/feed/explore"]),
+html.sv-yt-hide-explore ytd-guide-entry-renderer:has(a[href^="/feed/trending"]),
+html.sv-yt-hide-explore ytd-browse[page-subtype="trending"] #contents {
+  display: none !important;
+}
+
+/* ==========================================================================
+   Top bar — hiding the masthead also has to reclaim the 56px it reserved
+   ========================================================================== */
+
+html.sv-yt-hide-topbar #masthead-container {
+  display: none !important;
+}
+
+html.sv-yt-hide-topbar ytd-app {
+  --ytd-toolbar-height: 0px !important;
+}
+
+html.sv-yt-hide-topbar #page-manager {
+  margin-top: 0 !important;
+}
+
+/* ==========================================================================
+   End cards — the recommendations laid over the player as a video finishes.
+   These elements only exist while they're showing, so this stays dormant until
+   then.
+   ========================================================================== */
+
+html.sv-yt-no-endcards .ytp-ce-element,
+html.sv-yt-no-endcards .ytp-ce-covering-overlay,
+html.sv-yt-no-endcards .ytp-endscreen-content {
+  display: none !important;
+}
+
+/* ==========================================================================
+   Black & white — drains the colour that makes the page feel urgent. Applied
+   to ytd-app rather than <html> so YouTube's own fixed overlays stay put. The
+   video greys out too; that's the point.
+   ========================================================================== */
+
+html.sv-yt-bw ytd-app {
+  filter: grayscale(1);
+}
