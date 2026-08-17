@@ -40,6 +40,39 @@
     "https://storage.googleapis.com/tfjs-models/savedmodel/",
   ];
 
+  // Decompressed size of every file, recorded from the upstream source. Used for
+  // two things, both of which content-length cannot do:
+  //
+  //   - the download total, so the progress bar is exact and needs no HEAD
+  //     round-trips before starting
+  //   - detecting a truncated file, which would otherwise load as a working
+  //     model that quietly behaves wrongly
+  //
+  // content-length is unusable for either. A mirror may serve a file gzipped, in
+  // which case the header carries the COMPRESSED length while the browser hands
+  // back the decompressed body: raw.githubusercontent.com reports 83,444 bytes
+  // for vocab.json and delivers 218,327. Comparing the two rejected a perfectly
+  // good file. These figures are the decoded truth and do not vary by mirror.
+  const EXPECTED_BYTES = {
+    "toxicity/model.json": 173234,
+    "toxicity/group1-shard1of7": 4194304,
+    "toxicity/group1-shard2of7": 4194304,
+    "toxicity/group1-shard3of7": 4194304,
+    "toxicity/group1-shard4of7": 4194304,
+    "toxicity/group1-shard5of7": 4194304,
+    "toxicity/group1-shard6of7": 4194304,
+    "toxicity/group1-shard7of7": 4086004,
+    "universal_sentence_encoder/model.json": 247026,
+    "universal_sentence_encoder/vocab.json": 218327,
+    "universal_sentence_encoder/group1-shard1of7": 4194304,
+    "universal_sentence_encoder/group1-shard2of7": 4194304,
+    "universal_sentence_encoder/group1-shard3of7": 4194304,
+    "universal_sentence_encoder/group1-shard4of7": 4194304,
+    "universal_sentence_encoder/group1-shard5of7": 4194304,
+    "universal_sentence_encoder/group1-shard6of7": 4194304,
+    "universal_sentence_encoder/group1-shard7of7": 2737832,
+  };
+
   // Each model = a model.json (whose manifest lists the weight shards) plus any
   // non-weight extra files it needs (the encoder ships a vocabulary).
   const MODELS = [
@@ -123,32 +156,23 @@
     }
   }
 
-  // Sum the byte sizes of every file (cached size if present, else a HEAD).
+  // Sum the byte sizes of every file, from the recorded table rather than the
+  // network. This previously sent a HEAD request per file to the canonical host
+  // — the very host that may be unreachable — and swallowed the failure, so
+  // every size came back 0, the total was 0, and the progress bar sat at nothing
+  // for the whole download. A user reported exactly that. Reading known values
+  // removes 17 round-trips and cannot fail.
   async function totalBytes(cache, urls) {
     const sizes = [];
     let total = 0;
     for (const u of urls) {
-      const cached = await cache.match(u);
-      if (cached) {
-        const n = Number(cached.headers.get("content-length")) || 0;
-        sizes.push(n);
-        total += n;
-        continue;
-      }
-      // Ask the mirrors, not the canonical URL. This used to HEAD the canonical
-      // host — the very host that may be unreachable — and swallow the failure,
-      // so every size came back 0, the total was 0, and the progress bar sat at
-      // nothing for the whole download. A user reported exactly that.
-      let n = 0;
-      for (const base of MIRRORS) {
-        try {
-          const h = await fetch(base + relPathOf(u), { method: "HEAD" });
-          if (!h.ok) continue;
-          n = Number(h.headers.get("content-length")) || 0;
-          if (n > 0) break;
-        } catch {
-          /* try the next mirror */
-        }
+      const rel = relPathOf(u);
+      let n = EXPECTED_BYTES[rel] || 0;
+      if (!n) {
+        // Not in the table (an upstream layout change): fall back to whatever a
+        // cached copy reports, so the total degrades rather than breaking.
+        const cached = await cache.match(u);
+        n = cached ? Number(cached.headers.get("content-length")) || 0 : 0;
       }
       sizes.push(n);
       total += n;
@@ -176,8 +200,9 @@
         report();
         continue;
       }
-      const res = await fetchFromMirrors(relPathOf(u));
-      const expected = Number(res.headers.get("content-length")) || 0;
+      const rel = relPathOf(u);
+      const res = await fetchFromMirrors(rel);
+      const expected = EXPECTED_BYTES[rel] || 0;
 
       // Stream so we can count bytes for the progress bar.
       const reader = res.body.getReader();
@@ -199,7 +224,7 @@
       // than a failed download and impossible for a user to diagnose.
       if (expected > 0 && body.size !== expected) {
         throw new Error(
-          relPathOf(u) + " is incomplete (" + body.size + " of " + expected + " bytes)"
+          rel + " is the wrong size (" + body.size + " bytes, expected " + expected + ")"
         );
       }
 
@@ -222,7 +247,12 @@
   }
 
   NS.CACHE_NAME = CACHE_NAME;
-  NS.BASE = BASE;
+  // Kept as `BASE` for anything that still reads it: it is the canonical URL
+  // prefix that cache entries are keyed by, which is what callers actually
+  // want. `MIRRORS` is where the bytes may come from and is exposed separately.
+  NS.BASE = CANONICAL_BASE;
+  NS.CANONICAL_BASE = CANONICAL_BASE;
+  NS.MIRRORS = MIRRORS.slice();
   NS.MODELS = MODELS;
   NS.isReady = isReady;
   NS.download = download;
