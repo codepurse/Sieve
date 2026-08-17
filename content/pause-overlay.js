@@ -35,7 +35,7 @@
       ? `<div class="actions">
             <button class="btn primary" id="pin-reveal">Enter PIN to continue</button>
             <div class="pin-row" id="pin-row" hidden>
-              <input class="pin-input" id="pin-input" type="password" inputmode="numeric"
+              <input class="pin-input" id="pin-input" type="password"
                      placeholder="PIN" autocomplete="off" />
               <button class="btn primary" id="pin-submit">Unlock 15 min</button>
             </div>
@@ -53,8 +53,11 @@
         .backdrop {
           position: fixed; inset: 0;
           display: flex; align-items: center; justify-content: center;
-          background: rgba(8, 12, 24, 0.82);
-          backdrop-filter: blur(8px);
+          /* Opaque enough that what is behind cannot be followed, and a heavy
+             blur on top. A user could still watch a partially blurred video
+             through the old 0.82/8px, which defeats a pause screen. */
+          background: rgba(8, 12, 24, 0.96);
+          backdrop-filter: blur(28px) saturate(0.6);
           font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
           color: #f1f5f9;
           animation: fade 0.35s ease;
@@ -163,6 +166,67 @@
     window.removeEventListener("keydown", blockKeys, true);
   }
 
+  // --- media ---------------------------------------------------------------
+  //
+  // The overlay used to blur the page and nothing more, which left the video
+  // playing behind it. A user reported pressing space and carrying on watching:
+  // the key never reaches us because YouTube listens on its own player, and the
+  // overlay is a sibling element, not a replacement for the page.
+  //
+  // Blurring harder would not have fixed it. Sound is most of what holds
+  // attention on a video, and no amount of blur touches audio — the pause has to
+  // actually stop playback.
+  //
+  // Two details matter. Players restart playback on their own (autoplay, "up
+  // next", a user hitting space anyway), so pausing once is not enough: a `play`
+  // listener re-pauses for as long as the overlay is up. And we remember only
+  // what we paused ourselves, so hiding the overlay never starts something the
+  // user had already stopped.
+  let pausedMedia = [];
+  let mediaGuard = null;
+
+  function pauseAllMedia() {
+    pausedMedia = [];
+    const media = document.querySelectorAll("video, audio");
+    for (const el of media) {
+      try {
+        if (el.paused) continue; // leave it alone; it was not us
+        el.pause();
+        pausedMedia.push(el);
+      } catch (_) {
+        /* a cross-origin or detached element — nothing we can do */
+      }
+    }
+
+    // Keep it paused. Capture phase so we see the event before the page's own
+    // handlers, and re-pause rather than cancel: `play` is not cancelable.
+    mediaGuard = (e) => {
+      const el = e.target;
+      if (!el || (el.tagName !== "VIDEO" && el.tagName !== "AUDIO")) return;
+      try {
+        el.pause();
+        if (!pausedMedia.includes(el)) pausedMedia.push(el);
+      } catch (_) {}
+    };
+    document.addEventListener("play", mediaGuard, true);
+  }
+
+  function resumePausedMedia() {
+    if (mediaGuard) {
+      document.removeEventListener("play", mediaGuard, true);
+      mediaGuard = null;
+    }
+    for (const el of pausedMedia) {
+      // play() rejects if the element went away or autoplay policy refuses it;
+      // that is fine, the user can press play themselves.
+      try {
+        const p = el.play();
+        if (p && typeof p.catch === "function") p.catch(() => {});
+      } catch (_) {}
+    }
+    pausedMedia = [];
+  }
+
   // --- run a button's handler, then close (Personal mode) -----------------
   function runAction(name) {
     const map = { snooze: "onSnooze", stop: "onStopForToday", dismiss: "onDismiss" };
@@ -230,6 +294,7 @@
     // Attach to <html> so it survives sites that rebuild <body>.
     document.documentElement.appendChild(host);
     lockScroll();
+    pauseAllMedia();
     const primary = root.querySelector(".btn.primary");
     if (primary) primary.focus();
   }
@@ -239,6 +304,7 @@
     shown = false;
     guardianActive = false;
     unlockScroll();
+    resumePausedMedia();
     if (host && host.parentNode) host.parentNode.removeChild(host);
     host = null;
     handlers = {};

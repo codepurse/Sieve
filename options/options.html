@@ -214,10 +214,10 @@
             <div class="field" id="guardian-setup">
               <h3>Set a PIN</h3>
               <div class="add-row">
-                <input id="guardian-new" class="input" type="password" inputmode="numeric"
-                       placeholder="New PIN (4+ digits)" autocomplete="new-password" />
-                <input id="guardian-confirm" class="input" type="password" inputmode="numeric"
-                       placeholder="Confirm PIN" autocomplete="new-password" />
+                <input id="guardian-new" class="input" type="password"
+                       placeholder="New PIN or passphrase (4+ characters)" autocomplete="new-password" />
+                <input id="guardian-confirm" class="input" type="password"
+                       placeholder="Confirm" autocomplete="new-password" />
                 <button id="guardian-enable" class="btn btn-primary">Turn on</button>
               </div>
               <p id="guardian-setup-error" class="error" role="alert"></p>
@@ -226,12 +226,12 @@
             <div class="field" id="guardian-manage" hidden>
               <h3>Change or remove PIN</h3>
               <div class="add-row">
-                <input id="guardian-current" class="input" type="password" inputmode="numeric"
-                       placeholder="Current PIN" autocomplete="off" />
-                <input id="guardian-change" class="input" type="password" inputmode="numeric"
-                       placeholder="New PIN (optional)" autocomplete="new-password" />
-                <input id="guardian-change-confirm" class="input" type="password" inputmode="numeric"
-                       placeholder="Confirm new PIN" autocomplete="new-password" />
+                <input id="guardian-current" class="input" type="password"
+                       placeholder="Current PIN or passphrase" autocomplete="off" />
+                <input id="guardian-change" class="input" type="password"
+                       placeholder="New one (optional)" autocomplete="new-password" />
+                <input id="guardian-change-confirm" class="input" type="password"
+                       placeholder="Confirm new one" autocomplete="new-password" />
               </div>
               <div class="add-row guardian-actions">
                 <button id="guardian-update" class="btn btn-primary">Change PIN</button>

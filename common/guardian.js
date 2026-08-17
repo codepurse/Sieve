@@ -40,10 +40,28 @@
     return !!stored[HASH_KEY];
   }
 
+  // Applied on both setting and checking, so surrounding whitespace can never
+  // decide whether someone gets into their own settings.
+  //
+  // This matters now that the lock may be a passphrase rather than digits. The
+  // entry points disagreed: onboarding hashed `value.trim()` while the options
+  // page, the unlock prompt and the pause overlay all used the raw value. A
+  // passphrase set during onboarding with a trailing space — easy when it is a
+  // sentence copied off paper — would then never verify again, locking the user
+  // out of the settings they were trying to protect, with no recovery.
+  //
+  // Normalising in the core rather than at each call site means a future entry
+  // point cannot reintroduce the mismatch. Existing digit-only PINs are
+  // unaffected: the old validator rejected anything but digits, so no stored
+  // hash can contain whitespace and trimming is a no-op for them.
+  function normalize(pin) {
+    return typeof pin === "string" ? pin.trim() : String(pin == null ? "" : pin).trim();
+  }
+
   // Set or change the PIN.
   async function setPin(pin) {
     const salt = randomHex(16);
-    const hash = await hashPin(pin, salt);
+    const hash = await hashPin(normalize(pin), salt);
     await chrome.storage.local.set({ [SALT_KEY]: salt, [HASH_KEY]: hash });
   }
 
@@ -52,7 +70,7 @@
     const stored = await chrome.storage.local.get([SALT_KEY, HASH_KEY]);
     if (!stored[HASH_KEY]) return true;
     if (!stored[SALT_KEY]) return false;
-    const hash = await hashPin(pin, stored[SALT_KEY]);
+    const hash = await hashPin(normalize(pin), stored[SALT_KEY]);
     return hash === stored[HASH_KEY];
   }
 

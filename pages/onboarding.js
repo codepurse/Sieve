@@ -194,8 +194,10 @@
       const pin = newInput.value.trim();
       const confirm = confirmInput.value.trim();
 
-      if (!/^\d{4,}$/.test(pin)) {
-        showError("PIN must be at least 4 digits.");
+      // Any 4+ characters, not digits only — see the note on isValidPin in
+      // options/options.js. A user's lock is sentences he retypes from paper.
+      if (typeof pin !== "string" || pin.length < 4) {
+        showError("Use at least 4 characters — letters, numbers or whole sentences all work.");
         return;
       }
       if (pin !== confirm) {
