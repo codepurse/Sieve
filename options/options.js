@@ -929,9 +929,21 @@ async function renderSafetyShieldUpdated(store) {
 // Guardian Lock (self-lock PIN) — set / change / remove the PIN.
 // ===========================================================================
 
-// A PIN is 4 or more digits.
+// Any 4 or more characters. This deliberately accepts far more than digits.
+//
+// It used to be /^\d{4,}$/. A user explained why that was wrong: he writes his
+// lock as sentences about the consequences of relapsing, keeps them on paper so
+// they cannot be pasted, and has to read and retype the whole thing to get in.
+// The typing is the point — it forces a pause to think. Sieve rejected it
+// outright, and told him only that a PIN must be digits.
+//
+// Nothing downstream cared: the Guardian core hashes whatever string it is
+// given (salt + value, SHA-256), so letters, spaces and punctuation have always
+// worked once past this check.
+const MIN_LOCK_LENGTH = 4;
+
 function isValidPin(pin) {
-  return /^\d{4,}$/.test(pin);
+  return typeof pin === "string" && pin.length >= MIN_LOCK_LENGTH;
 }
 
 async function setupGuardian(store) {
@@ -967,7 +979,7 @@ async function setupGuardian(store) {
 
   enableBtn.addEventListener("click", async () => {
     if (!isValidPin(newPin.value)) {
-      setupError.textContent = "PIN must be at least 4 digits.";
+      setupError.textContent = "Use at least 4 characters — letters, numbers, spaces or whole sentences all work.";
       return;
     }
     if (newPin.value !== confirmPin.value) {
@@ -984,7 +996,7 @@ async function setupGuardian(store) {
       return;
     }
     if (!isValidPin(changePin.value)) {
-      manageError.textContent = "New PIN must be at least 4 digits.";
+      manageError.textContent = "Use at least 4 characters — letters, numbers, spaces or whole sentences all work.";
       return;
     }
     if (changePin.value !== changeConfirm.value) {

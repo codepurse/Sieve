@@ -76,7 +76,7 @@
       <div class="sg-card" role="dialog" aria-modal="true" aria-labelledby="sg-title">
         <p class="sg-title" id="sg-title">Enter your PIN</p>
         <p class="sg-sub" id="sg-sub"></p>
-        <input class="sg-input" id="sg-input" type="password" inputmode="numeric"
+        <input class="sg-input" id="sg-input" type="password"
                placeholder="PIN" autocomplete="off" />
         <p class="sg-error" id="sg-error" role="alert"></p>
         <div class="sg-actions">
