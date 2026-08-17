@@ -9,8 +9,18 @@
     "48": "icons/icon-48.png",
     "128": "icons/icon-128.png"
   },
-  "permissions": ["storage", "unlimitedStorage", "declarativeNetRequest", "alarms", "webNavigation", "tabs", "offscreen"],
-  "host_permissions": ["<all_urls>"],
+  "permissions": [
+    "storage",
+    "unlimitedStorage",
+    "declarativeNetRequest",
+    "alarms",
+    "webNavigation",
+    "tabs",
+    "offscreen"
+  ],
+  "host_permissions": [
+    "<all_urls>"
+  ],
   "background": {
     "service_worker": "background/service-worker.js",
     "type": "module"
@@ -30,12 +40,19 @@
   },
   "content_scripts": [
     {
-      "matches": ["<all_urls>"],
-      "js": ["content/bad-language.js"],
+      "matches": [
+        "<all_urls>"
+      ],
+      "js": [
+        "common/keyword-pattern.js",
+        "content/bad-language.js"
+      ],
       "run_at": "document_idle"
     },
     {
-      "matches": ["<all_urls>"],
+      "matches": [
+        "<all_urls>"
+      ],
       "js": [
         "content/dark-patterns.js",
         "content/patterns/timers.js",
@@ -47,8 +64,13 @@
       "run_at": "document_idle"
     },
     {
-      "matches": ["<all_urls>"],
-      "js": ["content/cookie-engine.bundle.js", "content/cookie-autoreject.js"],
+      "matches": [
+        "<all_urls>"
+      ],
+      "js": [
+        "content/cookie-engine.bundle.js",
+        "content/cookie-autoreject.js"
+      ],
       "run_at": "document_idle"
     },
     {
@@ -61,7 +83,11 @@
         "*://*.facebook.com/*",
         "*://*.youtube.com/*"
       ],
-      "js": ["common/guardian.js", "content/pause-overlay.js", "content/doomscroll.js"],
+      "js": [
+        "common/guardian.js",
+        "content/pause-overlay.js",
+        "content/doomscroll.js"
+      ],
       "run_at": "document_idle"
     },
     {
@@ -71,37 +97,69 @@
         "*://*.twitter.com/*",
         "*://*.x.com/*"
       ],
-      "js": ["content/comment-collapse.js", "content/profanity-filter.js", "content/toxic-model.js"],
+      "js": [
+        "common/keyword-pattern.js",
+        "content/comment-collapse.js",
+        "content/profanity-filter.js",
+        "content/toxic-model.js"
+      ],
       "run_at": "document_idle"
     },
     {
-      "matches": ["*://*.disqus.com/*"],
-      "js": ["content/comment-collapse.js", "content/profanity-filter.js", "content/toxic-model.js"],
+      "matches": [
+        "*://*.disqus.com/*"
+      ],
+      "js": [
+        "common/keyword-pattern.js",
+        "content/comment-collapse.js",
+        "content/profanity-filter.js",
+        "content/toxic-model.js"
+      ],
       "all_frames": true,
       "run_at": "document_idle"
     },
     {
-      "matches": ["*://*.youtube.com/*"],
-      "js": ["content/site-cleanup.js"],
-      "css": ["content/youtube-clean.css"],
+      "matches": [
+        "*://*.youtube.com/*"
+      ],
+      "js": [
+        "content/site-cleanup.js"
+      ],
+      "css": [
+        "content/youtube-clean.css"
+      ],
       "run_at": "document_start"
     },
     {
-      "matches": ["<all_urls>"],
-      "js": ["content/popup-hijack-blocker.js"],
+      "matches": [
+        "<all_urls>"
+      ],
+      "js": [
+        "content/popup-hijack-blocker.js"
+      ],
       "run_at": "document_start",
       "world": "MAIN",
       "all_frames": true
     },
     {
-      "matches": ["<all_urls>"],
-      "js": ["content/popup-hijack-bridge.js", "content/overlay-detector.js", "content/link-hijack-detector.js"],
+      "matches": [
+        "<all_urls>"
+      ],
+      "js": [
+        "content/popup-hijack-bridge.js",
+        "content/overlay-detector.js",
+        "content/link-hijack-detector.js"
+      ],
       "run_at": "document_start",
       "all_frames": true
     },
     {
-      "matches": ["<all_urls>"],
-      "js": ["content/url-shortener-intercept.js"],
+      "matches": [
+        "<all_urls>"
+      ],
+      "js": [
+        "content/url-shortener-intercept.js"
+      ],
       "run_at": "document_start",
       "all_frames": true
     }
@@ -122,8 +180,20 @@
   },
   "web_accessible_resources": [
     {
-      "resources": ["data/wordlist.json", "data/mild-words.json", "data/site-configs.json", "data/profanity-list.json", "data/profanity-custom.json", "data/cookie-rules.json", "data/url-shorteners.json", "pages/blocked.html", "pages/blocked.js"],
-      "matches": ["<all_urls>"]
+      "resources": [
+        "data/wordlist.json",
+        "data/mild-words.json",
+        "data/site-configs.json",
+        "data/profanity-list.json",
+        "data/profanity-custom.json",
+        "data/cookie-rules.json",
+        "data/url-shorteners.json",
+        "pages/blocked.html",
+        "pages/blocked.js"
+      ],
+      "matches": [
+        "<all_urls>"
+      ]
     }
   ]
 }

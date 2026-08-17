@@ -100,6 +100,7 @@
   let activeSet = new Set(); // every active banned term (post exceptions/length)
   let wordRegex = null; // \b(...)\b for normal word-like terms
   let symbolTerms = []; // terms \b can't bound (e.g. the 🖕 emoji)
+  let customPatterns = []; // user /regex/ entries, compiled once per load
   let severeSet = new Set(); // strong slurs — used by "Light" sensitivity
 
   // Curated strong-slur set; intersected with the active list at build time.
@@ -199,10 +200,15 @@
       [...DEFAULT_EXCEPTIONS, ...settings.exceptions].map((w) => w.toLowerCase().trim())
     );
 
+    // A custom word written as /…/ is a regular expression, handled separately
+    // below; it must not fall into the literal pipeline, which lower-cases,
+    // escapes and wraps everything in \b.
+    customPatterns = buildCustomPatterns(settings.customWords || []);
+
     const raw = [
       ...baseList,
       ...(customSupplement.words || []),
-      ...settings.customWords,
+      ...settings.customWords.filter((w) => !isRegexWord(w)),
     ].map((w) => String(w).toLowerCase().trim());
 
     activeSet = new Set();
@@ -230,6 +236,30 @@
   // ----------------------------------------------------------------------------
   // Matching: collect every banned term found in a comment's text.
   // ----------------------------------------------------------------------------
+  // Custom /regex/ entries. Compiled once per settings load — compileEntry()
+  // runs a timing probe, far too costly to repeat per comment — and given `g`
+  // so matchAll can report every hit.
+  function isRegexWord(word) {
+    return typeof KeywordPattern !== "undefined" && KeywordPattern.isRegexEntry(word);
+  }
+
+  function buildCustomPatterns(words) {
+    if (typeof KeywordPattern === "undefined") return [];
+    const out = [];
+    for (const word of words) {
+      if (!isRegexWord(word)) continue;
+      const compiled = KeywordPattern.compileEntry(word);
+      if (!compiled) continue; // invalid or unsafe — skip it
+      try {
+        const flags = compiled.flags.includes("g") ? compiled.flags : compiled.flags + "g";
+        out.push(new RegExp(compiled.source, flags));
+      } catch (_) {
+        /* skip */
+      }
+    }
+    return out;
+  }
+
   function collectMatches(text) {
     const found = new Set();
     if (!text) return found;
@@ -245,6 +275,14 @@
     }
     for (const t of symbolTerms) {
       if (base.includes(t)) found.add(t);
+    }
+    // User patterns run against the raw lower-cased text, not the de-leeted
+    // variants: someone who wrote a pattern gets exactly what they asked for
+    // rather than having it applied to text we rewrote underneath them.
+    for (const re of customPatterns) {
+      for (const m of base.matchAll(re)) {
+        if (m[0]) found.add(m[0]);
+      }
     }
     // Spaced-out bypass: collapse each spaced run and test membership.
     for (const m of base.matchAll(SPACED_RE)) {
