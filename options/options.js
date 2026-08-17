@@ -65,6 +65,82 @@ function renderList(listEl, items) {
   }
 }
 
+// --- bulk entry: paste a list, import a file, export one ------------------
+//
+// Adding entries one at a time through a single input and an Add button is fine
+// for one domain and painful for fifty. A user who keeps his own lists asked to
+// paste them in instead, which is the natural way to fill these.
+//
+// Built here rather than in options.html because all four lists share the same
+// markup (an .add-row, an error line, a <ul>), so one implementation keeps them
+// identical and there is no fourfold copy to drift.
+
+const MAX_IMPORT_BYTES = 1024 * 1024;
+
+// One entry per line. Quoted fields keep their commas, so a phrase survives a
+// round trip through a spreadsheet; an unquoted line is taken whole, because
+// someone typing "hello, world" means one phrase.
+function parseEntryList(text) {
+  const source = String(text || "").replace(/^﻿/, ""); // strip BOM (Excel)
+  const entries = [];
+  let i = 0;
+  while (i < source.length) {
+    if (source[i] === "\r" || source[i] === "\n") { i++; continue; }
+    let value = "";
+    if (source[i] === '"') {
+      i++;
+      for (; i < source.length; i++) {
+        if (source[i] === '"') {
+          if (source[i + 1] === '"') { value += '"'; i++; continue; }
+          i++;
+          break;
+        }
+        value += source[i];
+      }
+      while (i < source.length && source[i] !== "\r" && source[i] !== "\n") i++;
+    } else {
+      const end = source.indexOf("\n", i);
+      value = end === -1 ? source.slice(i) : source.slice(i, end);
+      i = end === -1 ? source.length : end + 1;
+    }
+    const trimmed = value.trim();
+    if (trimmed) entries.push(trimmed);
+  }
+  return entries;
+}
+
+function serializeEntryList(entries) {
+  return entries
+    .map((e) => (/[",\r\n]/.test(e) ? '"' + String(e).replace(/"/g, '""') + '"' : e))
+    .join("\r\n");
+}
+
+// Case-insensitive de-duplication, A-Z, first spelling kept. Every consumer of
+// these lists lower-cases before matching, so "Example.com" and "example.com"
+// are the same entry.
+function tidyEntryList(entries) {
+  const seen = new Set();
+  const out = [];
+  for (const entry of entries) {
+    const key = String(entry).toLowerCase();
+    if (seen.has(key)) continue;
+    seen.add(key);
+    out.push(entry);
+  }
+  return out.sort((a, b) => String(a).localeCompare(String(b), undefined, { sensitivity: "base" }));
+}
+
+function downloadTextFile(filename, text) {
+  const url = URL.createObjectURL(new Blob([text], { type: "text/csv;charset=utf-8" }));
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = filename;
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  URL.revokeObjectURL(url);
+}
+
 // gateAddAction / gateRemoveAction: when set, that mutation WEAKENS protection
 // (e.g. allowlisting a site, or un-blocking one) and must pass the Guardian PIN
 // gate. The opposite mutation strengthens protection and is always free. Mirrors
@@ -88,11 +164,14 @@ function setupSection({ storageKey, inputId, addBtnId, listId, errorId, normaliz
     errorEl.textContent = "";
     // Gate weakening adds (e.g. allowlisting a site) behind the PIN.
     if (gateAddAction && !(await SieveGuardian.confirmUnlock(gateAddAction))) return;
+    // tidyEntryList so this route and "Add all" agree: case-insensitive
+    // de-duplication (adding "Example.com" when "example.com" is already there
+    // is not a new entry) and a locale A-Z sort rather than raw code points,
+    // which put every capital ahead of every lowercase letter.
     const list = await getList(storageKey);
-    if (!list.includes(value)) {
-      list.push(value);
-      list.sort();
-      await setList(storageKey, list);
+    const merged = tidyEntryList(list.concat([value]));
+    if (merged.length !== list.length) {
+      await setList(storageKey, merged);
     }
     input.value = "";
     await refresh();
@@ -106,6 +185,144 @@ function setupSection({ storageKey, inputId, addBtnId, listId, errorId, normaliz
     await refresh();
   }
 
+  // Add many at once. Invalid lines are reported rather than silently dropped —
+  // pasting 50 domains and being told "38 added" with no explanation of the
+  // other 12 is worse than useless.
+  async function addMany(rawEntries) {
+    const accepted = [];
+    const rejected = [];
+    for (const raw of rawEntries) {
+      const value = normalize(raw);
+      if (value && validate(value)) accepted.push(value);
+      else rejected.push(raw);
+    }
+    if (accepted.length === 0) {
+      return { added: 0, duplicates: 0, rejected };
+    }
+    // One gate for the whole batch, not one prompt per entry.
+    if (gateAddAction && !(await SieveGuardian.confirmUnlock(gateAddAction))) {
+      return { added: 0, duplicates: 0, rejected, cancelled: true };
+    }
+    const existing = await getList(storageKey);
+    const before = existing.length;
+    const merged = tidyEntryList(existing.concat(accepted));
+    await setList(storageKey, merged);
+    await refresh();
+    const added = merged.length - before;
+    return { added, duplicates: accepted.length - added, rejected };
+  }
+
+  // Build the paste/import/export panel next to this list's add row.
+  function buildBulkPanel() {
+    const addRow = input.closest(".add-row") || input.parentNode;
+    if (!addRow || !addRow.parentNode) return;
+
+    const details = document.createElement("details");
+    details.className = "bulk";
+
+    const summary = document.createElement("summary");
+    summary.textContent = "Paste a list, import or export";
+    details.appendChild(summary);
+
+    const textarea = document.createElement("textarea");
+    textarea.className = "input bulk-text";
+    textarea.rows = 6;
+    textarea.placeholder = "One per line, or paste a whole list here";
+    details.appendChild(textarea);
+
+    const row = document.createElement("div");
+    row.className = "add-row bulk-actions";
+
+    const addAllBtn = document.createElement("button");
+    addAllBtn.className = "btn btn-primary";
+    addAllBtn.textContent = "Add all";
+
+    const importBtn = document.createElement("button");
+    importBtn.className = "btn";
+    importBtn.textContent = "Import";
+
+    const exportBtn = document.createElement("button");
+    exportBtn.className = "btn";
+    exportBtn.textContent = "Export";
+
+    const fileInput = document.createElement("input");
+    fileInput.type = "file";
+    fileInput.accept = ".csv,.txt,text/csv,text/plain";
+    fileInput.hidden = true;
+
+    row.append(addAllBtn, importBtn, exportBtn, fileInput);
+    details.appendChild(row);
+
+    const status = document.createElement("p");
+    status.className = "hint bulk-status";
+    details.appendChild(status);
+
+    addRow.parentNode.insertBefore(details, addRow.nextSibling);
+
+    addAllBtn.addEventListener("click", async () => {
+      const entries = parseEntryList(textarea.value);
+      if (entries.length === 0) {
+        status.textContent = "Nothing to add — paste some entries first.";
+        return;
+      }
+      const result = await addMany(entries);
+      if (result.cancelled) {
+        status.textContent = "Cancelled — nothing was added.";
+        return;
+      }
+      const parts = [`Added ${result.added}`];
+      if (result.duplicates > 0) parts.push(`${result.duplicates} already in your list`);
+      if (result.rejected.length > 0) {
+        const sample = result.rejected.slice(0, 3).join(", ");
+        parts.push(
+          `${result.rejected.length} skipped as invalid (${sample}${result.rejected.length > 3 ? "…" : ""})`
+        );
+      }
+      status.textContent = parts.join(" · ");
+      if (result.added > 0) textarea.value = "";
+    });
+
+    // Import fills the box rather than writing straight to storage: the entries
+    // are visible before they take effect, and "Add all" still applies the same
+    // validation and PIN gate a typed entry would.
+    importBtn.addEventListener("click", () => fileInput.click());
+    fileInput.addEventListener("change", async (e) => {
+      const file = e.target.files && e.target.files[0];
+      if (!file) return;
+      try {
+        if (typeof file.size === "number" && file.size > MAX_IMPORT_BYTES) {
+          status.textContent = "That file is too large (max 1 MB).";
+          return;
+        }
+        const text = await file.text();
+        const imported = parseEntryList(text);
+        if (imported.length === 0) {
+          status.textContent = "No entries found in that file.";
+          return;
+        }
+        const merged = tidyEntryList(parseEntryList(textarea.value).concat(imported));
+        textarea.value = merged.join("\n");
+        status.textContent = `Loaded ${imported.length} from the file — review, then Add all.`;
+      } catch (err) {
+        console.error("[Sieve] list import failed:", err);
+        status.textContent = "Could not read that file.";
+      } finally {
+        e.target.value = ""; // allow re-importing the same file
+      }
+    });
+
+    exportBtn.addEventListener("click", async () => {
+      const list = await getList(storageKey);
+      if (list.length === 0) {
+        status.textContent = "Nothing to export yet.";
+        return;
+      }
+      const date = new Date().toISOString().split("T")[0];
+      downloadTextFile(`sieve-${storageKey}-${date}.csv`, serializeEntryList(list));
+      status.textContent = `Exported ${list.length}.`;
+    });
+  }
+
   addBtn.addEventListener("click", add);
   input.addEventListener("keydown", (e) => {
     if (e.key === "Enter") add();
@@ -113,6 +330,7 @@ function setupSection({ storageKey, inputId, addBtnId, listId, errorId, normaliz
   listEl.addEventListener("click", (e) => {
     if (e.target.classList.contains("remove")) remove(e.target.dataset.item);
   });
+  buildBulkPanel();
 
   // Initial paint comes from the page's one batched snapshot — no extra storage
   // read here. The add/remove handlers still re-read (via refresh) on their own.
