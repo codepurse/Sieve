@@ -44,16 +44,32 @@ html.sv-yt-hide-home ytd-browse[page-subtype="home"] ytd-rich-grid-renderer::aft
    Shorts — shelves, individual items, and the nav entries that lead there
    ========================================================================== */
 
+/* The Shorts themselves, and the nav entries leading to them. Safe everywhere:
+   each selector names a Shorts element, so nothing else can be caught. */
 html.sv-yt-hide-shorts ytd-reel-shelf-renderer,
 html.sv-yt-hide-shorts ytd-rich-shelf-renderer[is-shorts],
 html.sv-yt-hide-shorts ytm-shorts-lockup-view-model,
-html.sv-yt-hide-shorts ytd-item-section-renderer:has(ytd-reel-shelf-renderer),
-html.sv-yt-hide-shorts ytd-rich-section-renderer:has(ytm-shorts-lockup-view-model),
-html.sv-yt-hide-shorts grid-shelf-view-model:has(ytm-shorts-lockup-view-model),
 html.sv-yt-hide-shorts ytd-guide-entry-renderer:has(a[title="Shorts"]),
 html.sv-yt-hide-shorts ytd-guide-entry-renderer:has(a[href^="/shorts"]),
 html.sv-yt-hide-shorts ytd-mini-guide-entry-renderer:has(a[title="Shorts"]),
 html.sv-yt-hide-shorts ytd-mini-guide-entry-renderer:has(a[href^="/shorts"]) {
+  display: none !important;
+}
+
+/* Collapse the CONTAINER a Shorts shelf sat in, so hiding the shelf does not
+   leave an empty gap with a heading on the homepage and in search results.
+ *
+ * Excluded on the watch page, and this is the whole point of the :not() pair.
+ * The sidebar's related videos live in a ytd-item-section-renderer too, and
+ * YouTube drops a Shorts shelf into that SAME section — so :has() matched the
+ * section holding every recommendation and hid the entire sidebar along with the
+ * shelf. Reported after 1.2.0: enabling "hide Shorts" emptied the list beside
+ * the video. The shelf itself is still hidden by the rules above; only the
+ * container survives here, because on the watch page that container is not the
+ * shelf's wrapper, it is the recommendations list. */
+html.sv-yt-hide-shorts ytd-item-section-renderer:has(ytd-reel-shelf-renderer):not(#secondary *):not(ytd-watch-next-secondary-results-renderer *),
+html.sv-yt-hide-shorts ytd-rich-section-renderer:has(ytm-shorts-lockup-view-model):not(#secondary *):not(ytd-watch-next-secondary-results-renderer *),
+html.sv-yt-hide-shorts grid-shelf-view-model:has(ytm-shorts-lockup-view-model):not(#secondary *):not(ytd-watch-next-secondary-results-renderer *) {
   display: none !important;
 }
 
