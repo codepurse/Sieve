@@ -620,18 +620,18 @@ const CHANGELOG = [
     items: [
       "New Site Cleanup section — hide the distracting parts of YouTube without blocking it: the home feed, Shorts, comments, recommended videos, end cards, thumbnails, the top bar, and autoplay.",
       "A Shorts link now opens in the normal player instead of the swipe feed when Shorts are hidden.",
-      "New What's New section, so every release explains itself.",
-    ],
-  },
-  {
-    version: "1.1.0",
-    date: "July 2026",
-    items: [
-      "Guardian Lock now gates every action that weakens your protection — turning a module off, raising a Doomscroll time limit, allowlisting a site, or getting past the pause screen.",
+      "Your lock can now be a passphrase, not just digits. Letters, spaces and whole sentences all work, so you can use something you have to read and think about rather than a code you enter without looking.",
+      "New Access Code — an optional second step after your lock. A random 32 to 256 character code appears and you retype it by hand, with copy and paste switched off and a typo giving you a fresh one. Off by default, and it guards the decisive moments unless you ask for more.",
+      "The pause screen now actually stops the video. It used to blur the page while the audio kept playing, so pressing space carried on where you left off. It also blurs much harder.",
+      "Every list — blocked sites, allowlist, bad-language words, toxic words — now takes a pasted list, and has Import, Export, automatic A-Z sorting and duplicate removal.",
+      "Blocked words can be patterns: one line like /w[o0]rd/ covers many spellings. Plain words work exactly as before.",
+      "The optional smart-detection model now downloads from a mirror if the original host is unreachable, and a failed download explains why instead of only saying 'try again'.",
+      "Guardian Lock gates every action that weakens your protection — turning a module off, raising a Doomscroll time limit, allowlisting a site, or getting past the pause screen.",
       "Doomscroll Stopper is opt-in: limits stay off until you switch on the feeds you want capped.",
       "New Desktop Guard card in Security.",
       "Faster page filtering — idle-time batching, tighter DOM observers, and cheaper text scanning, so busy pages stay smooth.",
       "Firefox build, a published privacy policy, and refreshed icons.",
+      "New What's New section, so every release explains itself.",
     ],
   },
   {
