@@ -176,7 +176,16 @@
       api.show({
         ...base,
         guardian: true,
-        verifyPin: (pin) => (window.SieveGuardian ? window.SieveGuardian.verify(pin) : Promise.resolve(false)),
+        // The PIN, then the access code when one is set. Getting past the pause
+        // screen is the decisive moment this whole gate exists for, so it counts
+        // as critical even when the code is limited to the big changes.
+        verifyPin: async (pin) => {
+          const G = window.SieveGuardian;
+          if (!G) return false;
+          if (!(await G.verify(pin))) return false;
+          if (typeof G.requireAccessCode !== "function") return true;
+          return G.requireAccessCode("Unlock 15 more minutes", { critical: true });
+        },
         onGrantTime: handleGrantTime,
       });
     } else {
