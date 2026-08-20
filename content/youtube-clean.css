@@ -83,12 +83,75 @@ html.sv-yt-hide-comments ytd-comments {
 }
 
 /* ==========================================================================
+   The video page below the player — description, channel row, action buttons,
+   live chat, and merch/ticket shelves. Each is scoped to ytd-watch-metadata or
+   its own element so nothing outside the watch page is caught.
+   ========================================================================== */
+
+html.sv-yt-hide-description ytd-watch-metadata #description,
+html.sv-yt-hide-description #description-inline-expander {
+  display: none !important;
+}
+
+/* The avatar, channel name and subscribe button under the video */
+html.sv-yt-hide-channel ytd-watch-metadata #owner {
+  display: none !important;
+}
+
+/* Like / dislike / share / save / download row */
+html.sv-yt-hide-actions ytd-watch-metadata #actions {
+  display: none !important;
+}
+
+/* Live chat sits in #below and holds ytd-live-chat-frame — verified NOT to
+   contain the recommendations list, so hiding it can't empty the sidebar. */
+html.sv-yt-hide-livechat ytd-live-chat-frame,
+html.sv-yt-hide-livechat #chat-container {
+  display: none !important;
+}
+
+/* Merch, tickets and offer shelves. Not observed live (they only appear on
+   videos that carry them), so these are the documented element names — a wrong
+   name here hides nothing rather than hiding the wrong thing. */
+html.sv-yt-hide-merch ytd-merch-shelf-renderer,
+html.sv-yt-hide-merch ytd-ticket-shelf-renderer {
+  display: none !important;
+}
+
+/* ==========================================================================
    Recommended videos — the watch-page sidebar list only. #secondary itself is
    left alone so live chat and playlist panels keep working.
    ========================================================================== */
 
 html.sv-yt-hide-recommended ytd-watch-next-secondary-results-renderer,
 html.sv-yt-hide-recommended #related {
+  display: none !important;
+}
+
+/* ==========================================================================
+   Mixes and radio playlists — the auto-generated endless playlists. Matched by
+   the start_radio flag in the link rather than by element name, because YouTube
+   serves them through several different lockups.
+   ========================================================================== */
+
+html.sv-yt-hide-mixes ytd-radio-renderer,
+html.sv-yt-hide-mixes ytd-compact-radio-renderer,
+html.sv-yt-hide-mixes ytd-video-renderer:has(a[href*="start_radio=1"]),
+html.sv-yt-hide-mixes yt-lockup-view-model:has(a[href*="start_radio=1"]) {
+  display: none !important;
+}
+
+/* ==========================================================================
+   Search-result filler — "People also search for" and "Related to your
+   search". Both are shelves built out of refinement cards, so the card type
+   identifies them without needing to match their heading text.
+   Deliberately does NOT touch ytd-item-section-renderer: that container also
+   holds real results, and hiding it is what once emptied the watch sidebar.
+   ========================================================================== */
+
+html.sv-yt-hide-search-extras ytd-shelf-renderer:has(ytd-search-refinement-card-renderer),
+html.sv-yt-hide-search-extras ytd-horizontal-card-list-renderer:has(ytd-search-refinement-card-renderer),
+html.sv-yt-hide-search-extras ytd-search-refinement-card-renderer {
   display: none !important;
 }
 
@@ -163,6 +226,13 @@ html.sv-yt-hide-topbar #page-manager {
   margin-top: 0 !important;
 }
 
+/* The notification bell alone, for people who want the search box but not the
+   red dot. Redundant while the whole top bar is hidden, and the settings page
+   greys it out in that case. */
+html.sv-yt-hide-bell ytd-notification-topbar-button-renderer {
+  display: none !important;
+}
+
 /* ==========================================================================
    End cards — the recommendations laid over the player as a video finishes.
    These elements only exist while they're showing, so this stays dormant until
@@ -172,6 +242,15 @@ html.sv-yt-hide-topbar #page-manager {
 html.sv-yt-no-endcards .ytp-ce-element,
 html.sv-yt-no-endcards .ytp-ce-covering-overlay,
 html.sv-yt-no-endcards .ytp-endscreen-content {
+  display: none !important;
+}
+
+/* Info cards — the little "i" teaser and its pop-out panel. (YouTube retired
+   annotations years ago, so there is nothing left to switch off there; info
+   cards are what replaced them.) */
+html.sv-yt-hide-infocards .ytp-cards-teaser,
+html.sv-yt-hide-infocards .ytp-cards-button,
+html.sv-yt-hide-infocards .iv-branding {
   display: none !important;
 }
 

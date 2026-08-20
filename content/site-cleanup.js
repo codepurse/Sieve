@@ -40,7 +40,23 @@
     hideExplore: "sv-yt-hide-explore",
     hideTopBar: "sv-yt-hide-topbar",
     disableEndCards: "sv-yt-no-endcards",
+    hideInfoCards: "sv-yt-hide-infocards",
     blackAndWhite: "sv-yt-bw",
+    // Finer controls — the video page, search filler, and single bits of chrome
+    hideDescription: "sv-yt-hide-description",
+    hideChannelInfo: "sv-yt-hide-channel",
+    hideActionButtons: "sv-yt-hide-actions",
+    hideLiveChat: "sv-yt-hide-livechat",
+    hideMerch: "sv-yt-hide-merch",
+    hideMixes: "sv-yt-hide-mixes",
+    hideSearchExtras: "sv-yt-hide-search-extras",
+    hideNotificationBell: "sv-yt-hide-bell",
+  };
+
+  // broad toggle -> the narrower toggle it makes redundant
+  const SHADOWED = {
+    hideThumbnails: "blurThumbnails",
+    hideTopBar: "hideNotificationBell",
   };
 
   let settings = {};
@@ -56,8 +72,12 @@
     for (const [key, cls] of Object.entries(CLASSES)) {
       root.classList.toggle(cls, on(key));
     }
-    // Hiding a thumbnail outright beats blurring it — never do both.
-    if (on("hideThumbnails")) root.classList.remove(CLASSES.blurThumbnails);
+    // A broad toggle makes the narrower one underneath it redundant: hiding a
+    // thumbnail outright beats blurring it, and hiding the whole top bar
+    // already takes the notification bell with it.
+    for (const [broad, narrow] of Object.entries(SHADOWED)) {
+      if (on(broad)) root.classList.remove(CLASSES[narrow]);
+    }
   }
 
   // --- Redirects ------------------------------------------------------------
