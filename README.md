@@ -32,6 +32,7 @@ tracking, nothing leaves your browser.
 - **Gambling Blocker** — blocks gambling and betting sites (with an opt-in Prediction Markets tier).
 - **Financial Protection** — opt-in tiers for crypto scams, trading/exchange sites, and MLM schemes.
 - **Safety Shield** — opt-in blocking for phishing/malware, cryptojacking, piracy, AI-slop content farms, fraud, gore/shock, and dating sites.
+- **Game Blocker** — four independent opt-in tiers: browser game portals, game download stores, game platforms/online worlds, and game streaming/cloud gaming/esports. Browser-only: it blocks game sites and store pages, not games already installed on the machine.
 - **Custom block list + allowlist** — a global block list and allowlist that apply across every blocker.
 - **URL Shortener Resolver** — expands or blocks shortened links before you land on them.
 

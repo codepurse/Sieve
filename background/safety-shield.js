@@ -464,7 +464,9 @@ chrome.runtime.onStartup.addListener(async () => {
 // ID ranges: the gambling blocker owns < 30000, Financial Protection owns
 // 30000-59999 (scam 30000, trading 40000, MLM 50000), so Safety Shield's fetched
 // tiers take 60000-109999, and its static tiers take gore/shock 110000, dating
-// 120000, and the relocated piracy 130000. NB: piracy USED to sit at 50000-59999,
+// 120000, the relocated piracy 130000, and the four Game Blocker groups
+// 140000-179999 (portals 140000, stores 150000, platforms 160000, streaming
+// 170000). NB: piracy USED to sit at 50000-59999,
 // which collided with FP's MLM tier — enabling both wiped one another's rules —
 // so it moved to 130000-139999. Any stale piracy rules a pre-fix install left in
 // 50000-59999 are swept automatically the first time FP reconciles, because
@@ -860,4 +862,180 @@ globalThis.sieveSafety = Object.assign(globalThis.sieveSafety || {}, {
   loadDatingDomains,
   applyDatingRules,
   DATING_ENABLED_KEY,
+});
+
+// ===========================================================================
+// STATIC TIER — Game sites  (Game Blocker)
+//
+// A curated, opt-in blocker for GAME websites, split into FOUR independent
+// groups so each can be turned on alone:
+//
+//   • portals   — free browser-game portals and the big standalone .io games
+//                 (Poki, CrazyGames, CoolMathGames, Y8, agar.io, 1v1.lol, …).
+//                 Includes gamedistribution.com, the embed host most portals
+//                 serve their games from, so embedded game frames die too.
+//   • stores    — game DOWNLOAD stores and launchers (Steam, Epic, GOG, itch,
+//                 Humble, console storefronts, Android emulators). Blocking the
+//                 STORE SITE is how Sieve limits downloads — see the scope note.
+//   • platforms — persistent game platforms / social game worlds (Roblox,
+//                 Minecraft, Fortnite, Riot, Habbo, Toca Boca, …).
+//   • streaming — game streaming, cloud gaming and esports (Twitch, Kick,
+//                 now.gg, Boosteroid, FACEIT, HLTV, op.gg, …).
+//
+// SCOPE — deliberately browser-only, and the UI says so. An extension can only
+// see web requests: it cannot see, stop, or uninstall a game that is already on
+// the machine, and it cannot touch consoles or native launchers. Blocking
+// steampowered.com stops browsing and buying; it does not stop a Steam game
+// that is already installed. There is NO download interception — that would
+// need the "downloads" permission for a check trivially bypassed by a rename or
+// a zip, so we block the STORE SITES instead.
+//
+// Like the MLM / trading / gore-shock / dating tiers this is STATIC — a
+// hand-reviewed bundled list in data/game-sites.json — so there is NO fetch, NO
+// scheduler and NO chrome.storage domain cache. Editing that file + reloading
+// the extension rebuilds the rules. It REUSES this module's shared rule
+// primitives (buildBlockRules / replaceDynamicRules / enqueueRuleWrite), so no
+// engine is duplicated, and is kept OUT of SAFETY_LISTS / SAFETY_RULES so the
+// daily scheduler never touches it.
+//
+// It is SELF-CONTROL, not a safety threat, so the blocked page uses a neutral
+// opt-in tone ("You chose to block …") per group — never a moralizing warning.
+//
+// ID ranges — four groups, one 10000-wide band each, matching the convention
+// every other group here follows. Dating owns 120000-129999 and the relocated
+// piracy owns 130000-139999, so games take the next four free bands:
+//   portals 140000-149999 · stores 150000-159999 ·
+//   platforms 160000-169999 · streaming 170000-179999
+// Each group's domains pack into 1 chunk => 2 rules (1 redirect + 1 block), a
+// rounding error against Chrome's 30000-rule ceiling. Each band is cleared only
+// by its own group, so the four toggles never clobber one another.
+// ===========================================================================
+
+// One toggle key per group — all opt-in, default OFF (the settings UI flips
+// them). Same "ss…" namespace as the other Safety Shield toggles.
+export const GAME_GROUPS = {
+  portals: {
+    key: "ssGamePortalsEnabled",
+    idStart: 140000,
+    idEnd: 150000,
+    category: "games-portals",
+  },
+  stores: {
+    key: "ssGameStoresEnabled",
+    idStart: 150000,
+    idEnd: 160000,
+    category: "games-stores",
+  },
+  platforms: {
+    key: "ssGamePlatformsEnabled",
+    idStart: 160000,
+    idEnd: 170000,
+    category: "games-platforms",
+  },
+  streaming: {
+    key: "ssGameStreamingEnabled",
+    idStart: 170000,
+    idEnd: 180000,
+    category: "games-streaming",
+  },
+};
+
+// Every game toggle key, for callers that just want the list.
+export const GAME_ENABLED_KEYS = Object.values(GAME_GROUPS).map((g) => g.key);
+
+// Is ONE game group currently on? (defaults OFF — opt-in)
+export async function isGameGroupEnabled(name) {
+  const spec = GAME_GROUPS[name];
+  if (!spec) throw new Error("Unknown game group: " + name);
+  const s = await chrome.storage.local.get({ [spec.key]: false });
+  return s[spec.key];
+}
+
+// Read the reviewed, STATIC game lists shipped inside the extension. One file
+// holds all four groups keyed by group name (plus a "_comment" key the loader
+// ignores), so a single fetch serves every group. Like the MLM/trading/gore/
+// dating tiers this is a bundled file, not fetched at runtime.
+async function loadGameDomains() {
+  const empty = { portals: [], stores: [], platforms: [], streaming: [] };
+  try {
+    const res = await fetch(chrome.runtime.getURL("data/game-sites.json"));
+    const data = await res.json();
+    if (!data || typeof data !== "object") return empty;
+    const out = {};
+    for (const name of Object.keys(GAME_GROUPS)) {
+      const list = data[name];
+      out[name] = Array.isArray(list)
+        ? list.map((d) => String(d).trim().toLowerCase()).filter(Boolean)
+        : [];
+    }
+    return out;
+  } catch (err) {
+    console.error("[Sieve] Could not load data/game-sites.json:", err);
+    return empty;
+  }
+}
+
+// Apply ONE game group's rules. While its toggle is off we add nothing, which
+// removes any existing rules for that group. While on, we build
+// redirect(full-page) + block(subresource) rules via the shared buildBlockRules,
+// tagging the blocked page with that group's category. requestDomains matches
+// each domain AND all its subdomains. Priority 1, so the shared priority-2
+// allowlist (ID 20000, owned by service-worker.js) overrides them with no extra
+// wiring. Serialized via the module's shared write queue so the four groups
+// can't race each other or the other tiers.
+export async function applyGameGroupRules(name) {
+  const spec = GAME_GROUPS[name];
+  if (!spec) throw new Error("Unknown game group: " + name);
+  return enqueueRuleWrite(`game:${name}`, async () => {
+    let addRules = [];
+    if (await isGameGroupEnabled(name)) {
+      const domains = (await loadGameDomains())[name];
+      addRules = buildBlockRules(domains, spec.idStart, spec.category);
+    }
+    await replaceDynamicRules(spec.idStart, spec.idEnd, addRules);
+  });
+}
+
+// Reconcile all four groups (install/update, startup).
+export async function applyAllGameRules() {
+  for (const name of Object.keys(GAME_GROUPS)) {
+    await applyGameGroupRules(name);
+  }
+}
+
+// Reconcile on install/update and on browser startup so the live rules always
+// match the saved toggles (and pick up any hand edits to the bundled JSON made
+// before the reload). SEPARATE listeners — additive, they don't touch the
+// module's existing onInstalled/onStartup handlers above.
+chrome.runtime.onInstalled.addListener(() => {
+  applyAllGameRules();
+});
+chrome.runtime.onStartup.addListener(() => {
+  applyAllGameRules();
+});
+
+// React to the toggles (the settings UI writes these keys). SEPARATE onChanged
+// listener — additive. Only the group whose key changed is re-applied, so
+// flipping one toggle never rewrites the other three bands. ON or OFF both just
+// re-apply from the bundled list (no fetch — it's static).
+chrome.storage.onChanged.addListener((changes, area) => {
+  if (area !== "local") return;
+  for (const [name, spec] of Object.entries(GAME_GROUPS)) {
+    if (changes[spec.key]) applyGameGroupRules(name);
+  }
+});
+
+// Test hooks — additive extension of the existing sieveSafety object, e.g.
+//   await chrome.storage.local.set({ ssGamePortalsEnabled: true }) // simulate toggle
+//   await sieveSafety.applyGameGroupRules("portals")  // apply one group
+//   await sieveSafety.applyAllGameRules()             // apply all four
+//   await sieveSafety.loadGameDomains()               // inspect the bundled domains
+//   (await chrome.declarativeNetRequest.getDynamicRules()).filter(r => r.id >= 140000 && r.id < 180000)
+globalThis.sieveSafety = Object.assign(globalThis.sieveSafety || {}, {
+  GAME_GROUPS,
+  GAME_ENABLED_KEYS,
+  isGameGroupEnabled,
+  loadGameDomains,
+  applyGameGroupRules,
+  applyAllGameRules,
 });

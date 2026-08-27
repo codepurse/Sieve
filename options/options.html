@@ -501,6 +501,76 @@
             </div>
           </section>
 
+          <!-- ===== Game Blocker — four independent, opt-in groups over a
+               curated bundled list (data/game-sites.json). Its own card rather
+               than four more Safety Shield rows, because it needs the
+               browser-only scope note stated once, up front. ===== -->
+          <section class="card">
+            <div class="card-header">
+              <h2 class="card-title">Game Blocker</h2>
+              <p class="card-description">
+                Four independent, opt-in blockers for game websites &mdash; all
+                <strong>off by default</strong>. The lists are curated and ship with
+                Sieve. <strong>Browser only:</strong> Sieve can block game sites and
+                store pages, but it cannot see or stop games already installed on
+                this computer, or anything on a console. The shared
+                <em>Allowlist</em> (its own card below) applies here too.
+              </p>
+            </div>
+
+            <div class="field">
+              <div class="switch-row">
+                <div class="switch-label">
+                  <span class="label">Block browser game portals</span>
+                  <span class="description">Blocks free play-in-browser game sites (Poki, CrazyGames, CoolMathGames, Y8, Miniclip, Kongregate, and similar) plus the big standalone <code>.io</code> games. Also blocks the shared host most portals serve their games from, so games embedded on other pages stop loading too.</span>
+                </div>
+                <label class="switch">
+                  <input type="checkbox" id="ss-game-portals-toggle" />
+                  <span class="slider"></span>
+                </label>
+              </div>
+            </div>
+
+            <div class="field">
+              <div class="switch-row">
+                <div class="switch-label">
+                  <span class="label">Block game download stores</span>
+                  <span class="description">Blocks game stores and launcher sites (Steam, Epic, GOG, itch.io, Humble, console storefronts, key resellers, Android emulators) &mdash; so no new games get browsed or bought. It does not stop or remove a game that is already installed.</span>
+                </div>
+                <label class="switch">
+                  <input type="checkbox" id="ss-game-stores-toggle" />
+                  <span class="slider"></span>
+                </label>
+              </div>
+            </div>
+
+            <div class="field">
+              <div class="switch-row">
+                <div class="switch-label">
+                  <span class="label">Block game platforms &amp; online worlds</span>
+                  <span class="description">Blocks the web side of persistent game platforms and social game worlds (Roblox, Minecraft, Fortnite, Riot, Habbo, and similar). The websites and web players are blocked; installed desktop clients are outside what an extension can reach.</span>
+                </div>
+                <label class="switch">
+                  <input type="checkbox" id="ss-game-platforms-toggle" />
+                  <span class="slider"></span>
+                </label>
+              </div>
+            </div>
+
+            <div class="field">
+              <div class="switch-row">
+                <div class="switch-label">
+                  <span class="label">Block game streaming, cloud gaming &amp; esports</span>
+                  <span class="description">Blocks watching and cloud-playing (Twitch, Kick, now.gg, Boosteroid) plus esports stats and ranking sites. Useful when the goal is less time around games, not just less time playing them.</span>
+                </div>
+                <label class="switch">
+                  <input type="checkbox" id="ss-game-streaming-toggle" />
+                  <span class="slider"></span>
+                </label>
+              </div>
+            </div>
+          </section>
+
           <section class="card">
             <div class="card-header">
               <h2 class="card-title">Blocked sites</h2>
