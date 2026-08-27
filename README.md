@@ -36,7 +36,7 @@ tracking, nothing leaves your browser.
 - **URL Shortener Resolver** — expands or blocks shortened links before you land on them.
 
 ### Wellbeing & control
-- **Site Cleanup** — hides the distracting parts of sites you still want to use. YouTube first: home feed, Shorts, comments, recommendations, end cards, thumbnails, top bar, autoplay.
+- **Site Cleanup** — hides the distracting parts of sites you still want to use. YouTube first, with 21 switches: feeds and Shorts, comments and recommendations, mixes and search filler, the description/channel/action rows, live chat, merch, end cards and info cards, autoplay, thumbnails, the top bar and its bell, and a black-and-white mode.
 - **Doomscroll Stopper** — a daily time limit on endless feeds, with a gentle pause overlay.
 - **Guardian self-lock** — an optional PIN that gates *weakening* your protection (turning things off, allowlisting) while strengthening it stays free.
 - **Protection Dashboard** — a today/this-week breakdown of everything Sieve blocked for you.

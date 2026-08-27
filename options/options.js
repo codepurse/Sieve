@@ -618,7 +618,7 @@ const CHANGELOG = [
     version: "1.2.0",
     date: "August 2026",
     items: [
-      "New Site Cleanup section — hide the distracting parts of YouTube without blocking it: the home feed, Shorts, comments, recommended videos, end cards, thumbnails, the top bar, and autoplay.",
+      "New Site Cleanup section — 21 switches for hiding the distracting parts of YouTube without blocking it: the home feed, Shorts, comments, recommendations, mixes, search filler, the description, channel row and action buttons, live chat, merch, end cards, info cards, autoplay, thumbnails, the top bar, the notification bell, and a black-and-white mode.",
       "A Shorts link now opens in the normal player instead of the swipe feed when Shorts are hidden.",
       "Your lock can now be a passphrase, not just digits. Letters, spaces and whole sentences all work, so you can use something you have to read and think about rather than a code you enter without looking.",
       "New Access Code — an optional second step after your lock. A random 32 to 256 character code appears and you retype it by hand, with copy and paste switched off and a typo giving you a fresh one. Off by default, and it guards the decisive moments unless you ask for more.",
@@ -728,14 +728,27 @@ const SITE_CLEANUP_SITES = [
           { key: "hideShorts", label: "Hide Shorts", desc: "Removes Shorts shelves and the sidebar entry; a Shorts link opens in the normal player instead of the swipe feed" },
           { key: "hideSubscriptions", label: "Hide Subscriptions", desc: "Empties the Subscriptions feed and removes its sidebar entry" },
           { key: "hideExplore", label: "Hide Explore", desc: "Removes Trending, Music, Movies and Gaming from the sidebar" },
+          { key: "hideMixes", label: "Hide mixes & radio playlists", desc: "Drops the auto-generated endless playlists from results and recommendations" },
+          { key: "hideSearchExtras", label: "Hide search filler", desc: "Removes “People also search for” and “Related to your search” from results" },
         ],
       },
       {
-        title: "Distractions",
+        title: "On a video page",
         items: [
           { key: "hideRecommended", label: "Hide recommended videos", desc: "Clears the up-next list beside a video. Live chat and playlists stay" },
           { key: "hideComments", label: "Hide comments", desc: "Hides the comment section entirely — the Toxic Comment Hider then skips YouTube, since there's nothing left to read" },
+          { key: "hideDescription", label: "Hide the description", desc: "Leaves just the video and its title" },
+          { key: "hideChannelInfo", label: "Hide the channel row", desc: "Removes the avatar, channel name and subscribe button under the video" },
+          { key: "hideActionButtons", label: "Hide the action buttons", desc: "Removes the like, dislike, share and save row" },
+          { key: "hideLiveChat", label: "Hide live chat", desc: "Collapses the chat panel on live streams and premieres" },
+          { key: "hideMerch", label: "Hide merch & tickets", desc: "Removes merchandise, ticket and offer shelves" },
+        ],
+      },
+      {
+        title: "In the player",
+        items: [
           { key: "disableEndCards", label: "Hide end cards", desc: "Removes the video suggestions laid over the end of a video" },
+          { key: "hideInfoCards", label: "Hide info cards", desc: "Removes the “i” teaser and its pop-out panel during playback" },
           { key: "disableAutoplay", label: "Turn off autoplay", desc: "Flips YouTube's own autoplay switch off when a video opens. Depends on YouTube's player controls, so it's the one setting here that can break when YouTube changes" },
         ],
       },
@@ -743,8 +756,9 @@ const SITE_CLEANUP_SITES = [
         title: "Appearance",
         items: [
           { key: "hideThumbnails", label: "Hide thumbnails", desc: "Blanks video thumbnails; titles stay readable. Channel avatars are left alone" },
-          { key: "blurThumbnails", label: "Blur thumbnails", desc: "A softer alternative to hiding them" },
+          { key: "blurThumbnails", label: "Blur thumbnails", desc: "A softer alternative to hiding them", shadowedBy: "hideThumbnails" },
           { key: "hideTopBar", label: "Hide the top bar", desc: "Removes the masthead, including the search box" },
+          { key: "hideNotificationBell", label: "Hide the notification bell", desc: "Keeps the top bar but drops the bell and its red dot", shadowedBy: "hideTopBar" },
           { key: "blackAndWhite", label: "Black & white", desc: "Drains the colour from every YouTube page, the video included" },
         ],
       },
@@ -811,7 +825,7 @@ function setupSiteCleanup(store) {
     function refreshEnabled() {
       const on = master.input.checked;
       for (const s of subs) {
-        const shadowed = s.key === "blurThumbnails" && !!settings.hideThumbnails;
+        const shadowed = !!s.shadowedBy && !!settings[s.shadowedBy];
         s.input.disabled = !on || shadowed;
         s.group.classList.toggle("is-off", !on);
       }
