@@ -8,7 +8,8 @@
     "build:watch": "node build.mjs --watch",
     "build:chrome": "powershell -ExecutionPolicy Bypass -File ./build-chrome.ps1 -Bundle -Zip",
     "build:firefox": "powershell -ExecutionPolicy Bypass -File ./build-firefox.ps1 -Bundle -Zip",
-    "build:all": "npm run build:chrome && npm run build:firefox"
+    "build:all": "npm run build:chrome && npm run build:firefox",
+    "test": "node --test test/*-test.mjs"
   },
   "devDependencies": {
     "esbuild": "^0.25.0"

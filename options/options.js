@@ -442,6 +442,9 @@ function optionsDefaults() {
     cookieAutoRejectStats: null,
     // Protection Dashboard — remember whether the breakdown is expanded
     dashboardExpanded: false,
+    // Usage Insights — opt-in screen-time tracking, and how long to keep it
+    usageEnabled: false,
+    usageRetentionDays: 30,
     // Announcement banner — id of the last message the user dismissed
     dismissedAnnouncementId: "",
     // What's New — version whose release notes the user has already seen
@@ -562,6 +565,10 @@ async function applyStoredSettings(store) {
   // Protection Dashboard — today / week stats from the shared stats store.
   await setupDashboard(store);
 
+  // Usage Insights — the screen-time report. Its chart drawing lives in its own
+  // module, loaded on demand like the shared stats store above.
+  await setupUsageSection(store);
+
   // Doomscroll needs the bundled site list (a fast, local fetch).
   await setupDoomscroll(store);
 
@@ -631,6 +638,9 @@ const CHANGELOG = [
       "The game portal switch also blocks the shared host most portals serve their games from, so games embedded on other pages stop loading too.",
       "Game blocking is browser-only, and the settings page says so: Sieve can block game sites and store pages, but it cannot see or stop a game already installed on the computer, and nothing on a console. Blocking a store stops new games being browsed and bought.",
       "Blocked game sites get their own wording naming the switch to turn off, and the Allowlist and Guardian Lock work here exactly as they do everywhere else.",
+      "New Usage Insights section — a screen-time report. It shows your total for today or the week, how it compares with the day or week before, a curve of your day hour by hour (or the week day by day), your busiest hour, and which sites took the time. Hover or use the arrow keys to read any point on the chart.",
+      "Usage Insights is off until you switch it on, and it never leaves your device. It records site names and durations only — no URLs, no page content, nothing uploaded. Choose how long to keep it (7, 30 or 90 days) and clear it whenever you like.",
+      "Only the tab you are actually looking at is counted, so two windows of the same site are never counted twice, and the clock stops when you switch to another app, lock the screen, or step away for a few minutes. Reading a long page still counts.",
     ],
   },
   {
@@ -1688,6 +1698,29 @@ function iconSvg(inner) {
 function dashboardValue(stats, row) {
   const keys = row.combine || [row.key];
   return keys.reduce((sum, k) => sum + (stats[k] || 0), 0);
+}
+
+// Usage Insights — the report is a few hundred lines of chart drawing, so it
+// lives in options/usage-insights.js and is imported on demand rather than
+// parsed on every page load. A failure to load leaves the settings card usable
+// and only costs the report below it.
+async function setupUsageSection(store) {
+  if (!document.getElementById("section-usage")) return;
+  try {
+    const mod = await import("./usage-insights.js");
+    await mod.setupUsageInsights(store);
+  } catch (err) {
+    console.error("[Sieve] could not load the Usage Insights report", err);
+    const report = document.getElementById("usage-report");
+    if (report) {
+      report.hidden = false;
+      report.textContent = "";
+      const note = document.createElement("div");
+      note.className = "dashboard-empty";
+      note.textContent = "Unable to load the screen-time report.";
+      report.append(note);
+    }
+  }
 }
 
 async function setupDashboard(store) {

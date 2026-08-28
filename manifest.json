@@ -14,6 +14,7 @@
     "unlimitedStorage",
     "declarativeNetRequest",
     "alarms",
+    "idle",
     "webNavigation",
     "tabs",
     "offscreen"
