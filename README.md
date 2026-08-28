@@ -32,6 +32,7 @@ tracking, nothing leaves your browser.
 - **Gambling Blocker** — blocks gambling and betting sites (with an opt-in Prediction Markets tier).
 - **Financial Protection** — opt-in tiers for crypto scams, trading/exchange sites, and MLM schemes.
 - **Safety Shield** — opt-in blocking for phishing/malware, cryptojacking, piracy, AI-slop content farms, fraud, gore/shock, and dating sites.
+- **Game Blocker** — four independent opt-in tiers: browser game portals, game download stores, game platforms/online worlds, and game streaming/cloud gaming/esports. Browser-only: it blocks game sites and store pages, not games already installed on the machine.
 - **Custom block list + allowlist** — a global block list and allowlist that apply across every blocker.
 - **URL Shortener Resolver** — expands or blocks shortened links before you land on them.
 
@@ -40,6 +41,7 @@ tracking, nothing leaves your browser.
 - **Doomscroll Stopper** — a daily time limit on endless feeds, with a gentle pause overlay.
 - **Guardian self-lock** — an optional PIN that gates *weakening* your protection (turning things off, allowlisting) while strengthening it stays free.
 - **Protection Dashboard** — a today/this-week breakdown of everything Sieve blocked for you.
+- **Usage Insights** — an opt-in screen-time report: total time, a per-day and per-hour curve, and which sites took it. Only the tab you are looking at counts, the clock stops when you step away, and the record never leaves your device (7/30/90-day retention, clearable at any time).
 
 ---
 
@@ -52,6 +54,10 @@ Sieve is built to be trustworthy by design:
   check) — it never uploads anything about you. See [PRIVACY.md](PRIVACY.md).
 - **All processing is local**, including the optional toxicity model.
 - Settings and stats live only in your browser's local storage.
+- **Usage Insights is off by default.** Switch it on and Sieve keeps a local
+  tally of site names and durations so it can draw you a report; it stores no
+  URLs or page content, and uploads nothing. Set its retention window or clear
+  it whenever you like.
 
 ---
 
@@ -129,12 +135,12 @@ git-ignored.
 ## Project structure
 
 ```
-background/   Service worker + blockers (safety shield, financial protection, popup hijack, stats)
-common/       Shared helpers (guardian, stats store, list store)
+background/   Service worker + blockers (safety shield, financial protection, popup hijack, stats, usage tracker)
+common/       Shared helpers (guardian, stats store, list store, usage store)
 content/      Content scripts (bad language, dark patterns, toxic comments, doomscroll, …)
 data/         Blocklists and word lists (gambling, MLM, profanity, cookie rules, …)
 rules/        declarativeNetRequest rulesets
-options/      Settings page (options.html / .css / .js)
+options/      Settings page (options.html / .css / .js) + the Usage Insights chart module
 popup/        Toolbar popup
 pages/        Blocked-site interstitial + onboarding
 offscreen/    Offscreen document for the toxicity model

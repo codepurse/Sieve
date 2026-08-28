@@ -412,6 +412,11 @@ function optionsDefaults() {
     ssFraudEnabled: false,
     ssGoreShockEnabled: false,
     ssDatingEnabled: false,
+    // Game Blocker — four independent groups, all opt-in
+    ssGamePortalsEnabled: false,
+    ssGameStoresEnabled: false,
+    ssGamePlatformsEnabled: false,
+    ssGameStreamingEnabled: false,
     // Safety Shield "last updated" meta
     ssPiracyUpdatedAt: 0, ssPiracyCount: 0,
     ssPhishingUpdatedAt: 0, ssPhishingCount: 0,
@@ -437,6 +442,9 @@ function optionsDefaults() {
     cookieAutoRejectStats: null,
     // Protection Dashboard — remember whether the breakdown is expanded
     dashboardExpanded: false,
+    // Usage Insights — opt-in screen-time tracking, and how long to keep it
+    usageEnabled: false,
+    usageRetentionDays: 30,
     // Announcement banner — id of the last message the user dismissed
     dismissedAnnouncementId: "",
     // What's New — version whose release notes the user has already seen
@@ -539,6 +547,7 @@ async function applyStoredSettings(store) {
   // synchronously too (each still wires its own change/onChanged listeners).
   setupFinancialProtection(store); // Phase 5 — scam + trading + mlm opt-in toggles
   setupSafetyShield(store);        // piracy + malware/phishing + … opt-in toggles
+  setupGameBlocker(store);         // game portals/stores/platforms/streaming toggles
 
   // URL Shortener Resolver — advanced setting, default ON. Turning it OFF
   // weakens protection, so it goes through the Guardian PIN gate like other
@@ -555,6 +564,10 @@ async function applyStoredSettings(store) {
 
   // Protection Dashboard — today / week stats from the shared stats store.
   await setupDashboard(store);
+
+  // Usage Insights — the screen-time report. Its chart drawing lives in its own
+  // module, loaded on demand like the shared stats store above.
+  await setupUsageSection(store);
 
   // Doomscroll needs the bundled site list (a fast, local fetch).
   await setupDoomscroll(store);
@@ -614,6 +627,22 @@ function setupNav() {
 // ===========================================================================
 
 const CHANGELOG = [
+  // UNRELEASED — manifest.json is still on 1.2.0, so this entry renders without
+  // the "Current" badge until the version is bumped at release time. Fold these
+  // notes into the release entry then, the way the 1.1.0 notes were folded in.
+  {
+    version: "1.3.0",
+    date: "Unreleased",
+    items: [
+      "New Game Blocker in Site Blocking — four switches you can turn on separately: browser game portals (Poki, CrazyGames, CoolMathGames, and the big .io games), game download stores (Steam, Epic, GOG, itch.io, console storefronts), game platforms and online worlds (Roblox, Minecraft, Fortnite), and game streaming, cloud gaming and esports (Twitch, Kick, now.gg). All off by default.",
+      "The game portal switch also blocks the shared host most portals serve their games from, so games embedded on other pages stop loading too.",
+      "Game blocking is browser-only, and the settings page says so: Sieve can block game sites and store pages, but it cannot see or stop a game already installed on the computer, and nothing on a console. Blocking a store stops new games being browsed and bought.",
+      "Blocked game sites get their own wording naming the switch to turn off, and the Allowlist and Guardian Lock work here exactly as they do everywhere else.",
+      "New Usage Insights section — a screen-time report. It shows your total for today or the week, how it compares with the day or week before, a curve of your day hour by hour (or the week day by day), your busiest hour, and which sites took the time. Hover or use the arrow keys to read any point on the chart.",
+      "Usage Insights is off until you switch it on, and it never leaves your device. It records site names and durations only — no URLs, no page content, nothing uploaded. Choose how long to keep it (7, 30 or 90 days) and clear it whenever you like.",
+      "Only the tab you are actually looking at is counted, so two windows of the same site are never counted twice, and the clock stops when you switch to another app, lock the screen, or step away for a few minutes. Reading a long page still counts.",
+    ],
+  },
   {
     version: "1.2.0",
     date: "August 2026",
@@ -1126,6 +1155,22 @@ function setupSafetyShield(store) {
   });
 }
 
+// ===========================================================================
+// Game Blocker — four independent, opt-in groups over the curated bundled list
+// in data/game-sites.json. Each toggle writes its own ss…Enabled key and
+// background/safety-shield.js watches them, rebuilding only that group's DNR
+// band. Static lists, so there is no "last updated" line to render. Turning a
+// group OFF weakens a block the user set for themselves, so each goes through
+// the Guardian PIN gate exactly like the gore/shock and dating toggles.
+// ===========================================================================
+
+function setupGameBlocker(store) {
+  setupCheckbox("ss-game-portals-toggle", "ssGamePortalsEnabled", store.ssGamePortalsEnabled, "Turn off Browser game portal blocking");
+  setupCheckbox("ss-game-stores-toggle", "ssGameStoresEnabled", store.ssGameStoresEnabled, "Turn off Game download store blocking");
+  setupCheckbox("ss-game-platforms-toggle", "ssGamePlatformsEnabled", store.ssGamePlatformsEnabled, "Turn off Game platform blocking");
+  setupCheckbox("ss-game-streaming-toggle", "ssGameStreamingEnabled", store.ssGameStreamingEnabled, "Turn off Game streaming & esports blocking");
+}
+
 // Show "last updated" under each Safety Shield toggle. Piracy has one list; the
 // "malware & phishing" toggle covers two lists, so we show the most recent of
 // the two updates and their combined domain count.
@@ -1613,6 +1658,9 @@ const DASHBOARD_GROUPS = [
       { key: "aiSlop", label: "AI Slop / Spam", combine: ["aiSlop"] },
       { key: "goreShock", label: "Gore / Shock", combine: ["goreShock"] },
       { key: "dating", label: "Dating Sites", combine: ["dating"] },
+      // All four Game Blocker groups roll up into one row (blocked.js maps every
+      // games-* category to the single "games" stats key).
+      { key: "games", label: "Game Sites", combine: ["games"] },
       { key: "customBlocked", label: "Custom Blocked Sites", combine: ["customBlocked"] },
       { key: "urlShortener", label: "URL Shortener Blocks", combine: ["urlShortener"] },
     ],
@@ -1633,6 +1681,7 @@ const DASHBOARD_ICONS = {
   aiSlop: '<rect x="4" y="4" width="16" height="16" rx="2"/><rect x="9" y="9" width="6" height="6"/><line x1="9" y1="1" x2="9" y2="4"/><line x1="15" y1="1" x2="15" y2="4"/><line x1="9" y1="20" x2="9" y2="23"/><line x1="15" y1="20" x2="15" y2="23"/><line x1="20" y1="9" x2="23" y2="9"/><line x1="20" y1="14" x2="23" y2="14"/><line x1="1" y1="9" x2="4" y2="9"/><line x1="1" y1="14" x2="4" y2="14"/>',
   goreShock: '<path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/>',
   dating: '<path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/>',
+  games: '<line x1="6" y1="11" x2="10" y2="11"/><line x1="8" y1="9" x2="8" y2="13"/><line x1="15" y1="12" x2="15.01" y2="12"/><line x1="18" y1="10" x2="18.01" y2="10"/><path d="M17.32 5H6.68a4 4 0 0 0-3.978 3.59c-.006.052-.01.101-.017.152C2.604 9.416 2 14.456 2 16a3 3 0 0 0 3 3c1 0 1.5-.5 2-1l1.414-1.414A2 2 0 0 1 9.828 16h4.344a2 2 0 0 1 1.414.586L17 18c.5.5 1 1 2 1a3 3 0 0 0 3-3c0-1.545-.604-6.584-.685-7.258A4 4 0 0 0 17.32 5z"/>',
   customBlocked: '<circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/>',
   urlShortener: '<path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/>',
   badLanguage: '<polyline points="4 7 4 4 20 4 20 7"/><line x1="9" y1="20" x2="15" y2="20"/><line x1="12" y1="4" x2="12" y2="20"/>',
@@ -1649,6 +1698,29 @@ function iconSvg(inner) {
 function dashboardValue(stats, row) {
   const keys = row.combine || [row.key];
   return keys.reduce((sum, k) => sum + (stats[k] || 0), 0);
+}
+
+// Usage Insights — the report is a few hundred lines of chart drawing, so it
+// lives in options/usage-insights.js and is imported on demand rather than
+// parsed on every page load. A failure to load leaves the settings card usable
+// and only costs the report below it.
+async function setupUsageSection(store) {
+  if (!document.getElementById("section-usage")) return;
+  try {
+    const mod = await import("./usage-insights.js");
+    await mod.setupUsageInsights(store);
+  } catch (err) {
+    console.error("[Sieve] could not load the Usage Insights report", err);
+    const report = document.getElementById("usage-report");
+    if (report) {
+      report.hidden = false;
+      report.textContent = "";
+      const note = document.createElement("div");
+      note.className = "dashboard-empty";
+      note.textContent = "Unable to load the screen-time report.";
+      report.append(note);
+    }
+  }
 }
 
 async function setupDashboard(store) {

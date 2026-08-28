@@ -11,6 +11,10 @@
 //   fraud    → a known fraud / scam / fake-shop site (Safety Shield, clear warning)
 //   goreshock → a known gore / shock-content site (Safety Shield, opt-in, static list)
 //   dating   → a mainstream/hookup dating site the user opted to block (Safety Shield, opt-in, static)
+//   games-portals   → a browser-game portal / .io game     (Game Blocker, opt-in, static)
+//   games-stores    → a game download store or launcher    (Game Blocker, opt-in, static)
+//   games-platforms → a game platform / social game world  (Game Blocker, opt-in, static)
+//   games-streaming → game streaming / cloud gaming / esports (Game Blocker, opt-in, static)
 //   gambling → the Phase-1 gambling blocker           (original wording)
 //   prediction-markets → a prediction market / betting platform (2nd Gambling
 //                        Blocker toggle; opt-in self-control tone)
@@ -105,6 +109,35 @@
       note:
         "You can turn off “Block dating sites”, or allow this site, under Safety Shield in Sieve's settings.",
     },
+    "games-portals": {
+      shield: "🛡️",
+      title: "Game site blocked by Sieve",
+      message: "You chose to block browser game sites. Blocked by Sieve.",
+      note:
+        "You can turn off “Browser game portals”, or allow this site, under Game Blocker in Sieve's settings.",
+    },
+    "games-stores": {
+      shield: "🛡️",
+      title: "Game store blocked by Sieve",
+      message: "You chose to block game download stores. Blocked by Sieve.",
+      note:
+        "You can turn off “Game download stores”, or allow this site, under Game Blocker in Sieve's settings.",
+    },
+    "games-platforms": {
+      shield: "🛡️",
+      title: "Game platform blocked by Sieve",
+      message: "You chose to block game platforms. Blocked by Sieve.",
+      note:
+        "You can turn off “Game platforms & online worlds”, or allow this site, under Game Blocker in Sieve's settings.",
+    },
+    "games-streaming": {
+      shield: "🛡️",
+      title: "Game streaming blocked by Sieve",
+      message:
+        "You chose to block game streaming and esports sites. Blocked by Sieve.",
+      note:
+        "You can turn off “Game streaming, cloud gaming & esports”, or allow this site, under Game Blocker in Sieve's settings.",
+    },
     gambling: {
       shield: "🛡️",
       title: "Blocked by Sieve",
@@ -148,6 +181,13 @@
     fraud: "fraud",
     goreshock: "goreShock",
     dating: "dating",
+    // All four Game Blocker groups roll up into ONE dashboard row ("games") —
+    // the per-group wording above is what tells the user which toggle to change;
+    // the dashboard only needs the total.
+    "games-portals": "games",
+    "games-stores": "games",
+    "games-platforms": "games",
+    "games-streaming": "games",
     "custom-blocked": "customBlocked",
   };
 

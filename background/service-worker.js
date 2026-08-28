@@ -8,6 +8,7 @@ import "./financial-protection.js"; // Phase 5 — Financial Protection (scam + 
 import "./safety-shield.js"; // Safety Shield — piracy + safety/malware blockers
 import "./popup-hijack.js"; // Popup & Click Hijack Blocker — blocked-popup log + recovery
 import "./url-shortener-resolver.js"; // URL Shortener Resolver — expand shortened links before blocker checks
+import "./usage-tracker.js"; // Usage Insights — opt-in local screen-time tracker
 import { installStatsListener, installStatsAlarmHandler, scheduleStatsMidnightAlarm } from "../common/stats.js"; // Shared Protection Dashboard stats store
 
 installStatsListener();

@@ -100,6 +100,11 @@ const MODULE_DEFAULTS = {
   ssFraudEnabled: false,
   ssGoreShockEnabled: false,
   ssDatingEnabled: false,
+  // Game Blocker (opt-in, default off) — four independent groups
+  ssGamePortalsEnabled: false,
+  ssGameStoresEnabled: false,
+  ssGamePlatformsEnabled: false,
+  ssGameStreamingEnabled: false,
 };
 const MODULE_KEYS = Object.keys(MODULE_DEFAULTS);
 
