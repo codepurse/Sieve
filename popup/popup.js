@@ -100,6 +100,9 @@ const MODULE_DEFAULTS = {
   ssFraudEnabled: false,
   ssGoreShockEnabled: false,
   ssDatingEnabled: false,
+  // Search Result Filter (opt-in, default off) — settings page only, like the
+  // other opt-ins above; counted here so the banner reflects it.
+  searchFilterEnabled: false,
   // Game Blocker (opt-in, default off) — four independent groups
   ssGamePortalsEnabled: false,
   ssGameStoresEnabled: false,

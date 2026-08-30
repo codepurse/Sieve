@@ -11,6 +11,7 @@
   },
   "permissions": [
     "storage",
+    "scripting",
     "unlimitedStorage",
     "declarativeNetRequest",
     "alarms",
@@ -87,6 +88,7 @@
       ],
       "js": [
         "common/guardian.js",
+        "common/doomscroll-sites.js",
         "common/access-code.js",
         "common/guardian-prompt.js",
         "content/pause-overlay.js",
@@ -156,6 +158,17 @@
       ],
       "run_at": "document_start",
       "all_frames": true
+    },
+    {
+      "matches": [
+        "<all_urls>"
+      ],
+      "js": [
+        "common/keyword-pattern.js",
+        "common/search-filter.js",
+        "content/search-filter.js"
+      ],
+      "run_at": "document_start"
     },
     {
       "matches": [
