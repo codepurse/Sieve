@@ -13,12 +13,9 @@
 // ===========================================================================
 
 const SIEVE_CHANGELOG = [
-  // UNRELEASED — manifest.json is still on 1.2.0, so this entry renders without
-  // the "Current" badge until the version is bumped at release time. Fold these
-  // notes into the release entry then, the way the 1.1.0 notes were folded in.
   {
     version: "1.3.0",
-    date: "Unreleased",
+    date: "August 2026",
     items: [
       "New Game Blocker in Site Blocking — four switches you can turn on separately: browser game portals (Poki, CrazyGames, CoolMathGames, and the big .io games), game download stores (Steam, Epic, GOG, itch.io, console storefronts), game platforms and online worlds (Roblox, Minecraft, Fortnite), and game streaming, cloud gaming and esports (Twitch, Kick, now.gg). All off by default.",
       "The game portal switch also blocks the shared host most portals serve their games from, so games embedded on other pages stop loading too.",
