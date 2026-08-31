@@ -1,0 +1,322 @@
+/* ==========================================================================
+   Sieve — Release notes (standalone page)
+   Shares the settings page's dark "control room" palette so the extension
+   still reads as one product, but keeps its own, much simpler layout: the
+   notes used to live inside Settings and made that page far too long.
+   ========================================================================== */
+
+:root {
+  color-scheme: dark;
+
+  --background: #0b1120;
+  --background-gradient: radial-gradient(
+    130% 120% at 50% -10%,
+    #101a33 0%,
+    #0b1120 52%,
+    #080c16 100%
+  );
+  --foreground: #f1f5f9;
+  --foreground-muted: #9aa8bd;
+  --foreground-dim: #647089;
+
+  --card-gradient: linear-gradient(180deg, rgba(24, 34, 58, 0.72), rgba(13, 19, 35, 0.74));
+  --card-border: rgba(255, 255, 255, 0.08);
+  --card-border-hover: rgba(99, 102, 241, 0.4);
+  --card-shadow: 0 14px 34px -22px rgba(0, 0, 0, 0.75);
+  --hairline: rgba(255, 255, 255, 0.06);
+
+  --brand-1: #6366f1;
+  --brand-3: #38bdf8;
+  --primary-soft: rgba(99, 102, 241, 0.12);
+  --primary-glow: rgba(99, 102, 241, 0.28);
+  --accent-text: #a5b4fc;
+
+  --secondary: #1e293b;
+  --secondary-hover: #273349;
+
+  --radius: 14px;
+  --radius-sm: 10px;
+  --ease: cubic-bezier(0.16, 1, 0.3, 1);
+
+  --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+[hidden] {
+  display: none !important;
+}
+
+body {
+  min-height: 100vh;
+  background: var(--background) var(--background-gradient) fixed;
+  color: var(--foreground);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+}
+
+.rn {
+  max-width: 780px;
+  margin: 0 auto;
+  padding: 2.5rem 1.25rem 4rem;
+}
+
+/* ---------------------------------------------------------------- header -- */
+
+.rn-back {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  margin-bottom: 1.5rem;
+  padding: 0.4rem 0.75rem 0.4rem 0.55rem;
+  border: 1px solid var(--card-border);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.02);
+  color: var(--foreground-muted);
+  font-size: 0.8rem;
+  text-decoration: none;
+  transition: color 0.18s var(--ease), border-color 0.18s var(--ease);
+}
+
+.rn-back:hover {
+  color: var(--foreground);
+  border-color: var(--card-border-hover);
+}
+
+.rn-back svg {
+  width: 15px;
+  height: 15px;
+}
+
+.rn-head {
+  display: flex;
+  align-items: center;
+  gap: 0.9rem;
+  padding-bottom: 1.5rem;
+  border-bottom: 1px solid var(--hairline);
+}
+
+.rn-mark {
+  display: grid;
+  place-items: center;
+  width: 42px;
+  height: 42px;
+  flex-shrink: 0;
+  border-radius: 12px;
+  background: linear-gradient(180deg, var(--brand-1), var(--brand-3));
+  box-shadow: 0 10px 24px -12px var(--primary-glow);
+  color: #fff;
+}
+
+.rn-mark svg {
+  width: 22px;
+  height: 22px;
+}
+
+.rn-title {
+  font-size: 1.4rem;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+
+.rn-sub {
+  margin-top: 0.15rem;
+  font-size: 0.85rem;
+  color: var(--foreground-muted);
+}
+
+.rn-version {
+  margin-left: auto;
+  padding: 0.3rem 0.7rem;
+  border: 1px solid var(--card-border);
+  border-radius: 999px;
+  background: var(--primary-soft);
+  color: var(--accent-text);
+  font-size: 0.78rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.rn-note {
+  margin: 1.5rem 0 0;
+  font-size: 0.85rem;
+  line-height: 1.7;
+  color: var(--foreground-muted);
+}
+
+/* ------------------------------------------------------------- releases -- */
+
+.rn-list {
+  list-style: none;
+  margin: 1.75rem 0 0;
+}
+
+/* Each release hangs off a shared vertical timeline rule */
+.rn-release {
+  position: relative;
+  padding: 0 0 0.9rem 1.35rem;
+  border-left: 1px solid var(--card-border);
+}
+
+.rn-release:last-child {
+  padding-bottom: 0;
+  border-left-color: transparent;
+}
+
+/* Node on the timeline, aligned with the version row */
+.rn-release::before {
+  content: "";
+  position: absolute;
+  left: -4.5px;
+  top: 1.05rem;
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  background: var(--secondary);
+  border: 1px solid var(--card-border);
+}
+
+.rn-release:first-child::before {
+  background: linear-gradient(180deg, var(--brand-1), var(--brand-3));
+  border-color: transparent;
+  box-shadow: 0 0 10px var(--primary-glow);
+}
+
+/* Older releases stay folded away: the point of this page is that the notes
+   are long, so only the newest one is open when the page loads. */
+.rn-details {
+  border: 1px solid var(--card-border);
+  border-radius: var(--radius);
+  background: var(--card-gradient);
+  box-shadow: var(--card-shadow);
+  overflow: hidden;
+}
+
+.rn-summary {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+  padding: 0.85rem 1rem;
+  cursor: pointer;
+  list-style: none;
+  transition: background 0.18s var(--ease);
+}
+
+.rn-summary::-webkit-details-marker {
+  display: none;
+}
+
+.rn-summary:hover {
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.rn-summary:focus-visible {
+  outline: 2px solid var(--brand-1);
+  outline-offset: -2px;
+}
+
+.rn-chev {
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
+  color: var(--foreground-dim);
+  transition: transform 0.2s var(--ease);
+}
+
+.rn-details[open] .rn-chev {
+  transform: rotate(90deg);
+}
+
+.rn-ver {
+  font-size: 0.95rem;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+}
+
+.rn-badge {
+  padding: 0.12rem 0.5rem;
+  border-radius: 999px;
+  background: var(--primary-soft);
+  color: var(--accent-text);
+  font-size: 0.68rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.rn-date {
+  font-size: 0.8rem;
+  color: var(--foreground-dim);
+}
+
+.rn-count {
+  margin-left: auto;
+  font-size: 0.75rem;
+  color: var(--foreground-dim);
+  white-space: nowrap;
+}
+
+.rn-items {
+  margin: 0;
+  padding: 0.25rem 1.15rem 1.05rem 2.3rem;
+}
+
+.rn-items li {
+  font-size: 0.875rem;
+  line-height: 1.7;
+  color: var(--foreground-muted);
+}
+
+.rn-items li + li {
+  margin-top: 0.5rem;
+}
+
+/* ---------------------------------------------------------------- footer -- */
+
+.rn-foot {
+  margin-top: 2.5rem;
+  padding-top: 1.25rem;
+  border-top: 1px solid var(--hairline);
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  font-size: 0.8rem;
+  color: var(--foreground-dim);
+}
+
+.rn-foot a {
+  color: var(--accent-text);
+  text-decoration: none;
+}
+
+.rn-foot a:hover {
+  text-decoration: underline;
+}
+
+@media (max-width: 560px) {
+  .rn {
+    padding: 1.75rem 1rem 3rem;
+  }
+  .rn-version {
+    margin-left: 0;
+    order: 3;
+    width: 100%;
+  }
+  .rn-count {
+    display: none;
+  }
+  .rn-items {
+    padding-left: 1.9rem;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * {
+    transition: none !important;
+  }
+}

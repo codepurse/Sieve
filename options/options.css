@@ -943,6 +943,71 @@ input:checked + .slider::before {
   font-family: var(--font-sans);
 }
 
+/* A note (a "#" or "!" line) in the blocked-sites list. It heads the entries
+   under it, so it is set flush and quiet rather than boxed like an entry —
+   the list should read as sections, not as one run of equal-weight rows. */
+.domain-list li.note {
+  border: none;
+  background: transparent;
+  padding: 0.5rem 0.5rem 0.1rem 0;
+  color: var(--foreground-muted);
+}
+
+.domain-list li.note:hover {
+  border: none;
+  background: transparent;
+}
+
+.domain-list li.note span {
+  font-family: var(--font-sans);
+  font-size: 0.8rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+}
+
+/* The blocked-sites syntax reference: term on the left, example on the right. */
+.syntax-list {
+  margin: 0 0 0.9rem;
+  display: grid;
+  grid-template-columns: minmax(9rem, auto) 1fr;
+  gap: 0.35rem 1rem;
+  font-size: 0.85rem;
+  line-height: 1.55;
+}
+
+.syntax-list dt {
+  color: var(--foreground);
+  font-weight: 600;
+}
+
+.syntax-list dd {
+  margin: 0;
+  color: var(--foreground-muted);
+}
+
+.syntax-list code,
+.hint code {
+  font-family: var(--font-mono);
+  font-size: 0.8rem;
+  background: var(--input-bg);
+  border: 1px solid var(--input-border);
+  border-radius: 5px;
+  padding: 0.05rem 0.3rem;
+  white-space: nowrap;
+}
+
+@media (max-width: 640px) {
+  .syntax-list {
+    grid-template-columns: 1fr;
+    gap: 0.15rem;
+  }
+
+  .syntax-list dd {
+    margin-bottom: 0.5rem;
+  }
+}
+
 .remove {
   flex-shrink: 0;
   border: none;
@@ -1697,89 +1762,128 @@ input:checked + .slider::before {
 }
 
 /* ==========================================================================
-   What's New — release notes (rendered from CHANGELOG in options.js)
+   What's New — the notes themselves live on pages/release-notes.html; the
+   sidebar carries the card that opens it.
    ========================================================================== */
 
-/* Unread dot on the sidebar link, pushed to the far edge of the row */
-.nav-dot {
-  width: 7px;
-  height: 7px;
-  margin-left: auto;
-  flex-shrink: 0;
-  border-radius: 999px;
-  background: linear-gradient(180deg, var(--brand-1), var(--brand-3));
-  box-shadow: 0 0 8px var(--primary-glow);
-}
-
-.whatsnew-list {
-  list-style: none;
-  margin: 1.25rem 0 0;
-  padding: 0;
-}
-
-/* Each release hangs off a shared vertical timeline rule */
-.whatsnew-release {
-  position: relative;
-  padding: 0 0 1.35rem 1.35rem;
-  border-left: 1px solid var(--card-border);
-}
-
-.whatsnew-release:last-child {
-  padding-bottom: 0;
-  border-left-color: transparent;
-}
-
-/* Node on the timeline, aligned with the version row */
-.whatsnew-release::before {
-  content: "";
-  position: absolute;
-  left: -4.5px;
-  top: 0.45rem;
-  width: 8px;
-  height: 8px;
-  border-radius: 999px;
-  background: var(--secondary);
-  border: 1px solid var(--card-border);
-}
-
-.whatsnew-release:first-child::before {
-  background: linear-gradient(180deg, var(--brand-1), var(--brand-3));
-  border-color: transparent;
-  box-shadow: 0 0 10px var(--primary-glow);
-}
-
-.whatsnew-head {
+/* Promoted out of the nav list on purpose. It is the only sidebar row that
+   leaves the page, and a release nobody reads may as well not have shipped,
+   so it gets a tinted card, the version, a change count and an outward arrow
+   rather than another quiet text row. */
+.whatsnew-cta {
   display: flex;
   align-items: center;
-  flex-wrap: wrap;
-  gap: 0.6rem;
-}
-
-.whatsnew-version {
-  font-size: 0.95rem;
-  font-weight: 700;
+  gap: 0.65rem;
+  padding: 0.7rem 0.75rem;
+  border: 1px solid rgba(99, 102, 241, 0.3);
+  border-radius: var(--radius-sm);
+  background: linear-gradient(135deg, rgba(99, 102, 241, 0.16), rgba(56, 189, 248, 0.07));
   color: var(--foreground);
-  letter-spacing: 0.01em;
+  text-decoration: none;
+  transition: var(--transition-fast);
 }
 
-.whatsnew-date {
-  font-size: 0.8rem;
-  color: var(--foreground-dim);
+.whatsnew-cta:hover {
+  border-color: var(--card-border-hover);
+  background: linear-gradient(135deg, rgba(99, 102, 241, 0.26), rgba(56, 189, 248, 0.12));
+  transform: translateY(-1px);
+  box-shadow: 0 12px 26px -18px var(--primary-glow);
 }
 
-.whatsnew-items {
-  margin: 0.6rem 0 0;
-  padding-left: 1.1rem;
+.whatsnew-cta:focus-visible {
+  outline: 2px solid var(--brand-1);
+  outline-offset: 2px;
 }
 
-.whatsnew-items li {
-  font-size: 0.875rem;
-  line-height: 1.65;
+.whatsnew-cta-icon {
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  flex-shrink: 0;
+  border-radius: 9px;
+  background: linear-gradient(180deg, var(--brand-1), var(--brand-3));
+  color: #fff;
+  box-shadow: 0 8px 18px -10px var(--primary-glow);
+}
+
+.whatsnew-cta-icon svg {
+  width: 16px;
+  height: 16px;
+}
+
+.whatsnew-cta-text {
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+  min-width: 0;
+}
+
+.whatsnew-cta-title {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.85rem;
+  font-weight: 600;
+  line-height: 1.2;
+}
+
+/* Filled in by setupWhatsNew() with the running version and how many entries
+   its release notes carry — "v1.3.0 — 15 changes". */
+.whatsnew-cta-sub {
+  font-size: 0.72rem;
   color: var(--foreground-muted);
+  line-height: 1.35;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
-.whatsnew-items li + li {
-  margin-top: 0.4rem;
+.whatsnew-cta-pill {
+  padding: 0.05rem 0.34rem;
+  border-radius: 999px;
+  background: linear-gradient(180deg, var(--brand-1), var(--brand-3));
+  color: #fff;
+  font-size: 0.6rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.whatsnew-cta-arrow {
+  width: 13px;
+  height: 13px;
+  margin-left: auto;
+  flex-shrink: 0;
+  color: var(--foreground-dim);
+  transition: var(--transition-fast);
+}
+
+.whatsnew-cta:hover .whatsnew-cta-arrow {
+  color: var(--accent-text);
+  transform: translate(1px, -1px);
+}
+
+/* Unread — a slow breathing ring until this version's notes have been opened. */
+.whatsnew-cta.is-unread {
+  border-color: rgba(99, 102, 241, 0.55);
+  animation: whatsnew-pulse 2.8s var(--ease) infinite;
+}
+
+@keyframes whatsnew-pulse {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 rgba(99, 102, 241, 0);
+  }
+  50% {
+    box-shadow: 0 0 0 4px rgba(99, 102, 241, 0.14);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .whatsnew-cta.is-unread {
+    animation: none;
+  }
 }
 
 /* ==========================================================================

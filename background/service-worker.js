@@ -9,6 +9,12 @@ import "./safety-shield.js"; // Safety Shield — piracy + safety/malware blocke
 import "./popup-hijack.js"; // Popup & Click Hijack Blocker — blocked-popup log + recovery
 import "./url-shortener-resolver.js"; // URL Shortener Resolver — expand shortened links before blocker checks
 import "./usage-tracker.js"; // Usage Insights — opt-in local screen-time tracker
+// A plain script, not an ES module: importing it for its side effect is what
+// puts KeywordPattern on `self`, which is where the blocked-sites entry parser
+// lives. The settings page and the content script load the same file, so all
+// three agree on what an entry means.
+import "../common/keyword-pattern.js";
+import { buildCustomBlockRules } from "./custom-block-rules.js"; // blocked-sites list -> dynamic rules
 import { installStatsListener, installStatsAlarmHandler, scheduleStatsMidnightAlarm } from "../common/stats.js"; // Shared Protection Dashboard stats store
 
 installStatsListener();
@@ -218,23 +224,39 @@ function enqueueAllowBlockWrite(fn) {
   return allowBlockWriteChain;
 }
 
-// Build redirect+block rules for the user's custom domains.
-function buildCustomBlockRules(domains) {
-  if (domains.length === 0) return [];
-  return [
-    {
-      id: CUSTOM_BLOCK_ID_START,
-      priority: 1,
-      action: { type: "redirect", redirect: { extensionPath: "/pages/blocked.html?category=custom-blocked" } },
-      condition: { requestDomains: domains, resourceTypes: ["main_frame"] },
-    },
-    {
-      id: CUSTOM_BLOCK_ID_START + 1,
-      priority: 1,
-      action: { type: "block" },
-      condition: { requestDomains: domains, resourceTypes: SUBRESOURCE_TYPES },
-    },
-  ];
+// Ask Chrome whether it can take this pattern. declarativeNetRequest's
+// regexFilter is RE2, not JavaScript: lookahead and backreferences are valid JS
+// and are rejected here. The settings page asks the same question before it
+// saves, so this is the backstop for a list that arrived some other way — an
+// import, or a profile written by an older version.
+//
+// When the browser does not offer the check at all, the pattern is let through
+// and applyCustomBlocks() below handles the rejection, because assuming "not
+// supported" would silently drop every address pattern the user has.
+async function isRegexUsable(regex) {
+  if (!chrome.declarativeNetRequest.isRegexSupported) return true;
+  try {
+    const result = await chrome.declarativeNetRequest.isRegexSupported({
+      regex,
+      isCaseSensitive: false,
+    });
+    return !!(result && result.isSupported);
+  } catch (_) {
+    return true;
+  }
+}
+
+// Build the dynamic rules for the user's blocked-sites list. The shapes live in
+// background/custom-block-rules.js, which is a pure function so it can be tested.
+function customBlockRules(entries) {
+  return buildCustomBlockRules(entries, {
+    KP: self.KeywordPattern,
+    idStart: CUSTOM_BLOCK_ID_START,
+    idEnd: ALLOW_ID_START,
+    subresourceTypes: SUBRESOURCE_TYPES,
+    isRegexSupported: isRegexUsable,
+    warn: (msg, detail) => console.warn("[Sieve] " + msg, detail === undefined ? "" : detail),
+  });
 }
 
 // Build one high-priority allow rule so allowlisted domains beat any block.
@@ -261,8 +283,26 @@ async function applyCustomBlocks() {
       .filter((r) => r.id >= CUSTOM_BLOCK_ID_START && r.id < ALLOW_ID_START)
       .map((r) => r.id);
     const { customBlocks } = await chrome.storage.local.get({ customBlocks: [] });
-    const addRules = buildCustomBlockRules(customBlocks);
-    await chrome.declarativeNetRequest.updateDynamicRules({ removeRuleIds, addRules });
+    const addRules = await customBlockRules(customBlocks);
+    try {
+      await chrome.declarativeNetRequest.updateDynamicRules({ removeRuleIds, addRules });
+    } catch (err) {
+      // updateDynamicRules is all-or-nothing: one pattern the browser refuses
+      // takes the whole list down with it, which would mean a single bad line
+      // silently unblocking every site the user has ever added. So drop the
+      // patterns and install the rest — a partly-applied list is far better
+      // than none, and the console says which part went missing.
+      const withoutPatterns = addRules.filter((r) => !r.condition.regexFilter);
+      if (withoutPatterns.length === addRules.length) throw err;
+      console.error(
+        "[Sieve] blocked sites: the browser refused a pattern, so patterns were left out and the rest of the list applied.",
+        err
+      );
+      await chrome.declarativeNetRequest.updateDynamicRules({
+        removeRuleIds,
+        addRules: withoutPatterns,
+      });
+    }
   });
 }
 

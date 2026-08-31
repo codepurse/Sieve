@@ -32,7 +32,6 @@
 
         <nav class="nav" aria-label="Settings sections">
           <a class="nav-link" href="#section-about" data-target="section-about"><span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/><path d="M12 8v.01"/><path d="M12 11v2"/></svg></span><span>About</span></a>
-          <a class="nav-link" href="#section-whatsnew" data-target="section-whatsnew"><span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v3"/><path d="M12 18v3"/><path d="M4.9 4.9 7 7"/><path d="M17 17l2.1 2.1"/><path d="M3 12h3"/><path d="M18 12h3"/><path d="M4.9 19.1 7 17"/><path d="M17 7l2.1-2.1"/><circle cx="12" cy="12" r="3"/></svg></span><span>What&rsquo;s New</span><span class="nav-dot" id="whatsnew-dot" title="New in this version" hidden></span></a>
           <a class="nav-link" href="#section-dashboard" data-target="section-dashboard"><span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 3v18h18"/><path d="M18 17V9"/><path d="M13 17V5"/><path d="M8 17v-3"/></svg></span><span>Dashboard</span></a>
           <a class="nav-link" href="#section-usage" data-target="section-usage"><span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12a9 9 0 1 1-6.2-8.56"/><polyline points="12 7 12 12 15.5 14"/><path d="M21 4v4h-4"/></svg></span><span>Usage Insights</span></a>
           <a class="nav-link" href="#section-security" data-target="section-security"><span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg></span><span>Security</span></a>
@@ -44,6 +43,22 @@
           <a class="nav-link" href="#section-advanced" data-target="section-advanced"><span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg></span><span>Advanced</span></a>
         </nav>
 
+        <!-- What's New — deliberately louder than a nav row: the release notes
+             live on their own page now, and a card with the version, how many
+             changes it carries and a New badge is what actually gets clicked. -->
+        <a class="whatsnew-cta" id="whatsnew-link" href="../pages/release-notes.html" target="_blank" rel="noopener">
+          <span class="whatsnew-cta-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v3"/><path d="M12 18v3"/><path d="M4.9 4.9 7 7"/><path d="M17 17l2.1 2.1"/><path d="M3 12h3"/><path d="M18 12h3"/><path d="M4.9 19.1 7 17"/><path d="M17 7l2.1-2.1"/><circle cx="12" cy="12" r="3"/></svg>
+          </span>
+          <span class="whatsnew-cta-text">
+            <span class="whatsnew-cta-title">
+              <span>What&rsquo;s New</span>
+              <span class="whatsnew-cta-pill" id="whatsnew-pill" hidden>New</span>
+            </span>
+            <span class="whatsnew-cta-sub" id="whatsnew-sub">Read the release notes</span>
+          </span>
+          <svg class="whatsnew-cta-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 17 17 7"/><path d="M7 7h10v10"/></svg>
+        </a>
         <div class="sidebar-footer">
           <p class="sidebar-note">Sieve runs entirely on your device. Your settings never leave this browser.</p>
         </div>
@@ -133,29 +148,6 @@
                 </a>
               </div>
             </div>
-          </section>
-        </section>
-
-        <!-- ========================== What's New =========================== -->
-        <!-- Release notes ship with the extension: the list is rendered from the
-             CHANGELOG array in options.js, so there is no network request and
-             nothing to keep in sync outside the package. -->
-        <section class="section" id="section-whatsnew">
-          <div class="section-head">
-            <h2 class="section-title">What&rsquo;s New</h2>
-            <p class="section-desc">Everything that changed in Sieve, newest first.</p>
-          </div>
-
-          <section class="card">
-            <div class="card-header">
-              <h2 class="card-title">Release notes</h2>
-            </div>
-            <p class="card-description">
-              Sieve updates itself through your browser&rsquo;s extension store — you
-              don&rsquo;t need to do anything. Here&rsquo;s what each version brought.
-            </p>
-
-            <ol class="whatsnew-list" id="whatsnew-list"></ol>
           </section>
         </section>
 
@@ -667,12 +659,51 @@
               <h2 class="card-title">Blocked sites</h2>
               <p class="card-description">
                 Your personal block list. Sites you add here are <strong>always
-                blocked</strong>, no matter which blockers are on.
+                blocked</strong>, no matter which blockers are on. Add one entry
+                per line — four forms are accepted, plus notes.
               </p>
             </div>
             <div class="field">
+              <dl class="syntax-list">
+                <dt>Wildcards</dt>
+                <dd>
+                  <code>pornhub.com</code>, <code>*.inappropriate.net</code>,
+                  <code>example.com/adult/*</code>
+                </dd>
+
+                <dt>A whole top-level domain</dt>
+                <dd>
+                  <code>.xyz</code> or <code>xyz</code> blocks every site ending in it.
+                  Some TLDs are used almost entirely for spam and malware, and this
+                  covers all of them at once — which also makes it the broadest entry
+                  you can write, so check it is really what you want. Images from a
+                  blocked TLD are hidden page-side rather than by a network rule.
+                </dd>
+
+                <dt>Regular expression on the address</dt>
+                <dd><code>/example\.(net|org)/</code></dd>
+
+                <dt>Regular expression on the page title</dt>
+                <dd><code>title/Example Domain/</code></dd>
+
+                <dt>Comments</dt>
+                <dd>
+                  A line starting with <code>#</code> or <code>!</code> is a note,
+                  ignored when matching. Notes stay with the entries written below
+                  them when the list is sorted, so they work as section headings.
+                </dd>
+              </dl>
+              <p class="hint">
+                Patterns are checked when you save, and one that is invalid or slow
+                enough to freeze pages is refused with the reason. Title patterns are
+                matched once the page loads, so the page appears briefly before it is
+                blocked; address patterns block before it loads at all. A site you add
+                here is also blocked as a source of images — its results are hidden in
+                image search, and its pictures are blocked wherever they appear on
+                other sites.
+              </p>
               <div class="add-row">
-                <input id="block-input" class="input" type="text" placeholder="example.com" autocomplete="off" />
+                <input id="block-input" class="input" type="text" placeholder="example.com, .xyz, /regex/ or title/regex/" autocomplete="off" />
                 <button id="block-add" class="btn btn-primary">Add</button>
               </div>
               <p id="block-error" class="error" role="alert"></p>
@@ -690,6 +721,13 @@
               </p>
             </div>
             <div class="field">
+              <p class="hint">
+                Plain domains only — <code>example.com</code>, which covers its
+                subdomains. The wildcard, whole-TLD, regular-expression and
+                <code>#</code> note forms are understood by <strong>Blocked
+                sites</strong> above, not here: an allow rule has to be certain
+                about which site it is opening up.
+              </p>
               <div class="add-row">
                 <input id="allow-input" class="input" type="text" placeholder="example.com" autocomplete="off" />
                 <button id="allow-add" class="btn btn-primary">Add</button>
@@ -995,6 +1033,7 @@
       </main>
     </div>
 
+    <script src="../common/changelog.js"></script>
     <script src="../common/guardian.js"></script>
     <script src="../common/access-code.js"></script>
     <script src="../common/guardian-prompt.js"></script>

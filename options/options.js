@@ -23,6 +23,54 @@ function isValidDomain(domain) {
   return /^[a-z0-9-]+(\.[a-z0-9-]+)+$/.test(domain);
 }
 
+// --- blocked-sites entries ------------------------------------------------
+//
+// The blocked-sites list is not a plain list of domains. An entry can be a
+// wildcard, a whole top-level domain, a regex over the address, a regex over
+// the page title, or a note — see the "Blocked-site entries" section of
+// common/keyword-pattern.js, which the settings page, the service worker and
+// the content script all share so that all three agree on what a line means.
+
+function normalizeBlockEntry(input) {
+  const raw = String(input || "").trim();
+  if (!raw) return "";
+  const parsed = KeywordPattern.parseListEntry(raw);
+  // Notes and both regex forms are stored exactly as typed: lower-casing a
+  // pattern, or stripping a "www." out of one, would change what it means.
+  if (parsed.kind === "comment" || parsed.kind === "url" || parsed.kind === "title") return raw;
+  // The rest are canonicalised, so "https://WWW.Example.com/" and "example.com"
+  // are recognised as the same entry rather than saved twice.
+  if (parsed.kind === "tld") return "." + parsed.tld;
+  if (parsed.kind === "wildcard") return parsed.host + parsed.path;
+  return raw;
+}
+
+// Chrome enforces an address pattern through declarativeNetRequest, whose regex
+// dialect is RE2, not JavaScript's: /example(?=\.com)/ is a perfectly valid JS
+// pattern that Chrome will not accept. Asking it here means the user hears
+// about that now, while the pattern is still in front of them, instead of the
+// line sitting in their list looking fine and never blocking anything.
+async function checkBlockEntry(entry) {
+  const result = KeywordPattern.validateListEntry(entry);
+  if (!result.ok) return result.error;
+  if (result.kind !== "url") return "";
+  try {
+    const parsed = KeywordPattern.parseListEntry(entry);
+    const supported = await chrome.declarativeNetRequest.isRegexSupported({
+      regex: parsed.body,
+      isCaseSensitive: false,
+    });
+    if (supported && supported.isSupported) return "";
+    return (
+      "Chrome cannot block pages with this pattern" +
+      (supported && supported.reason ? " (" + String(supported.reason).toLowerCase() + ")" : "") +
+      ". Lookahead and backreferences are the usual cause — a title/…/ pattern accepts them."
+    );
+  } catch (_) {
+    return ""; // if the check itself is unavailable, don't stand in the user's way
+  }
+}
+
 // A custom word: lowercase, single token of letters.
 function normalizeWord(input) {
   return input.trim().toLowerCase();
@@ -54,6 +102,12 @@ function renderList(listEl, items) {
   }
   for (const item of items) {
     const li = document.createElement("li");
+    // A note (a "#" or "!" line in the blocked-sites list) is a heading for the
+    // entries under it, not an entry, so it is styled as one — and it still has
+    // its own remove button, because it is still a line the user can delete.
+    if (typeof KeywordPattern !== "undefined" && KeywordPattern.isCommentEntry(item)) {
+      li.className = "note";
+    }
     const span = document.createElement("span");
     span.textContent = item;
     const btn = document.createElement("button");
@@ -145,11 +199,22 @@ function downloadTextFile(filename, text) {
 // (e.g. allowlisting a site, or un-blocking one) and must pass the Guardian PIN
 // gate. The opposite mutation strengthens protection and is always free. Mirrors
 // the "allow this site" gate on the blocked page (pages/blocked.js).
-function setupSection({ storageKey, inputId, addBtnId, listId, errorId, normalize, validate, invalidMsg, initialItems, gateAddAction, gateRemoveAction, allowRegex }) {
+// checkValue: a section whose entries are richer than one shape (the
+// blocked-sites list) supplies its own check, which returns the REASON a line
+// is refused rather than a single catch-all message — being told "invalid" when
+// the real answer is "that flag would make the pattern match every other time"
+// is what makes a list like this infuriating to fill in. It may be async: the
+// blocked list asks Chrome whether it can actually use an address pattern.
+//
+// tidy: how the saved list is de-duplicated and sorted. The default sorts the
+// whole list A-Z; the blocked list passes a note-aware sort, so a heading stays
+// above the entries it heads.
+function setupSection({ storageKey, inputId, addBtnId, listId, errorId, normalize, validate, invalidMsg, initialItems, gateAddAction, gateRemoveAction, allowRegex, checkValue, tidy, bulkHint }) {
   const input = document.getElementById(inputId);
   const addBtn = document.getElementById(addBtnId);
   const listEl = document.getElementById(listId);
   const errorEl = document.getElementById(errorId);
+  const tidyList = tidy || tidyEntryList;
 
   async function refresh() {
     renderList(listEl, await getList(storageKey));
@@ -157,11 +222,12 @@ function setupSection({ storageKey, inputId, addBtnId, listId, errorId, normaliz
 
   // A /regex/ entry is checked by KeywordPattern rather than the section's own
   // validator, which would reject the slashes. Returns an error string, or "".
-  function checkEntry(value) {
+  async function checkEntry(value) {
     if (allowRegex && typeof KeywordPattern !== "undefined" && KeywordPattern.isRegexEntry(value)) {
       const result = KeywordPattern.validateEntry(value);
       return result.ok ? "" : result.error;
     }
+    if (checkValue) return await checkValue(value);
     return validate(value) ? "" : invalidMsg;
   }
 
@@ -170,7 +236,7 @@ function setupSection({ storageKey, inputId, addBtnId, listId, errorId, normaliz
     const raw = String(input.value || "").trim();
     const isRegex = allowRegex && typeof KeywordPattern !== "undefined" && KeywordPattern.isRegexEntry(raw);
     const value = isRegex ? raw : normalize(input.value);
-    const error = checkEntry(value);
+    const error = await checkEntry(value);
     if (error) {
       errorEl.textContent = error;
       return;
@@ -178,12 +244,12 @@ function setupSection({ storageKey, inputId, addBtnId, listId, errorId, normaliz
     errorEl.textContent = "";
     // Gate weakening adds (e.g. allowlisting a site) behind the PIN.
     if (gateAddAction && !(await SieveGuardian.confirmUnlock(gateAddAction))) return;
-    // tidyEntryList so this route and "Add all" agree: case-insensitive
+    // tidyList so this route and "Add all" agree: case-insensitive
     // de-duplication (adding "Example.com" when "example.com" is already there
     // is not a new entry) and a locale A-Z sort rather than raw code points,
     // which put every capital ahead of every lowercase letter.
     const list = await getList(storageKey);
-    const merged = tidyEntryList(list.concat([value]));
+    const merged = tidyList(list.concat([value]));
     if (merged.length !== list.length) {
       await setList(storageKey, merged);
     }
@@ -210,7 +276,7 @@ function setupSection({ storageKey, inputId, addBtnId, listId, errorId, normaliz
       const isRegex =
         allowRegex && typeof KeywordPattern !== "undefined" && KeywordPattern.isRegexEntry(trimmed);
       const value = isRegex ? trimmed : normalize(raw);
-      if (value && !checkEntry(value)) accepted.push(value);
+      if (value && !(await checkEntry(value))) accepted.push(value);
       else rejected.push(raw);
     }
     if (accepted.length === 0) {
@@ -222,7 +288,7 @@ function setupSection({ storageKey, inputId, addBtnId, listId, errorId, normaliz
     }
     const existing = await getList(storageKey);
     const before = existing.length;
-    const merged = tidyEntryList(existing.concat(accepted));
+    const merged = tidyList(existing.concat(accepted));
     await setList(storageKey, merged);
     await refresh();
     const added = merged.length - before;
@@ -243,8 +309,13 @@ function setupSection({ storageKey, inputId, addBtnId, listId, errorId, normaliz
 
     const textarea = document.createElement("textarea");
     textarea.className = "input bulk-text";
-    textarea.rows = 6;
-    textarea.placeholder = "One per line, or paste a whole list here";
+    // A list pasted in here goes through exactly the same validation a typed
+    // entry does, so the box says what it will accept rather than leaving the
+    // user to discover it one rejected line at a time.
+    textarea.placeholder = bulkHint || "One per line, or paste a whole list here";
+    // Tall enough to show the whole hint: a placeholder that lists the accepted
+    // forms is no use if the box clips the last two of them.
+    textarea.rows = Math.max(6, textarea.placeholder.split("\n").length);
     details.appendChild(textarea);
 
     const row = document.createElement("div");
@@ -317,7 +388,7 @@ function setupSection({ storageKey, inputId, addBtnId, listId, errorId, normaliz
           status.textContent = "No entries found in that file.";
           return;
         }
-        const merged = tidyEntryList(parseEntryList(textarea.value).concat(imported));
+        const merged = tidyList(parseEntryList(textarea.value).concat(imported));
         textarea.value = merged.join("\n");
         status.textContent = `Loaded ${imported.length} from the file — review, then Add all.`;
       } catch (err) {
@@ -522,9 +593,22 @@ async function applyStoredSettings(store) {
     addBtnId: "block-add",
     listId: "block-list",
     errorId: "block-error",
-    normalize: normalizeDomain,
-    validate: isValidDomain,
-    invalidMsg: "Please enter a valid domain (e.g. example.com).",
+    normalize: normalizeBlockEntry,
+    // Five forms, not one, so the section asks KeywordPattern instead of a
+    // shape test — and reports the reason a line was refused.
+    checkValue: checkBlockEntry,
+    validate: () => true,
+    invalidMsg: "",
+    tidy: KeywordPattern.tidyListEntries, // keeps a note above the entries it heads
+    bulkHint:
+      "One entry per line — any of the forms above:\n" +
+      "example.com\n" +
+      "*.example.com\n" +
+      "example.com/adult/*\n" +
+      ".xyz\n" +
+      "/example\\.(net|org)/\n" +
+      "title/Example Domain/\n" +
+      "# a note, ignored when matching",
     initialItems: store.customBlocks,
     // Un-blocking a site weakens protection → gate. Adding a block strengthens it.
     gateRemoveAction: "Remove a site from your Blocked list",
@@ -619,109 +703,40 @@ function setupNav() {
 }
 
 // ===========================================================================
-// What's New — release notes that ship inside the extension. Add a new entry at
-// the TOP for each release and keep `version` in step with manifest.json: the
-// matching entry gets the "Current" badge, and the sidebar shows a dot until
-// those notes have been looked at. Nothing here is fetched, so an older install
-// never advertises changes it doesn't actually have.
+// What's New — the release notes themselves live in common/changelog.js and
+// are rendered by pages/release-notes.html. All this page owns is the sidebar
+// card that opens them: it names the version, says how many entries those
+// notes carry, and wears a New badge until they have been looked at.
 // ===========================================================================
 
-const CHANGELOG = [
-  // UNRELEASED — manifest.json is still on 1.2.0, so this entry renders without
-  // the "Current" badge until the version is bumped at release time. Fold these
-  // notes into the release entry then, the way the 1.1.0 notes were folded in.
-  {
-    version: "1.3.0",
-    date: "Unreleased",
-    items: [
-      "New Game Blocker in Site Blocking — four switches you can turn on separately: browser game portals (Poki, CrazyGames, CoolMathGames, and the big .io games), game download stores (Steam, Epic, GOG, itch.io, console storefronts), game platforms and online worlds (Roblox, Minecraft, Fortnite), and game streaming, cloud gaming and esports (Twitch, Kick, now.gg). All off by default.",
-      "The game portal switch also blocks the shared host most portals serve their games from, so games embedded on other pages stop loading too.",
-      "Game blocking is browser-only, and the settings page says so: Sieve can block game sites and store pages, but it cannot see or stop a game already installed on the computer, and nothing on a console. Blocking a store stops new games being browsed and bought.",
-      "Blocked game sites get their own wording naming the switch to turn off, and the Allowlist and Guardian Lock work here exactly as they do everywhere else.",
-      "New Usage Insights section — a screen-time report. It shows your total for today or the week, how it compares with the day or week before, a curve of your day hour by hour (or the week day by day), your busiest hour, and which sites took the time. Hover or use the arrow keys to read any point on the chart.",
-      "Usage Insights is off until you switch it on, and it never leaves your device. It records site names and durations only — no URLs, no page content, nothing uploaded. Choose how long to keep it (7, 30 or 90 days) and clear it whenever you like.",
-      "Only the tab you are actually looking at is counted, so two windows of the same site are never counted twice, and the clock stops when you switch to another app, lock the screen, or step away for a few minutes. Reading a long page still counts.",
-    ],
-  },
-  {
-    version: "1.2.0",
-    date: "August 2026",
-    items: [
-      "New Site Cleanup section — 21 switches for hiding the distracting parts of YouTube without blocking it: the home feed, Shorts, comments, recommendations, mixes, search filler, the description, channel row and action buttons, live chat, merch, end cards, info cards, autoplay, thumbnails, the top bar, the notification bell, and a black-and-white mode.",
-      "A Shorts link now opens in the normal player instead of the swipe feed when Shorts are hidden.",
-      "Your lock can now be a passphrase, not just digits. Letters, spaces and whole sentences all work, so you can use something you have to read and think about rather than a code you enter without looking.",
-      "New Access Code — an optional second step after your lock. A random 32 to 256 character code appears and you retype it by hand, with copy and paste switched off and a typo giving you a fresh one. Off by default, and it guards the decisive moments unless you ask for more.",
-      "The pause screen now actually stops the video. It used to blur the page while the audio kept playing, so pressing space carried on where you left off. It also blurs much harder.",
-      "Every list — blocked sites, allowlist, bad-language words, toxic words — now takes a pasted list, and has Import, Export, automatic A-Z sorting and duplicate removal.",
-      "Blocked words can be patterns: one line like /w[o0]rd/ covers many spellings. Plain words work exactly as before.",
-      "The optional smart-detection model now downloads from a mirror if the original host is unreachable, and a failed download explains why instead of only saying 'try again'.",
-      "Guardian Lock gates every action that weakens your protection — turning a module off, raising a Doomscroll time limit, allowlisting a site, or getting past the pause screen.",
-      "Doomscroll Stopper is opt-in: limits stay off until you switch on the feeds you want capped.",
-      "New Desktop Guard card in Security.",
-      "Faster page filtering — idle-time batching, tighter DOM observers, and cheaper text scanning, so busy pages stay smooth.",
-      "Firefox build, a published privacy policy, and refreshed icons.",
-      "New What's New section, so every release explains itself.",
-    ],
-  },
-  {
-    version: "1.0.0",
-    date: "July 2026",
-    items: [
-      "First release — bad-language filter, toxic comment hider, dark-pattern blocker with cookie auto-reject, popup & click-hijack blocker, gambling / financial / safety blocklists, URL shortener resolver, Doomscroll Stopper, Guardian Lock, and the protection dashboard.",
-    ],
-  },
-];
-
 function setupWhatsNew(store) {
-  const list = document.getElementById("whatsnew-list");
-  if (!list) return;
+  const link = document.getElementById("whatsnew-link");
+  if (!link) return;
 
   const current = chrome.runtime.getManifest().version;
+  const releases = typeof SIEVE_CHANGELOG !== "undefined" ? SIEVE_CHANGELOG : [];
 
-  list.textContent = "";
-  for (const release of CHANGELOG) {
-    const entry = svEl("li", "whatsnew-release");
-
-    const head = svEl("div", "whatsnew-head");
-    head.append(svEl("span", "whatsnew-version", `v${release.version}`));
-    if (release.version === current) head.append(svEl("span", "badge on", "Current"));
-    head.append(svEl("span", "whatsnew-date", release.date));
-    entry.append(head);
-
-    const items = svEl("ul", "whatsnew-items");
-    for (const text of release.items) items.append(svEl("li", "", text));
-    entry.append(items);
-
-    list.append(entry);
+  // The notes for the version actually running, falling back to the newest
+  // entry so an unreleased entry still describes the card during development.
+  const release = releases.find((r) => r.version === current) || releases[0];
+  const sub = document.getElementById("whatsnew-sub");
+  if (sub && release) {
+    const count = release.items.length;
+    sub.textContent = `v${release.version} — ${count} ${count === 1 ? "change" : "changes"}`;
   }
 
-  // Sidebar dot: shown until the notes for the running version have been seen.
-  const dot = document.getElementById("whatsnew-dot");
-  const section = document.getElementById("section-whatsnew");
-  if (!dot || !section || store.seenWhatsNewVersion === current) return;
-  dot.hidden = false;
+  const pill = document.getElementById("whatsnew-pill");
+  const unread = store.seenWhatsNewVersion !== current;
+  if (pill) pill.hidden = !unread;
+  if (unread) link.classList.add("is-unread");
 
-  let done = false;
-  function markSeen() {
-    if (done) return;
-    done = true;
-    dot.hidden = true;
+  // Opening the page counts as reading them; the page records this too, for
+  // when it is reached some other way.
+  link.addEventListener("click", () => {
+    if (pill) pill.hidden = true;
+    link.classList.remove("is-unread");
     chrome.storage.local.set({ seenWhatsNewVersion: current });
-  }
-
-  const link = document.querySelector('.nav-link[data-target="section-whatsnew"]');
-  if (link) link.addEventListener("click", markSeen);
-  if ("IntersectionObserver" in window) {
-    const observer = new IntersectionObserver(
-      (entries) => {
-        if (!entries.some((e) => e.isIntersecting)) return;
-        observer.disconnect();
-        markSeen();
-      },
-      { threshold: 0.4 }
-    );
-    observer.observe(section);
-  }
+  });
 }
 
 // Small element helper — mirrors dsEl() in the Doomscroll section.

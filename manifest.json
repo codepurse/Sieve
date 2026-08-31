@@ -55,6 +55,16 @@
         "<all_urls>"
       ],
       "js": [
+        "common/keyword-pattern.js",
+        "content/custom-block.js"
+      ],
+      "run_at": "document_start"
+    },
+    {
+      "matches": [
+        "<all_urls>"
+      ],
+      "js": [
         "content/dark-patterns.js",
         "content/patterns/timers.js",
         "content/patterns/guilt-copy.js",

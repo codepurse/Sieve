@@ -33,7 +33,7 @@ tracking, nothing leaves your browser.
 - **Financial Protection** — opt-in tiers for crypto scams, trading/exchange sites, and MLM schemes.
 - **Safety Shield** — opt-in blocking for phishing/malware, cryptojacking, piracy, AI-slop content farms, fraud, gore/shock, and dating sites.
 - **Game Blocker** — four independent opt-in tiers: browser game portals, game download stores, game platforms/online worlds, and game streaming/cloud gaming/esports. Browser-only: it blocks game sites and store pages, not games already installed on the machine.
-- **Custom block list + allowlist** — a global block list and allowlist that apply across every blocker.
+- **Custom block list + allowlist** — a global block list and allowlist that apply across every blocker. A blocked-list entry can be a wildcard (`example.com`, `*.example.com`, `example.com/adult/*`), a whole top-level domain (`.xyz`), a regular expression on the address (`/example\.(net|org)/`) or on the page title (`title/Example Domain/`), or a `#` note that heads a section. Blocked sites are also blocked as a source of images.
 - **URL Shortener Resolver** — expands or blocks shortened links before you land on them.
 
 ### Wellbeing & control
