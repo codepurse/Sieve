@@ -27,6 +27,7 @@ tracking, nothing leaves your browser.
 - **Dark Pattern Blocker** — neutralises fake countdown timers, guilt-trip copy, pre-checked boxes, and manufactured scarcity.
 - **Cookie Auto-Reject** — automatically rejects cookie-consent banners (built on the MIT-licensed Consent-O-Matic rules).
 - **Popup & Click Hijack Blocker** — blocks popups and click-hijacks by default, with a per-site allow prompt and whitelist.
+- **Search Result Filter** — opt-in sorting of your search results before you click: colour-code the sources you trust and hide the ones you don't, each rule carrying its own colour. Works on Google, Bing and DuckDuckGo. Hidden results are counted with a link to show them, never dropped silently, and every affected result can tell you which rule changed it and where that rule came from.
 
 ### Blocked websites
 - **Gambling Blocker** — blocks gambling and betting sites (with an opt-in Prediction Markets tier).

@@ -499,6 +499,111 @@ chrome.runtime.onStartup.addListener(() => {
 });
 
 // ===========================================================================
+// Doomscroll Stopper — custom sites the user adds themselves.
+// The built-in feeds are listed in the manifest's content_scripts matches, which
+// is fixed at build time. A domain the user types in the settings page can only
+// be reached with a DYNAMIC registration, which is what this does: one
+// registration, rebuilt whenever doomscrollCustomSites changes, carrying the
+// same file list the manifest entry uses. host_permissions is already
+// <all_urls>, so no new prompt is triggered.
+// ===========================================================================
+
+const DOOMSCROLL_CUSTOM_CS_ID = "sieve-doomscroll-custom";
+
+// Must stay in step with the doomscroll entry in manifest.json.
+const DOOMSCROLL_CS_FILES = [
+  "common/guardian.js",
+  "common/doomscroll-sites.js",
+  "common/access-code.js",
+  "common/guardian-prompt.js",
+  "content/pause-overlay.js",
+  "content/doomscroll.js",
+];
+
+// "*://*.example.com/*" also covers the bare host, matching the manifest entries.
+function doomscrollMatchPattern(domain) {
+  return `*://*.${domain}/*`;
+}
+
+async function getDoomscrollCustomRegistration() {
+  try {
+    const found = await chrome.scripting.getRegisteredContentScripts({
+      ids: [DOOMSCROLL_CUSTOM_CS_ID],
+    });
+    return found[0] || null;
+  } catch {
+    return null; // no such id registered
+  }
+}
+
+// A newly added domain should start counting on tabs that are ALREADY open —
+// registerContentScripts only affects future navigations, and being told to
+// reload every tab is a poor answer. The content scripts all guard against
+// running twice, so injecting into a tab that already has them is harmless.
+async function injectDoomscrollIntoOpenTabs(domains) {
+  for (const domain of domains) {
+    let tabs = [];
+    try {
+      tabs = await chrome.tabs.query({ url: [`*://${domain}/*`, `*://*.${domain}/*`] });
+    } catch {
+      continue; // an unusable match pattern; the registration below still covers it
+    }
+    for (const tab of tabs) {
+      if (tab.id == null) continue;
+      chrome.scripting
+        .executeScript({ target: { tabId: tab.id }, files: DOOMSCROLL_CS_FILES })
+        .catch(() => {}); // restricted pages (and tabs that closed) are expected misses
+    }
+  }
+}
+
+// Rebuild the registration from storage. Idempotent: if the domain list has not
+// actually changed, nothing is unregistered or re-registered.
+async function syncDoomscrollCustomScripts({ injectOpenTabs = false } = {}) {
+  const { doomscrollCustomSites } = await chrome.storage.local.get({ doomscrollCustomSites: [] });
+  const domains = Array.isArray(doomscrollCustomSites) ? doomscrollCustomSites : [];
+  const matches = domains.map(doomscrollMatchPattern);
+
+  const existing = await getDoomscrollCustomRegistration();
+  const before = existing ? existing.matches || [] : [];
+  const unchanged =
+    before.length === matches.length && before.every((m, i) => m === matches[i]);
+  if (unchanged) return;
+
+  try {
+    if (existing) await chrome.scripting.unregisterContentScripts({ ids: [DOOMSCROLL_CUSTOM_CS_ID] });
+    if (matches.length > 0) {
+      await chrome.scripting.registerContentScripts([
+        {
+          id: DOOMSCROLL_CUSTOM_CS_ID,
+          matches,
+          js: DOOMSCROLL_CS_FILES,
+          runAt: "document_idle",
+        },
+      ]);
+    }
+  } catch (err) {
+    console.error("[Sieve] Could not register custom Doomscroll sites", err);
+    return;
+  }
+
+  if (injectOpenTabs) {
+    const added = matches.filter((m) => !before.includes(m));
+    await injectDoomscrollIntoOpenTabs(
+      domains.filter((d) => added.includes(doomscrollMatchPattern(d)))
+    );
+  }
+}
+
+chrome.runtime.onInstalled.addListener(() => { syncDoomscrollCustomScripts(); });
+chrome.runtime.onStartup.addListener(() => { syncDoomscrollCustomScripts(); });
+chrome.storage.onChanged.addListener((changes, area) => {
+  if (area === "local" && changes.doomscrollCustomSites) {
+    syncDoomscrollCustomScripts({ injectOpenTabs: true });
+  }
+});
+
+// ===========================================================================
 // Toxic Comment Hider — Layer 2 model bridge (Module 4A, Step 7).
 // Content scripts can't reach the offscreen document directly, so the flow is:
 //   content script -> service worker (here) -> offscreen doc (model) -> back.
@@ -646,6 +751,12 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if (message?.type === "SIEVE_ALLOW_SITE") {
     allowSiteFromBlockedPage(message.domain).then(sendResponse);
     return true; // async
+  }
+  // From the Search Result Filter's "why is this here?" popover. A content
+  // script cannot open the options page itself.
+  if (message?.type === "SIEVE_OPEN_OPTIONS") {
+    chrome.runtime.openOptionsPage();
+    return false; // sync
   }
   return false;
 });

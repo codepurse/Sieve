@@ -68,23 +68,21 @@
   }
 
   // --- load the supported-site list + match the current tab ---------------
+  // Built-in feeds plus any domain the user added themselves; both arrive in
+  // the same config shape from common/doomscroll-sites.js.
   async function loadConfigs() {
-    try {
-      const res = await fetch(chrome.runtime.getURL("data/site-configs.json"));
-      return await res.json();
-    } catch (err) {
-      console.error("[Sieve] Could not load site-configs.json", err);
+    const S = window.SieveDoomscrollSites;
+    if (!S) {
+      console.error("[Sieve] doomscroll-sites.js not loaded");
       return [];
     }
+    return (await S.loadAll()).all;
   }
 
   // Find the config whose domains cover this hostname (incl. subdomains).
   function matchSite(configs) {
-    const host = location.hostname.replace(/^www\./, "");
-    for (const cfg of configs) {
-      if (cfg.domains.some((d) => host === d || host.endsWith("." + d))) return cfg;
-    }
-    return null;
+    const S = window.SieveDoomscrollSites;
+    return configs.find((cfg) => S.hostMatches(cfg, location.hostname)) || null;
   }
 
   // --- read settings + "stopped for today" from storage ------------------
@@ -283,9 +281,12 @@
   // Re-evaluate after a settings change (or the midnight reset).
   async function reloadAndApply() {
     await flushStats();
+    // The user can delete a custom site while its tab is open; when that
+    // happens this page stops being tracked, exactly as if it were switched off.
+    const stillTracked = !!matchSite(await loadConfigs());
     await loadSettings();
     await loadDailyTotals();
-    const shouldTrack = moduleEnabled && settings.enabled && !stoppedToday;
+    const shouldTrack = stillTracked && moduleEnabled && settings.enabled && !stoppedToday;
     if (shouldTrack) {
       startTracking();
       checkLimits(); // already over the daily limit? show it now.
@@ -314,7 +315,12 @@
       if (changes.guardianPinHash) {
         guardianMode = !!changes.guardianPinHash.newValue;
       }
-      if (changes.doomscrollEnabled || changes.doomscrollSites || changes.doomscrollStoppedDates) {
+      if (
+        changes.doomscrollEnabled ||
+        changes.doomscrollSites ||
+        changes.doomscrollStoppedDates ||
+        changes.doomscrollCustomSites
+      ) {
         reloadAndApply();
       }
     });

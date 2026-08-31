@@ -1173,6 +1173,26 @@ input:checked + .slider::before {
   font-size: 0.8rem;
   color: var(--foreground-muted);
   white-space: nowrap;
+  margin-left: auto;
+}
+
+/* Only user-added sites carry this; built-in rows have no remove button. */
+.ds-site-remove {
+  flex-shrink: 0;
+  border: none;
+  background: transparent;
+  color: var(--foreground-dim);
+  cursor: pointer;
+  font-size: 0.95rem;
+  line-height: 1;
+  padding: 0.3rem 0.45rem;
+  border-radius: 7px;
+  transition: var(--transition-fast);
+}
+
+.ds-site-remove:hover {
+  color: var(--destructive);
+  background: rgba(248, 113, 113, 0.12);
 }
 
 .ds-limits {
@@ -1954,5 +1974,109 @@ input:checked + .slider::before {
   * {
     transition: none !important;
     animation: none !important;
+  }
+}
+
+/* ==========================================================================
+   Search Result Filter — palette editor and the colour-carrying rule rows
+   ========================================================================== */
+
+.sf-palette {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin: 0.75rem 0;
+}
+
+.sf-color {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.5rem 0.5rem 0.5rem 0.85rem;
+  background: var(--input-bg);
+  border: 1px solid var(--input-border);
+  border-radius: var(--radius-sm);
+}
+
+.sf-color-name {
+  flex: 1;
+  font-size: 0.875rem;
+}
+
+/* The native swatch, sized to match the row controls. Chrome draws its own
+   inner border, so the padding keeps that off the edge. */
+.sf-color-input {
+  width: 46px;
+  height: 30px;
+  padding: 2px;
+  background: var(--input-bg);
+  border: 1px solid var(--input-border);
+  border-radius: 7px;
+  cursor: pointer;
+}
+
+/* The dropdown borrows .input for its look, but .input is width:100% — which
+   on a flex row makes it claim a whole line and push the Add button onto the
+   next one, and inside a rule row squeezes the pattern down to one character
+   per line. It sizes to its content instead. */
+.sf-select {
+  flex: 0 0 auto;
+  width: auto;
+  min-width: 130px;
+  padding: 0.45rem 0.5rem;
+  font-size: 0.85rem;
+}
+
+/* .add-row .input makes every control in the row grow to share the slack, which
+   a dropdown does not need. Same specificity, declared after, so it wins. */
+.add-row .sf-select {
+  flex: 0 0 auto;
+}
+
+/* A rule row is swatch · pattern · what-to-do · remove. The pattern takes the
+   slack so the controls stay put down the list. */
+.sf-rules li.sf-rule {
+  gap: 0.65rem;
+}
+
+.sf-pattern {
+  flex: 1;
+}
+
+.sf-swatch {
+  flex: 0 0 auto;
+  width: 14px;
+  height: 14px;
+  border-radius: 4px;
+  border: 1px solid var(--input-border);
+}
+
+/* "Hide" has no colour of its own — a struck-through swatch says removed
+   rather than leaving an empty square that reads as a missing value. */
+.sf-swatch.is-hide {
+  position: relative;
+  background: transparent;
+}
+
+.sf-swatch.is-hide::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    to bottom right,
+    transparent 44%,
+    var(--foreground-dim) 44%,
+    var(--foreground-dim) 56%,
+    transparent 56%
+  );
+}
+
+@media (max-width: 720px) {
+  .sf-rules li.sf-rule {
+    flex-wrap: wrap;
+  }
+
+  .sf-pattern {
+    flex: 1 0 100%;
   }
 }

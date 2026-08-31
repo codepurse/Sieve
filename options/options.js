@@ -504,10 +504,16 @@ function optionsDefaults() {
     // Doomscroll Stopper
     doomscrollSites: {},
     doomscrollStats: {},
+    doomscrollCustomSites: [],
     // Site Cleanup — per-site page surgery, e.g. { youtube: { enabled, … } }
     siteCleanup: {},
     // Guardian — presence of a hash means a PIN is set
     guardianPinHash: "",
+    // Search Result Filter — rules carry their own colour; see setupSearchFilter
+    searchFilterEnabled: false,
+    searchFilterRules: [],
+    searchFilterColors: [],
+    searchFilterHideBlocked: true,
     // Dark Pattern Blocker — master + cookie-autoreject tally (per-type keys added below)
     darkPatternsEnabled: true,
     cookieAutoRejectStats: null,
@@ -638,6 +644,7 @@ async function applyStoredSettings(store) {
   // protection toggles.
   setupCheckbox("url-shortener-resolver-toggle", "urlShortenerResolverEnabled", store.urlShortenerResolverEnabled, "Turn off URL Shortener Resolver");
 
+  setupSearchFilter(store);        // hide / colour-code search results
   setupWhatsNew(store);            // release notes bundled with the extension
   setupSiteCleanup(store);         // per-site page cleanup (YouTube)
   setupToxicHider(store);          // Module 4A
@@ -1458,7 +1465,8 @@ function dsLimitField(labelText, value) {
 }
 
 // Build one site's row: enable checkbox, today's time, and the two limits.
-function dsRenderSite(site, settings, minutesToday, allSettings) {
+// Custom (user-added) sites also get a remove button; built-in ones don't.
+function dsRenderSite(site, settings, minutesToday, allSettings, onRemove) {
   const row = dsEl("div", "ds-site");
 
   const head = dsEl("div", "ds-site-head");
@@ -1469,6 +1477,14 @@ function dsRenderSite(site, settings, minutesToday, allSettings) {
   nameLabel.append(toggle, dsEl("span", "ds-site-name", site.name));
   head.append(nameLabel);
   head.append(dsEl("span", "ds-site-stat", `${minutesToday} min today`));
+  if (onRemove) {
+    const removeBtn = dsEl("button", "ds-site-remove", "✕");
+    removeBtn.type = "button";
+    removeBtn.title = `Stop tracking ${site.name}`;
+    removeBtn.setAttribute("aria-label", `Stop tracking ${site.name}`);
+    removeBtn.addEventListener("click", () => onRemove(site));
+    head.append(removeBtn);
+  }
   row.append(head);
 
   const limits = dsEl("div", "ds-limits");
@@ -1514,31 +1530,382 @@ function dsRenderSite(site, settings, minutesToday, allSettings) {
   return row;
 }
 
-// Load the supported sites, render a row each, and show today's stats.
+// Today's total may be stored as { minutes, px } or, in older data, a number.
+function dsMinutesToday(stats, siteId, today) {
+  const entry = (stats[siteId] || {})[today];
+  return entry && typeof entry === "object" ? entry.minutes || 0 : entry || 0;
+}
+
+// Drop everything a removed custom site left behind: its limit, its history and
+// any "stopped for today" flag. Otherwise re-adding the same domain later would
+// silently resurrect an old limit the user has long forgotten setting.
+async function dsForgetSite(siteId) {
+  const stored = await chrome.storage.local.get({
+    doomscrollSites: {},
+    doomscrollStats: {},
+    doomscrollStoppedDates: {},
+  });
+  delete stored.doomscrollSites[siteId];
+  delete stored.doomscrollStats[siteId];
+  delete stored.doomscrollStoppedDates[siteId];
+  await chrome.storage.local.set(stored);
+}
+
+// Load the tracked sites — built-in plus the user's own — render a row each,
+// and show today's stats. The "Add your own site" field writes
+// doomscrollCustomSites; the service worker watches that key and registers the
+// tracker on the new domain, so nothing here has to think about injection.
 async function setupDoomscroll(store) {
   const list = document.getElementById("ds-sites");
+  const input = document.getElementById("ds-custom-input");
+  const addBtn = document.getElementById("ds-custom-add");
+  const errorEl = document.getElementById("ds-custom-error");
 
-  let configs = [];
-  try {
-    const res = await fetch(chrome.runtime.getURL("data/site-configs.json"));
-    configs = await res.json();
-  } catch (err) {
-    console.error("[Sieve] options could not load site-configs.json", err);
-  }
+  const builtin = await SieveDoomscrollSites.loadBuiltin();
 
   // Per-site settings and today's stats come from the page's batched snapshot.
   const allSettings = store.doomscrollSites;
   const stats = store.doomscrollStats;
   const today = dsTodayStr();
 
-  list.textContent = "";
-  for (const site of configs) {
-    const settings = { ...DS_SITE_DEFAULTS, ...(allSettings[site.id] || {}) };
-    const entry = (stats[site.id] || {})[today];
-    // Today's total may be stored as { minutes, px } or, in older data, a number.
-    const minutes = entry && typeof entry === "object" ? entry.minutes || 0 : entry || 0;
-    list.append(dsRenderSite(site, settings, Math.round(minutes), allSettings));
+  // Seeded from the page's batched snapshot, then kept in step with storage so a
+  // second settings tab (or the removal below) is reflected without a reload.
+  let customDomains = store.doomscrollCustomSites;
+
+  async function remove(site) {
+    // Un-tracking a site removes a limit → weakens protection → gate it.
+    if (!(await SieveGuardian.confirmUnlock(`Stop tracking ${site.name}`))) return;
+    customDomains = customDomains.filter(
+      (d) => SieveDoomscrollSites.CUSTOM_PREFIX + d !== site.id
+    );
+    await chrome.storage.local.set({ doomscrollCustomSites: customDomains });
+    await dsForgetSite(site.id);
+    delete allSettings[site.id];
+    delete stats[site.id];
+    render();
   }
+
+  function render() {
+    const custom = customDomains.map(SieveDoomscrollSites.customConfig);
+    list.textContent = "";
+    for (const site of builtin) {
+      const settings = { ...DS_SITE_DEFAULTS, ...(allSettings[site.id] || {}) };
+      const minutes = dsMinutesToday(stats, site.id, today);
+      list.append(dsRenderSite(site, settings, Math.round(minutes), allSettings));
+    }
+    for (const site of custom) {
+      const settings = { ...DS_SITE_DEFAULTS, ...(allSettings[site.id] || {}) };
+      const minutes = dsMinutesToday(stats, site.id, today);
+      list.append(dsRenderSite(site, settings, Math.round(minutes), allSettings, remove));
+    }
+  }
+
+  function add() {
+    const domain = normalizeDomain(input.value || "");
+    if (!isValidDomain(domain)) {
+      errorEl.textContent = "Please enter a valid domain (e.g. example.com).";
+      return;
+    }
+    // A built-in feed already has a row above, with its own limit. Adding it by
+    // hand would make a second row that quietly competes with the first.
+    const clash = SieveDoomscrollSites.findBuiltin(builtin, domain);
+    if (clash) {
+      errorEl.textContent = `${clash.name} is already in the list above.`;
+      return;
+    }
+    if (customDomains.includes(domain)) {
+      errorEl.textContent = `${domain} is already tracked.`;
+      return;
+    }
+    errorEl.textContent = "";
+    // Adding a site adds a limit — that strengthens protection, so it's free.
+    customDomains = customDomains.concat([domain]).sort();
+    chrome.storage.local.set({ doomscrollCustomSites: customDomains });
+    input.value = "";
+    render();
+  }
+
+  addBtn.addEventListener("click", add);
+  input.addEventListener("keydown", (e) => {
+    if (e.key === "Enter") add();
+  });
+  input.addEventListener("input", () => {
+    errorEl.textContent = "";
+  });
+
+  chrome.storage.onChanged.addListener((changes, area) => {
+    if (area !== "local" || !changes.doomscrollCustomSites) return;
+    customDomains = changes.doomscrollCustomSites.newValue || [];
+    render();
+  });
+
+  render();
+}
+
+// ===========================================================================
+// Search Result Filter — hide or colour-code results on the search page.
+//
+// The rule list is the interesting part. uBlacklist, where users know this
+// feature from, writes the colour into the rule text ("@1*://*.example.com/*")
+// because its rules live in one textarea. Sieve's lists are real rows, so the
+// colour is a dropdown on the row: same capability, nothing to mistype.
+//
+// Guardian follows the usual rule — a change that means you see MORE of what you
+// asked to hide needs the PIN, everything else is free. So removing a "Hide"
+// rule, or turning one into a highlight, is gated; adding rules and picking
+// colours is not, because a colour is a preference, not a protection.
+// ===========================================================================
+
+// Full-strength colours; content/search-filter.js tints them for the background
+// and uses them at full strength for the edge. Chosen to stay distinguishable
+// against both a light and a dark results page.
+const SF_DEFAULT_COLORS = ["#2ea043", "#3b82f6", "#f59e0b"];
+const SF_HIDE = 0;
+
+function sfEl(tag, className, text) {
+  const node = document.createElement(tag);
+  if (className) node.className = className;
+  if (text != null) node.textContent = text;
+  return node;
+}
+
+function sfColorLabel(index) {
+  return index === SF_HIDE ? "Hide" : `Colour ${index}`;
+}
+
+// A <select> can't paint its own options, so the swatch sits beside it and
+// mirrors the choice. "Hide" gets no colour, which is the point of it.
+function sfPaintSwatch(swatch, index, colors) {
+  const isHide = index === SF_HIDE;
+  swatch.style.background = isHide ? "transparent" : colors[index - 1] || "transparent";
+  swatch.classList.toggle("is-hide", isHide);
+}
+
+function sfBuildSelect(colors, value) {
+  const select = sfEl("select", "input sf-select");
+  const options = [SF_HIDE, ...colors.map((_, i) => i + 1)];
+  for (const index of options) {
+    const option = document.createElement("option");
+    option.value = String(index);
+    option.textContent = sfColorLabel(index);
+    select.append(option);
+  }
+  // A rule pointing at a colour that has since gone falls back to Hide rather
+  // than silently doing nothing.
+  select.value = options.includes(value) ? String(value) : String(SF_HIDE);
+  return select;
+}
+
+function setupSearchFilter(store) {
+  const master = document.getElementById("search-filter-toggle");
+  if (!master) return;
+  const hideBlocked = document.getElementById("search-filter-hide-blocked-toggle");
+  const paletteEl = document.getElementById("search-filter-palette");
+  const paletteError = document.getElementById("search-filter-palette-error");
+  const addColorBtn = document.getElementById("search-filter-add-color");
+  const input = document.getElementById("search-filter-input");
+  const addSelect = document.getElementById("search-filter-color");
+  const addBtn = document.getElementById("search-filter-add");
+  const errorEl = document.getElementById("search-filter-error");
+  const listEl = document.getElementById("search-filter-list");
+
+  let colors = store.searchFilterColors.length ? store.searchFilterColors.slice() : SF_DEFAULT_COLORS.slice();
+  let rules = store.searchFilterRules.slice();
+
+  const saveColors = () => chrome.storage.local.set({ searchFilterColors: colors });
+  const saveRules = () => chrome.storage.local.set({ searchFilterRules: rules });
+
+  // --- master switches ----------------------------------------------------
+
+  master.checked = store.searchFilterEnabled;
+  hideBlocked.checked = store.searchFilterHideBlocked;
+
+  master.addEventListener("change", async () => {
+    if (!(await SieveGuardian.gateToggleOff(master, "Turn off the Search Result Filter"))) return;
+    chrome.runtime.sendMessage({ type: SET_MODULE_STATE, key: "searchFilterEnabled", enabled: master.checked });
+  });
+  hideBlocked.addEventListener("change", async () => {
+    if (!(await SieveGuardian.gateToggleOff(hideBlocked, "Show blocked sites in search results again"))) return;
+    chrome.runtime.sendMessage({ type: SET_MODULE_STATE, key: "searchFilterHideBlocked", enabled: hideBlocked.checked });
+  });
+
+  // --- palette ------------------------------------------------------------
+
+  function renderPalette() {
+    paletteEl.textContent = "";
+    colors.forEach((value, i) => {
+      const row = sfEl("div", "sf-color");
+      row.append(sfEl("span", "sf-color-name", sfColorLabel(i + 1)));
+
+      const picker = document.createElement("input");
+      picker.type = "color";
+      picker.className = "sf-color-input";
+      picker.value = value;
+      picker.setAttribute("aria-label", `${sfColorLabel(i + 1)} colour`);
+      // "input" rather than "change" so the results page follows the picker live.
+      picker.addEventListener("input", () => {
+        colors[i] = picker.value;
+        saveColors();
+        renderRules(); // the row swatches use these colours
+      });
+
+      const removeBtn = sfEl("button", "remove", "✕");
+      removeBtn.type = "button";
+      removeBtn.title = `Remove ${sfColorLabel(i + 1)}`;
+      removeBtn.setAttribute("aria-label", `Remove ${sfColorLabel(i + 1)}`);
+      removeBtn.addEventListener("click", () => removeColor(i));
+
+      row.append(picker, removeBtn);
+      paletteEl.append(row);
+    });
+    if (!colors.length) paletteEl.append(sfEl("p", "empty", "No colours yet — every rule can only hide."));
+    renderAddSelect();
+  }
+
+  // Removing a colour that rules still point at would quietly change what those
+  // rules do, so it is refused with the count instead. Renumbering the survivors
+  // would be worse: every rule below the gap would silently change colour.
+  function removeColor(index) {
+    const colorIndex = index + 1;
+    const inUse = rules.filter((r) => r.color === colorIndex).length;
+    if (inUse > 0) {
+      paletteError.textContent =
+        `${sfColorLabel(colorIndex)} is used by ${inUse} ${inUse === 1 ? "rule" : "rules"}. ` +
+        `Change ${inUse === 1 ? "it" : "them"} first.`;
+      return;
+    }
+    paletteError.textContent = "";
+    colors.splice(index, 1);
+    // Rules above the gap shift down with it, so they keep the colour they show.
+    rules = rules.map((r) => (r.color > colorIndex ? { ...r, color: r.color - 1 } : r));
+    saveColors();
+    saveRules();
+    renderPalette();
+    renderRules();
+  }
+
+  addColorBtn.addEventListener("click", () => {
+    paletteError.textContent = "";
+    colors.push(SF_DEFAULT_COLORS[colors.length % SF_DEFAULT_COLORS.length]);
+    saveColors();
+    renderPalette();
+  });
+
+  // --- the "what to do" dropdown on the add row ---------------------------
+
+  function renderAddSelect() {
+    const previous = addSelect.value;
+    addSelect.textContent = "";
+    for (const index of [SF_HIDE, ...colors.map((_, i) => i + 1)]) {
+      const option = document.createElement("option");
+      option.value = String(index);
+      option.textContent = sfColorLabel(index);
+      addSelect.append(option);
+    }
+    if (previous && [...addSelect.options].some((o) => o.value === previous)) addSelect.value = previous;
+  }
+
+  // --- rules --------------------------------------------------------------
+
+  function renderRules() {
+    listEl.textContent = "";
+    if (!rules.length) {
+      listEl.append(sfEl("li", "empty", "Nothing added yet."));
+      return;
+    }
+    rules.forEach((rule, i) => {
+      const li = sfEl("li", "sf-rule");
+      const swatch = sfEl("span", "sf-swatch");
+      sfPaintSwatch(swatch, rule.color, colors);
+
+      const pattern = sfEl("span", "sf-pattern", rule.pattern);
+
+      const select = sfBuildSelect(colors, rule.color);
+      select.setAttribute("aria-label", `What to do with ${rule.pattern}`);
+      select.addEventListener("change", async () => {
+        const next = Number(select.value);
+        // Going from Hide to a colour means those results come back — that
+        // weakens what the user set up, so it goes through the gate.
+        if (rule.color === SF_HIDE && next !== SF_HIDE) {
+          if (!(await SieveGuardian.confirmUnlock(`Stop hiding ${rule.pattern} in search results`))) {
+            select.value = String(rule.color);
+            return;
+          }
+        }
+        rules[i] = { ...rule, color: next };
+        saveRules();
+        renderRules();
+      });
+
+      const removeBtn = sfEl("button", "remove", "✕");
+      removeBtn.type = "button";
+      removeBtn.title = `Remove ${rule.pattern}`;
+      removeBtn.setAttribute("aria-label", `Remove ${rule.pattern}`);
+      removeBtn.addEventListener("click", async () => {
+        // Same reasoning: dropping a Hide rule puts those results back.
+        if (rule.color === SF_HIDE) {
+          if (!(await SieveGuardian.confirmUnlock(`Stop hiding ${rule.pattern} in search results`))) return;
+        }
+        rules = rules.filter((_, j) => j !== i);
+        saveRules();
+        renderRules();
+      });
+
+      li.append(swatch, pattern, select, removeBtn);
+      listEl.append(li);
+    });
+  }
+
+  function add() {
+    const pattern = String(input.value || "").trim();
+    const result = SieveSearchFilter.validate(pattern);
+    if (!result.ok) {
+      errorEl.textContent = result.error || "Please enter a site, a domain ending like .edu, or a /regex/.";
+      return;
+    }
+    if (rules.some((r) => r.pattern.toLowerCase() === pattern.toLowerCase())) {
+      errorEl.textContent = `${pattern} is already in the list.`;
+      return;
+    }
+    errorEl.textContent = "";
+    // Adding a rule is always free: hiding more is strengthening, and a colour
+    // is a preference rather than a protection.
+    rules = rules.concat([{ pattern, color: Number(addSelect.value) || SF_HIDE }]);
+    saveRules();
+    input.value = "";
+    renderRules();
+  }
+
+  addBtn.addEventListener("click", add);
+  input.addEventListener("keydown", (e) => {
+    if (e.key === "Enter") add();
+  });
+  input.addEventListener("input", () => {
+    errorEl.textContent = "";
+  });
+
+  // Keep a second settings tab (and the popup) in step.
+  chrome.storage.onChanged.addListener((changes, area) => {
+    if (area !== "local") return;
+    if (changes.searchFilterColors) {
+      colors = changes.searchFilterColors.newValue || [];
+      renderPalette();
+      renderRules();
+    }
+    if (changes.searchFilterRules) {
+      rules = changes.searchFilterRules.newValue || [];
+      renderRules();
+    }
+    if (changes.searchFilterEnabled) master.checked = !!changes.searchFilterEnabled.newValue;
+    if (changes.searchFilterHideBlocked) hideBlocked.checked = !!changes.searchFilterHideBlocked.newValue;
+  });
+
+  // A first run has no stored palette; persist the default so the content
+  // script and this page agree about what "Colour 1" means.
+  if (!store.searchFilterColors.length) saveColors();
+
+  renderPalette();
+  renderRules();
 }
 
 // ===========================================================================
