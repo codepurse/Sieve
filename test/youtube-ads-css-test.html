@@ -1,0 +1,104 @@
+<!doctype html>
+<!-- test/youtube-ads-css-test.html
+     Sieve - does content/youtube-ads.css hide the ads WITHOUT hiding the page?
+
+       "C:\Program Files\Google\Chrome\Application\chrome.exe" --headless=new          --disable-gpu --dump-dom --allow-file-access-from-files          test/youtube-ads-css-test.html
+
+     ...or just open it in a browser. The result is printed into the <pre> at the
+     bottom: PASS, or a line per surface that came out wrong.
+
+     A stylesheet cannot be tested in node the way the scriptlet can - :has() and
+     the cascade need a real engine - so this is a page, in the same spirit as
+     test/popup-hijack-test.html. test/youtube-ads-css-test.mjs covers the part
+     that CAN be asserted without a browser, and runs in `npm test`.
+
+     The fixture mirrors YouTube's real markup, Polymer scoping classes included:
+     YouTube gives a child the class of the element it is scoped inside, so a
+     rule written against `.ytd-reel-video-renderer` matches a CHILD of that
+     element and not the element itself. A fixture built from element names alone
+     passes rules that do nothing on the real site.
+
+     MUST_SHOW is the more important half of this file. It is every surface a
+     user would notice within seconds: the video, its title, comments, the
+     sidebar recommendations, search results, feed thumbnails, the nav. It also
+     lists player-ad-module deliberately - see the note in the stylesheet about
+     why hiding the player's own ad container is worse than doing nothing. -->
+<html><head><link rel="stylesheet" href="../content/youtube-ads.css"></head><body>
+<!-- HOME FEED: two real videos + one sponsored tile -->
+<ytd-browse page-subtype="home"><ytd-rich-grid-renderer><div id="contents">
+  <ytd-rich-item-renderer id="feed-video-1"><div id="content"><ytd-rich-grid-media id="thumb-1">real video</ytd-rich-grid-media></div></ytd-rich-item-renderer>
+  <ytd-rich-item-renderer id="feed-ad"><div id="content"><ytd-ad-slot-renderer>SPONSORED</ytd-ad-slot-renderer></div></ytd-rich-item-renderer>
+  <!-- The same tile with the ad nested deeper than a direct-child chain. This is
+       the shape that produced the reported "blank section": the ad itself was
+       hidden, its tile was not, and the grid cell stayed behind as a hole. -->
+  <ytd-rich-item-renderer id="feed-ad-nested"><div id="content"><div class="wrap">
+    <ytd-in-feed-ad-layout-renderer><ytd-ad-slot-renderer>SPONSORED</ytd-ad-slot-renderer></ytd-in-feed-ad-layout-renderer>
+  </div></div></ytd-rich-item-renderer>
+  <ytd-rich-item-renderer id="feed-video-2"><div id="content"><ytd-rich-grid-media id="thumb-2">real video</ytd-rich-grid-media></div></ytd-rich-item-renderer>
+</div></ytd-rich-grid-renderer></ytd-browse>
+
+<!-- SEARCH: a promoted result section + a real results section holding many videos -->
+<ytd-section-list-renderer>
+  <ytd-item-section-renderer id="search-ad-section"><div id="contents"><ytd-search-pyv-renderer>PROMOTED</ytd-search-pyv-renderer></div></ytd-item-section-renderer>
+  <ytd-item-section-renderer id="search-results"><div id="contents">
+    <ytd-video-renderer id="result-1">result</ytd-video-renderer>
+    <ytd-ad-slot-renderer id="inline-search-ad">AD</ytd-ad-slot-renderer>
+    <ytd-video-renderer id="result-2">result</ytd-video-renderer>
+  </div></ytd-item-section-renderer>
+</ytd-section-list-renderer>
+
+<!-- WATCH PAGE: player, comments, sidebar recommendations, companion ad -->
+<ytd-watch-flexy>
+  <div id="player"><div class="html5-video-player"><video id="the-video"></video>
+    <div class="video-ads ytp-ad-module" id="player-ad-module"></div>
+    <div class="ytp-ad-overlay-container" id="overlay-banner">banner</div>
+  </div></div>
+  <div id="player-ads">COMPANION AD</div>
+  <ytd-mealbar-promo-renderer id="premium-promo">Get YouTube Premium</ytd-mealbar-promo-renderer>
+  <ytd-watch-metadata id="title-and-desc">title</ytd-watch-metadata>
+  <ytd-comments id="comments"><ytd-comment-thread-renderer id="comment-1">a comment</ytd-comment-thread-renderer></ytd-comments>
+  <ytd-watch-next-secondary-results-renderer id="sidebar">
+    <ytd-compact-video-renderer id="rec-1">recommended</ytd-compact-video-renderer>
+    <ytd-ad-slot-renderer id="sidebar-ad">AD</ytd-ad-slot-renderer>
+    <ytd-compact-video-renderer id="rec-2">recommended</ytd-compact-video-renderer>
+  </ytd-watch-next-secondary-results-renderer>
+</ytd-watch-flexy>
+
+<!-- SHORTS: real + ad, in BOTH the Polymer-scoped-class shape YouTube ships
+     and a plain element shape, so neither rule can be the only thing holding. -->
+<div id="shorts-inner-container">
+  <ytd-reel-video-renderer class="style-scope ytd-shorts" id="short-real">
+    <div id="player-container" class="style-scope ytd-reel-video-renderer"><video></video></div></ytd-reel-video-renderer>
+  <ytd-reel-video-renderer class="style-scope ytd-shorts" id="short-ad-polymer">
+    <div id="player-container" class="style-scope ytd-reel-video-renderer"><ytd-ad-slot-renderer>AD</ytd-ad-slot-renderer></div></ytd-reel-video-renderer>
+  <div class="ytd-shorts" id="short-ad-plain"><ytd-reel-video-renderer><ytd-ad-slot-renderer>AD</ytd-ad-slot-renderer></ytd-reel-video-renderer></div>
+</div>
+
+<!-- MASTHEAD + misc -->
+<div id="masthead-ad">MASTHEAD AD</div>
+<div id="masthead-container">nav bar</div>
+<ytd-guide-renderer id="sidebar-nav">nav</ytd-guide-renderer>
+
+<pre id="out"></pre>
+<script>
+window.addEventListener("load", () => {
+  const vis = (id) => { const el = document.getElementById(id); if (!el) return "MISSING-FROM-FIXTURE";
+    return getComputedStyle(el).display === "none" ? "hidden" : "visible"; };
+  const MUST_HIDE = ["feed-ad","feed-ad-nested","premium-promo","search-ad-section","inline-search-ad","player-ads","sidebar-ad","short-ad-polymer","short-ad-plain","masthead-ad","overlay-banner"];
+  const MUST_SHOW = ["feed-video-1","feed-video-2","thumb-1","thumb-2","search-results","result-1","result-2",
+                     "the-video","player-ad-module","title-and-desc","comments","comment-1","sidebar","rec-1","rec-2",
+                     "short-real","masthead-container","sidebar-nav"];
+  const bad = [];
+  for (const id of MUST_HIDE) if (vis(id) !== "hidden") bad.push(`AD STILL VISIBLE: ${id} (${vis(id)})`);
+  // Hidden is not sufficient: a wrapper that still reserves height leaves the
+  // blank gap that reads as breakage.
+  for (const id of MUST_HIDE) {
+    const el = document.getElementById(id);
+    if (el && el.getBoundingClientRect().height > 0) bad.push(`AD LEAVES A GAP: ${id} occupies ${Math.round(el.getBoundingClientRect().height)}px`);
+  }
+  for (const id of MUST_SHOW) if (vis(id) !== "visible") bad.push(`CONTENT BROKEN: ${id} (${vis(id)})`);
+  document.getElementById("out").textContent = bad.length
+    ? "FAIL\n" + bad.join("\n")
+    : `PASS — ${MUST_HIDE.length} ad surfaces hidden, ${MUST_SHOW.length} content surfaces intact`;
+});
+</script></body></html>

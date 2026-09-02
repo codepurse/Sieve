@@ -1,0 +1,225 @@
+<!doctype html>
+<!--
+  test/facebook-ads-dom-test.html
+  Sieve — the half of content/facebook-ads-dom.js that needs a real browser.
+
+  Open this file in a browser, or run it headless:
+
+    chrome --headless=new --disable-gpu --virtual-time-budget=4000 \
+      --dump-dom test/facebook-ads-dom-test.html
+
+  and look for RESULT: in the output.
+
+  test/facebook-ads-dom-test.mjs pins the label reader against a fake
+  getComputedStyle, which is the right test for the LOGIC. It cannot test the
+  thing the logic actually depends on: that a real engine reports the styles the
+  way the reader assumes, and that a sponsored post built the way Facebook builds
+  one ends up collapsed while the posts either side of it do not.
+
+  The feed below is a reconstruction, not a capture — Facebook's markup is
+  minified and rotates, and a captured snapshot would be stale within weeks.
+  What is reproduced is the OBFUSCATION: the label split into single letters,
+  decoys hidden five different ways, the reading order set by CSS `order`, and
+  two letters delivered as generated content. Reading that as "Sponsored" is the
+  whole job.
+-->
+<meta charset="utf-8" />
+<title>Sieve — Facebook ad filter, DOM test</title>
+<style>
+  /* Our own stylesheet, inlined so the page needs no extension to run. Keep in
+     step with content/facebook-ads.css. */
+  .sieve-fb-ad-collapsed {
+    height: 0 !important;
+    min-height: 0 !important;
+    max-height: 0 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    border-width: 0 !important;
+    box-shadow: none !important;
+    overflow: hidden !important;
+    pointer-events: none !important;
+  }
+
+  /* Facebook's obfuscation, reproduced. */
+  .lbl { display: flex; }
+  .gone { display: none; }
+  .invis { visibility: hidden; }
+  .clear { opacity: 0; }
+  .tiny { font-size: 0; }
+  .offscreen { position: absolute; width: 1px; height: 1px; }
+  .indent { text-indent: -9999px; }
+  .pre::before { content: "S"; }
+  .post::after { content: "d"; }
+
+  body { font: 14px sans-serif; }
+  [role="feed"] > div { padding: 12px; border: 1px solid #ddd; margin: 8px 0; }
+</style>
+
+<div role="feed">
+  <!-- 1. An ordinary post. Must survive. -->
+  <div aria-posinset="1" id="post-organic">
+    <h3><span><a role="link" href="/permalink/1?__cft__[0]=AbcShortToken">Maria Santos</a></span></h3>
+    <h4><span><span aria-labelledby="t1">3 h</span></span></h4>
+    <div>Sponsored our school walk on Saturday, thanks everyone!</div>
+  </div>
+
+  <!-- 2. A sponsored post, label fully obfuscated. Must collapse.
+       DOM order of the visible letters is "ponsore"; CSS order puts them right,
+       ::before and ::after supply the S and the d, and six decoys are mixed in. -->
+  <div aria-posinset="2" id="post-ad-obfuscated">
+    <h3><span><a role="link" href="/AcmeTools">Acme Tools</a></span></h3>
+    <h4>
+      <span
+        ><span aria-labelledby="t2" class="lbl pre post"
+          ><span class="gone">X</span
+          ><span style="order: 6">r</span
+          ><span class="invis">Q</span
+          ><span style="order: 1">p</span
+          ><span class="clear">z</span
+          ><span style="order: 7">e</span
+          ><span class="tiny">w</span
+          ><span style="order: 2">o</span
+          ><span class="offscreen">k</span
+          ><span style="order: 4">s</span
+          ><span class="indent">j</span
+          ><span style="order: 3">n</span
+          ><span style="order: 5">o</span></span
+        ></span
+      >
+    </h4>
+    <div>The only wrench you will ever need.</div>
+  </div>
+
+  <!-- 3. A sponsored post marked the plain way, with an /ads/about link.
+       Must collapse on the attribute signal alone, before any label reading. -->
+  <div aria-posinset="3" id="post-ad-plain">
+    <h3><span><a role="link" href="/BrightCo">Bright Co</a></span></h3>
+    <h4><span><a href="/ads/about/?entry_product=ad_preferences">Sponsored</a></span></h4>
+    <div>Save 40% today.</div>
+  </div>
+
+  <!-- 4. A second ordinary post, whose header link carries a SHORT __cft__
+       token. Must survive the header-token heuristic. -->
+  <div aria-posinset="4" id="post-organic-2">
+    <h3><span><a role="link" href="/permalink/4?__cft__[0]=AbcAnotherShortToken">Dev Group</a></span></h3>
+    <h4><span><span aria-labelledby="t4">Yesterday at 18:02</span></span></h4>
+    <div>Anyone free to review a PR?</div>
+  </div>
+
+  <!-- 6. A sponsored post whose only marker is the accessible name. Facebook
+       scrambles the visible badge, but the label handed to a screen reader has
+       to stay a real word — so where one exists it is the cheapest and most
+       reliable signal there is. Must collapse. -->
+  <div aria-posinset="6" id="post-ad-aria">
+    <h3><span><a role="link" href="/DeltaWare">Delta Ware</a></span></h3>
+    <h4><span><a role="link" aria-label="Sponsored" href="#"><span>&#8203;</span></a></span></h4>
+    <div>Ships in two days.</div>
+  </div>
+
+  <!-- 5. A group post whose header link carries a LONG token, which groups do
+       routinely. Must survive — this is the false positive the __cft__
+       heuristic most has to avoid. -->
+  <div aria-posinset="5" id="post-group">
+    <h3><span><a role="link" href="/groups/9876?__cft__[0]=Zz0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000">Woodworking Club</a></span></h3>
+    <h4><span><span aria-labelledby="t5">5 h</span></span></h4>
+    <div>Meet-up moved to the hall.</div>
+  </div>
+</div>
+
+<pre id="out"></pre>
+
+<script>
+  // The content script talks to chrome.runtime to report its count. Stub it so
+  // the file under test runs unmodified.
+  window.chrome = { runtime: { sendMessage: () => ({ catch() {} }) } };
+</script>
+<script src="../content/facebook-ads-dom.js"></script>
+<script>
+  const EXPECT = [
+    ["post-organic", false, "an ordinary post that merely says the word"],
+    ["post-ad-obfuscated", true, "a sponsored post with the label fully obfuscated"],
+    ["post-ad-plain", true, "a sponsored post carrying an /ads/about link"],
+    ["post-ad-aria", true, "a sponsored post marked only by its accessible name"],
+    ["post-organic-2", false, "an ordinary post with a short header token"],
+    ["post-group", false, "a group post with a long header token"],
+  ];
+
+  // The oscillation that shipped, reproduced.
+  //
+  // Facebook virtualises a story it is not painting — the subtree is swapped for
+  // an empty placeholder and put back later — and an ad collapsed to zero height
+  // is a prime candidate. The first version of this file read "the text changed"
+  // as "this wrapper was recycled", released the ad, watched Facebook render it
+  // again, collapsed it again, and went round for as long as the tab was open.
+  // Each turn costs a re-render, which is what "the feed keeps refreshing" was.
+  //
+  // This does to the collapsed ad exactly what Facebook's virtualisation does,
+  // repeatedly, and asserts it stays put.
+  function virtualiseCycle(el, times, done) {
+    const saved = el.innerHTML;
+    let n = 0;
+    (function turn() {
+      if (n++ >= times) return done();
+      el.innerHTML = ""; // virtualised away
+      setTimeout(() => {
+        el.innerHTML = saved; // and put back
+        setTimeout(turn, 250);
+      }, 250);
+    })();
+  }
+
+  function check() {
+    // Read the label the way the sweeper does, so a failure says WHAT was read.
+    const label = document.querySelector("#post-ad-obfuscated [aria-labelledby]");
+    const read = window.__sieveFacebookAdDom.visibleLabelText(
+      label,
+      window.getComputedStyle.bind(window),
+      { left: 500 }
+    );
+
+    const lines = [`label reconstructed as: ${JSON.stringify(read.trim())}`];
+    let failed = 0;
+    if (read.trim() !== "Sponsored") {
+      failed++;
+      lines.push('FAIL: the obfuscated label should read "Sponsored"');
+    }
+    for (const [id, shouldCollapse, what] of EXPECT) {
+      const el = document.getElementById(id);
+      const collapsed = el.classList.contains("sieve-fb-ad-collapsed");
+      const ok = collapsed === shouldCollapse;
+      if (!ok) failed++;
+      lines.push(
+        `${ok ? "ok  " : "FAIL"}  ${id} collapsed=${collapsed} expected=${shouldCollapse}  (${what})`
+      );
+      // Collapsing has to actually remove the space, not just the content.
+      if (shouldCollapse && collapsed && el.getBoundingClientRect().height !== 0) {
+        failed++;
+        lines.push(`FAIL  ${id} is collapsed but still takes up vertical space`);
+      }
+    }
+    // Now the loop test, on the ad that is definitely collapsed by now.
+    const ad = document.getElementById("post-ad-plain");
+    virtualiseCycle(ad, 4, () => {
+      setTimeout(() => {
+        const s = window.__sieveFacebookAdDom.stats;
+        const stillHidden = ad.classList.contains("sieve-fb-ad-collapsed");
+        lines.push(
+          `after 4 virtualise cycles: collapsed=${stillHidden} released=${s.released} sweeps=${s.sweeps}`
+        );
+        if (!stillHidden) {
+          failed++;
+          lines.push("FAIL: the ad came back — the wrapper was emptied, not recycled");
+        }
+        if (s.released > 0) {
+          failed++;
+          lines.push("FAIL: releasing on an emptied wrapper is the refresh loop");
+        }
+        lines.push(`RESULT: ${failed === 0 ? "PASS" : failed + " FAILED"}`);
+        document.getElementById("out").textContent = lines.join("\n");
+      }, 800);
+    });
+  }
+
+  // The sweep is scheduled behind a timer and an idle callback, so give it room.
+  setTimeout(check, 1500);
+</script>

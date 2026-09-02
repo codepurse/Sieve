@@ -109,6 +109,27 @@
       note:
         "You can turn off “Block dating sites”, or allow this site, under Safety Shield in Sieve's settings.",
     },
+    // Ad & Tracker Blocker. Reaching this page at all is unusual: this tier's
+    // real work is blocking SUBRESOURCES, which never navigate anywhere. You
+    // only land here by opening a tracker or ad-network domain directly, so the
+    // wording explains what the address actually is rather than assuming the
+    // user meant to go somewhere they were stopped from.
+    trackers: {
+      shield: "🛡️",
+      title: "Tracker domain blocked by Sieve",
+      message:
+        "This address belongs to an advertising or tracking service, not a site to visit — blocked by Sieve.",
+      note:
+        "You can turn off “Block ad & tracker domains”, or allow this site, under Ad & Trackers in Sieve's settings.",
+    },
+    ads: {
+      shield: "🛡️",
+      title: "Ad-network domain blocked by Sieve",
+      message:
+        "This address belongs to an advertising network, not a site to visit — blocked by Sieve.",
+      note:
+        "You can turn off “Block ad-network domains”, or allow this site, under Ad & Trackers in Sieve's settings.",
+    },
     "games-portals": {
       shield: "🛡️",
       title: "Game site blocked by Sieve",
@@ -191,10 +212,22 @@
     "custom-blocked": "customBlocked",
   };
 
+  // Categories this page must NOT record, because something else already did.
+  //
+  // The Ad & Tracker tier is counted by background/ad-tracker-stats.js, which
+  // polls declarativeNetRequest.getMatchedRules — and that reports EVERY match
+  // in the tier's rule band, including the main_frame redirect that brought the
+  // user here. Recording it again from this page would count that one navigation
+  // twice, on the one tier where the dashboard number is otherwise entirely the
+  // poll's work. (This page still shows its normal explanation; it just does not
+  // touch the tally.)
+  const STATS_SKIP = new Set(["trackers", "ads"]);
+
   function recordBlockView() {
     const params = new URLSearchParams(location.search);
     const resolved = params.get("resolved");
     const statsCategory = resolved ? "urlShortener" : (STATS_CATEGORY_MAP[category] || category);
+    if (!resolved && STATS_SKIP.has(category)) return;
     try {
       chrome.runtime
         .sendMessage({ type: "SIEVE_RECORD_BLOCK", category: statsCategory, count: 1 })

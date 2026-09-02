@@ -38,6 +38,7 @@
           <a class="nav-link" href="#section-blocking" data-target="section-blocking"><span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg></span><span>Site Blocking</span></a>
           <a class="nav-link" href="#section-comments" data-target="section-comments"><span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg></span><span>Language &amp; Comments</span></a>
           <a class="nav-link" href="#section-browsing" data-target="section-browsing"><span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18"/><path d="M9 3v6"/></svg></span><span>Browsing</span></a>
+          <a class="nav-link" href="#section-adblock" data-target="section-adblock"><span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/></svg></span><span>Ad &amp; Trackers</span></a>
           <a class="nav-link" href="#section-site-cleanup" data-target="section-site-cleanup"><span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m3 21 9-9"/><path d="M14.5 3.5 20.5 9.5"/><path d="M17.5 6.5 8 16H5v-3z"/><path d="M18 2v3"/><path d="M21.5 5.5 19 8"/><path d="M22 12h-3"/></svg></span><span>Site Cleanup</span></a>
           <a class="nav-link" href="#section-focus" data-target="section-focus"><span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg></span><span>Focus</span></a>
           <a class="nav-link" href="#section-advanced" data-target="section-advanced"><span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg></span><span>Advanced</span></a>
@@ -1007,6 +1008,148 @@
               </div>
               <p id="search-filter-error" class="error" role="alert"></p>
               <ul id="search-filter-list" class="domain-list sf-rules"></ul>
+            </div>
+          </section>
+        </section>
+
+        <!-- ============================ Ad & Trackers ========================== -->
+        <!-- ONE switch over SIX independent mechanisms, which is a deliberate
+             simplification and worth writing down.
+             The six storage keys are unchanged — ssAdTrackerEnabled,
+             ssAdNetworkEnabled, ssYouTubeAdsEnabled, ssFacebookAdsEnabled,
+             ssAntiAdblockEnabled and ssAdSlotCollapseEnabled — and the six
+             background modules still watch their own key and know nothing about
+             each other. Only the UI is merged: the master checkbox writes all
+             six together. Keeping the
+             keys separate means this is a presentation change with no migration
+             and no risk to the blocking itself, and splitting the switches again
+             later costs nothing but markup. It is also what let the fifth and sixth
+             mechanisms ship without touching any of the earlier ones.
+             The copy is deliberately short. It used to run to twenty paragraphs
+             of caveats, which is a wall nobody reads; what survived is the one
+             line that tells you what to DO when a site breaks, and a collapsed
+             panel for the rest. What could NOT be dropped is the EasyList /
+             EasyPrivacy attribution — that is a CC BY-SA 3.0 licence condition,
+             not editorial. -->
+        <section class="section" id="section-adblock">
+          <div class="section-head">
+            <h2 class="section-title">Ad &amp; Trackers</h2>
+            <p class="section-desc">Block ads and the companies that follow you between sites.</p>
+          </div>
+
+          <section class="card">
+            <div class="card-header">
+              <h2 class="card-title">Ad &amp; tracker blocker <span class="badge">Beta</span></h2>
+              <p class="card-description">
+                One switch for all of it — ad and tracking domains, YouTube video
+                ads, Facebook sponsored posts, and the “turn off your ad blocker”
+                walls.
+              </p>
+            </div>
+
+            <div class="field">
+              <div class="switch-row">
+                <div class="switch-label">
+                  <span class="label">Block ads &amp; trackers</span>
+                  <span class="description">Blocks ad and tracking domains, skips YouTube ads, hides Facebook sponsored posts, clears “disable your ad blocker” messages, and tidies up the empty gaps left behind.</span>
+                  <span class="credit">Domain lists derived from <a href="https://easylist.to/" target="_blank" rel="noopener noreferrer">EasyList and EasyPrivacy</a> — © The EasyList authors, used under <a href="https://creativecommons.org/licenses/by-sa/3.0/" target="_blank" rel="noopener noreferrer">CC BY-SA 3.0</a>.</span>
+                </div>
+                <label class="switch"><input type="checkbox" id="adblock-master-toggle" /><span class="slider"></span></label>
+              </div>
+
+              <p class="hint">
+                <strong>If a site breaks,</strong> add it to your
+                <a href="#section-blocking">Allowlist</a> — that turns this off for
+                that one site and leaves it on everywhere else. Please also
+                <a href="https://github.com/codepurse/Sieve/issues" target="_blank" rel="noopener noreferrer">report it</a>.
+              </p>
+
+              <!-- Firefox only, revealed by options.js. Firefox implements the
+                   API the counter reads but keeps it behind the
+                   extensions.dnr.feedback pref, so on a normal profile the call
+                   fails and the number sits at zero. Blocking is unaffected —
+                   saying so beats letting someone read a zero as a broken
+                   blocker. -->
+              <p class="hint" id="ad-tracker-count-note" hidden>
+                <strong>On Firefox this counter stays at zero.</strong> Firefox will
+                not let an extension read back which of its block rules fired. The
+                blocking itself is unaffected.
+              </p>
+
+              <!-- Everything that used to be twenty paragraphs, collapsed. Reuses
+                   the .bulk styling the list panels already use, so this needs no
+                   new CSS. -->
+              <details class="bulk">
+                <summary>What it can and cannot do</summary>
+                <p class="hint">
+                  <strong>Most of it is domain blocking.</strong> Sieve stops the
+                  browser talking to known ad and tracking services.
+                </p>
+                <p class="hint">
+                  <strong>The empty boxes get tidied up too.</strong> Blocking an
+                  advert stops the advert but leaves the space it was going to sit
+                  in, so a page can end up full of gaps. Sieve hides those boxes
+                  once it is sure they are staying empty. It waits a few seconds
+                  first, on purpose: hiding an advert's box immediately is one of
+                  the ways a site works out you are using a blocker.
+                </p>
+                <p class="hint">
+                  It cannot remove an advert that <em>did</em> load — one a site
+                  serves from its own address, or its own promotions for sister
+                  publications. Those need a different kind of filtering that
+                  Sieve does not do yet.
+                </p>
+                <p class="hint">
+                  <strong>It tries to get past “disable your ad blocker” walls.</strong>
+                  Most sites work this out by loading an advert and checking
+                  whether it arrived, so Sieve answers those checks instead of
+                  leaving them to fail. If a message appears anyway it is cleared,
+                  and the scroll lock and the blur that usually come with it are
+                  undone. A site that decides on its own server, or that refuses
+                  to send the page at all, cannot be helped this way.
+                </p>
+                <p class="hint">
+                  <strong>YouTube and Facebook work differently.</strong> Both serve
+                  ads from the same address as the content itself, so there is no
+                  address to block that would not also block the video or the feed.
+                  Sieve edits those out of the page data as it arrives instead.
+                </p>
+                <p class="hint">
+                  <strong>It can hide the wrong thing.</strong> The Facebook part
+                  and the wall remover both read the page rather than blocking an
+                  address, so a real post — or a real pop-up — can occasionally be
+                  hidden. Nothing is deleted: switch this off, reload, and it comes
+                  straight back.
+                </p>
+                <p class="hint">
+                  <strong>Expect it to break.</strong> YouTube and Facebook change how
+                  ads are marked and delivered without warning, often faster than an
+                  extension update can be reviewed and published. When that happens
+                  the ads simply come back until Sieve is updated; nothing stops
+                  working.
+                </p>
+                <p class="hint">
+                  <strong>Some YouTube ads cannot be removed by any extension.</strong>
+                  YouTube is moving to stitching the ad into the video stream itself,
+                  so refusing the ad means refusing the video. Those come and go
+                  depending on the session.
+                </p>
+                <p class="hint">
+                  <strong>Sites that break tend to break at sign-in or checkout.</strong>
+                  Some run their bot and fraud checks through the same companies that
+                  do the tracking. Allowlist the site and it will work again.
+                </p>
+                <p class="hint">
+                  It leaves “Suggested for you”, “People you may know” and the Reels
+                  row alone — that is Facebook promoting Facebook, not advertising.
+                </p>
+                <p class="hint">
+                  Every blocked request is counted in the
+                  <a href="#section-dashboard">Protection Dashboard</a>. Expect big
+                  numbers: one page can pull in dozens of trackers. Only the running
+                  total is kept — never which site, never which tracker.
+                </p>
+              </details>
             </div>
           </section>
         </section>

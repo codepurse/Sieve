@@ -6,6 +6,12 @@
 
 import "./financial-protection.js"; // Phase 5 — Financial Protection (scam + trading + mlm tiers)
 import "./safety-shield.js"; // Safety Shield — piracy + safety/malware blockers
+import "./ad-tracker-blocker.js"; // Ad & Tracker Blocker (BETA) — bundled tracker-domain tier
+import "./ad-tracker-stats.js"; // Counts what that tier blocks (DNR blocks leave no other trace)
+import "./youtube-ads.js"; // YouTube video-ad filter (BETA) — registers the MAIN-world scriptlet
+import "./facebook-ads.js"; // Facebook feed-ad filter (BETA) — registers the MAIN-world scriptlet
+import "./anti-adblock.js"; // Anti-adblock defeat (BETA) — answers "you seem to be using an ad blocker"
+import "./ad-slot-collapse.js"; // Collapses the empty boxes a blocked ad leaves behind
 import "./popup-hijack.js"; // Popup & Click Hijack Blocker — blocked-popup log + recovery
 import "./url-shortener-resolver.js"; // URL Shortener Resolver — expand shortened links before blocker checks
 import "./usage-tracker.js"; // Usage Insights — opt-in local screen-time tracker

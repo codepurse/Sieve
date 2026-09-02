@@ -35,13 +35,16 @@ tracking, nothing leaves your browser.
 - **Safety Shield** — opt-in blocking for phishing/malware, cryptojacking, piracy, AI-slop content farms, fraud, gore/shock, and dating sites.
 - **Game Blocker** — four independent opt-in tiers: browser game portals, game download stores, game platforms/online worlds, and game streaming/cloud gaming/esports. Browser-only: it blocks game sites and store pages, not games already installed on the machine.
 - **Custom block list + allowlist** — a global block list and allowlist that apply across every blocker. A blocked-list entry can be a wildcard (`example.com`, `*.example.com`, `example.com/adult/*`), a whole top-level domain (`.xyz`), a regular expression on the address (`/example\.(net|org)/`) or on the page title (`title/Example Domain/`), or a `#` note that heads a section. Blocked sites are also blocked as a source of images.
+- **Ad & Tracker Blocker** *(beta)* — two opt-in **domain** blockers, bundled with the extension: trackers/analytics from EasyPrivacy, and ad networks from EasyList. It stops requests to known advertising, analytics and fingerprinting domains. On its own it is deliberately not an ad blocker: it cannot remove YouTube ads or stop ads a site serves from its own domain — that is what the two filters below do. The Allowlist switches it off per-site, and what it stops is counted in the Protection Dashboard.
+- **YouTube & Facebook ad filters** *(beta, one opt-in switch each)* — the two sites that serve their ads first-party, so no domain blocker can reach them. Each edits the ads out of the site's own page data as it loads: on YouTube, the pre-roll and mid-roll breaks plus the sponsored tiles in the feed, search, sidebar and Shorts; on Facebook, the sponsored posts in the feed, the right-hand column, and Marketplace/Watch/search. Facebook's filter also reads the scrambled "Sponsored" badge the way a person does — resolving the split letters, hidden decoys and CSS reordering — so it keeps working when the markup changes. Both are an arms race and will need updating; both fail by letting the ads back, not by breaking the site.
+- **Anti-adblock defeat** *(beta, opt-in)* — for the sites that put up a "please disable your ad blocker" wall. Almost all of them decide by loading an advert and checking whether it arrived, so blocking that request is what gives the game away: a failed request is something the page can see. Three answers, in order of how much they touch: the handful of probe scripts are served an empty file that *succeeds* rather than being blocked; the globals a detector reads (`canRunAds`, `adsbygoogle.loaded`, the BlockAdBlock API) are answered honestly-shaped "no blocker here"; and an empty ad-shaped box is told it is 300×250 for the first few seconds of page load, after which the patches are removed and cost nothing. If a wall appears anyway it is cleared by reading what it *says* rather than by matching a per-site selector — so it needs no filter list — and the scroll lock, the blur and the pointer-events trap that come with it are undone. It cannot help with a wall decided on the site's own server. On an allowlisted site neither script is even loaded.
 - **URL Shortener Resolver** — expands or blocks shortened links before you land on them.
 
 ### Wellbeing & control
 - **Site Cleanup** — hides the distracting parts of sites you still want to use. YouTube first, with 21 switches: feeds and Shorts, comments and recommendations, mixes and search filler, the description/channel/action rows, live chat, merch, end cards and info cards, autoplay, thumbnails, the top bar and its bell, and a black-and-white mode.
 - **Doomscroll Stopper** — a daily time limit on endless feeds, with a gentle pause overlay.
 - **Guardian self-lock** — an optional PIN that gates *weakening* your protection (turning things off, allowlisting) while strengthening it stays free.
-- **Protection Dashboard** — a today/this-week breakdown of everything Sieve blocked for you.
+- **Protection Dashboard** — a today/this-week breakdown of everything Sieve blocked for you, including an **Ads & trackers** section counting tracking requests, ad-network requests, the YouTube and Facebook ads removed, and the ad-blocker walls cleared. Only running totals are stored — never which site or which tracker. The two request counters read back which of Sieve's own block rules fired, which Chrome allows and Firefox does not, so they stay at zero on Firefox while the blocking itself is unaffected.
 - **Usage Insights** — an opt-in screen-time report: total time, a per-day and per-hour curve, and which sites took it. Only the tab you are looking at counts, the clock stops when you step away, and the record never leaves your device (7/30/90-day retention, clearable at any time).
 
 ---
@@ -168,6 +171,7 @@ Contributions are welcome! Please read:
 ## Acknowledgements
 
 - [Consent-O-Matic](https://github.com/cavi-au/Consent-O-Matic) (MIT) — cookie-banner rejection rules, vendored under `vendor/`.
+- [EasyPrivacy and EasyList](https://easylist.to/) — © The EasyList authors. The bundled domain list in `data/tracker-domains.json` is derived from them and used under [CC BY-SA 3.0](https://creativecommons.org/licenses/by-sa/3.0/). See [`data/ATTRIBUTION-easylist.md`](data/ATTRIBUTION-easylist.md).
 - [TensorFlow.js](https://www.tensorflow.org/js) and the [toxicity model](https://github.com/tensorflow/tfjs-models/tree/master/toxicity) — optional on-device comment classification.
 
 ---
@@ -175,3 +179,9 @@ Contributions are welcome! Please read:
 ## License
 
 Released under the [MIT License](LICENSE). © 2026 Alfon.
+
+One exception: **`data/tracker-domains.json`** is an adaptation of EasyPrivacy and EasyList, and is
+licensed under [CC BY-SA 3.0](https://creativecommons.org/licenses/by-sa/3.0/), not MIT.
+Sieve elects the CC arm of their shared GPLv3 / CC BY-SA 3.0 dual licence; BY-SA's
+"Collection" clause is what keeps the rest of the project MIT. Editing that one file
+means editing a BY-SA file — see [`data/ATTRIBUTION-easylist.md`](data/ATTRIBUTION-easylist.md).

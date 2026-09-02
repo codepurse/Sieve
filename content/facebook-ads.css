@@ -1,0 +1,163 @@
+/* content/facebook-ads.css
+ * Sieve — Facebook ad slots, collapsed. The cosmetic half of the Facebook ad
+ * filter.
+ *
+ * Registered (and unregistered) by background/facebook-ads.js alongside
+ * content/facebook-ads.js and content/facebook-ads-dom.js, so like them it
+ * exists on the page only while the toggle is on. Nothing here is gated on a
+ * class the way content/youtube-clean.css is — the file's presence IS the gate.
+ *
+ * ---------------------------------------------------------------------------
+ * TWO JOBS
+ *
+ *   1. It carries the collapse declaration that content/facebook-ads-dom.js
+ *      switches on. That script only ever adds and removes .sieve-fb-ad-
+ *      collapsed; without this file it would mark ads and nothing would happen.
+ *   2. A small set of ad containers that can be named in plain CSS, so they are
+ *      gone before the first sweep runs rather than a frame later.
+ *
+ * ---------------------------------------------------------------------------
+ * WHY height: 0 AND NOT display: none
+ *
+ * This is the one decision in the file worth arguing about, and it goes against
+ * the obvious answer on purpose.
+ *
+ * Facebook's feed is virtualised: it measures its items, remembers their
+ * heights, and recycles their wrappers as you scroll. Taking an item out of the
+ * layout tree entirely is not the same thing as giving it no height, and uBlock
+ * Origin's facebook.com rules have used `:style(height: 0 !important; overflow:
+ * hidden !important;)` rather than the default hide for years for that reason.
+ * Following the approach that is already proven against this site beats
+ * discovering for ourselves why it was chosen.
+ *
+ * The margin and padding are zeroed as well — with only the height collapsed,
+ * the wrapper's own spacing survives and the user is left looking at a blank
+ * band where the ad was, which is the complaint the domain blockers already get.
+ *
+ * ---------------------------------------------------------------------------
+ * WHAT IS DELIBERATELY NOT HERE
+ *
+ * Any rule keyed on Facebook's generated class names. They are minified, they
+ * change constantly, and one of them will eventually mean something else — at
+ * which point a rule written against it hides a real post silently. Everything
+ * below is keyed on a role, an id or an attribute Facebook chose for its
+ * meaning.
+ *
+ * Also not here: the "Suggested for you", "People you may know" and "Reels and
+ * short videos" units. Those are Facebook promoting Facebook, not advertising,
+ * and this switch says it removes ads. Hiding more than the label on the tin is
+ * how a feature stops being trusted.
+ *
+ * Several rules use :has(), so they need Chrome 105+ / Firefox 121+ — on
+ * anything older that rule is ignored and the element simply is not hidden,
+ * which is the safe direction. They are kept in their OWN block for that reason:
+ * an unsupported selector invalidates the whole comma-separated list it sits in,
+ * so mixing a plain selector in with them would silently throw the plain one
+ * away too.
+ */
+
+/* ==========================================================================
+   The collapse itself — switched on per element by content/facebook-ads-dom.js,
+   and shared by the static rules below so there is exactly one definition of
+   what "removed" looks like.
+   ========================================================================== */
+
+.sieve-fb-ad-collapsed {
+  height: 0 !important;
+  min-height: 0 !important;
+  max-height: 0 !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  /* Both of these are leftovers that survive a height of zero and read as a
+     stray line across the feed where the ad used to be: a 1px card border still
+     occupies two pixels of layout, and a card shadow paints outside the box
+     whatever overflow says. Found by test/facebook-ads-dom-test.html, which
+     measures the collapsed height rather than trusting the class. */
+  border-width: 0 !important;
+  box-shadow: none !important;
+  overflow: hidden !important;
+  /* Nothing is visible, but a zero-height box can still swallow a click on the
+     post beneath it in some layouts. */
+  pointer-events: none !important;
+}
+
+/* ==========================================================================
+   Ad containers nameable without :has() — the right-hand column.
+
+   `rhcad<N>` is the link target Facebook gives the right-hand-column ad unit,
+   and it is used for nothing else. PREFIX-matched, not exact: Facebook
+   increments that counter, and a live sidebar on 2 September 2026 serves
+   `rhcad3`. The exact `rhcad2` these rules used to name matched nothing at all
+   on a current session — as does uBlock Origin's own filter, which is still
+   pinned to rhcad2 today.
+
+   THREE CONTAINERS, because Facebook serves three right-hand columns depending
+   on the session and the surface: #right_rail_container is the oldest,
+   [data-pagelet="RightRail"] the Comet pagelet, and div[role="complementary"]
+   the current one. Only the first was named here, which is a large part of why
+   sidebar ads survived: on a modern session none of these rules matched
+   anything at all. The script half had the same blind spot — see the CONTAINER
+   list in content/facebook-ads-dom.js.
+   ========================================================================== */
+
+#right_rail_container a[target^="rhcad"],
+div[data-pagelet="RightRail"] a[target^="rhcad"],
+div[role="complementary"] a[target^="rhcad"] {
+  display: none !important;
+}
+
+/* ==========================================================================
+   Ad containers that need :has() — kept apart from everything above, see the
+   header. Each names an element whose whole purpose is an ad.
+
+   CONFINED TO THE RIGHT-HAND COLUMN, and that is a correctness decision rather
+   than a matter of coverage.
+
+   The obvious rule to write here is `div[role="feed"] > div:has(a[href*="/ads/
+   about"])`, and this file shipped with it. It is a bad idea on this site: :has()
+   invalidation runs when anything inside the subject's subtree changes, and
+   Facebook's feed changes constantly — so that one rule asks the engine to
+   re-evaluate every story in the feed, over and over, for as long as the tab is
+   open. The style recalculation that causes is indistinguishable, from the
+   user's chair, from a page that will not stop refreshing.
+
+   The right-hand column is a small, static sidebar, so the same construct costs
+   nothing there. Everywhere else, the same ads are found by
+   content/facebook-ads-dom.js, which looks once per element and remembers.
+
+   The `a[href*="/ads/about"]` half is a second route to the same card, for the
+   sessions that render a "Why am I seeing this ad?" link inline. It is NOT the
+   common case — a live sidebar on 2 September 2026 carried no /ads/about link
+   anywhere on the page, only `target="rhcad3"` — so it is belt and braces
+   rather than the mechanism. It is written as `> div > a` rather than a free
+   descendant match so it can only ever pick the card the link belongs to, never
+   an ancestor section holding several.
+
+   NEITHER RULE IS THE PRIMARY DEFENCE for the sidebar any more. Both need a
+   `div[data-visualcompletion]` in exactly the right place, and the live column
+   nests the ad five levels below the nearest one. The section is removed by
+   content/facebook-ads-dom.js, which walks the actual structure; these stay
+   because they cost nothing and land a frame earlier when they do match.
+   ========================================================================== */
+
+#right_rail_container div[data-visualcompletion]:has(div[data-visualcompletion] a[target^="rhcad"]),
+div[data-pagelet="RightRail"] div[data-visualcompletion]:has(div[data-visualcompletion] a[target^="rhcad"]),
+div[role="complementary"] div[data-visualcompletion]:has(div[data-visualcompletion] a[target^="rhcad"]),
+#right_rail_container div[data-visualcompletion]:has(> div > a[href*="/ads/about"]),
+div[data-pagelet="RightRail"] div[data-visualcompletion]:has(> div > a[href*="/ads/about"]),
+div[role="complementary"] div[data-visualcompletion]:has(> div > a[href*="/ads/about"]) {
+  height: 0 !important;
+  min-height: 0 !important;
+  max-height: 0 !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  /* Both of these are leftovers that survive a height of zero and read as a
+     stray line across the feed where the ad used to be: a 1px card border still
+     occupies two pixels of layout, and a card shadow paints outside the box
+     whatever overflow says. Found by test/facebook-ads-dom-test.html, which
+     measures the collapsed height rather than trusting the class. */
+  border-width: 0 !important;
+  box-shadow: none !important;
+  overflow: hidden !important;
+  pointer-events: none !important;
+}
