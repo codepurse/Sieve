@@ -495,6 +495,7 @@ function optionsDefaults() {
     ssFacebookAdsEnabled: false,
     ssAntiAdblockEnabled: false,
     ssAdSlotCollapseEnabled: false,
+    ssFloatVideoEnabled: false,
     // Safety Shield "last updated" meta
     ssPiracyUpdatedAt: 0, ssPiracyCount: 0,
     ssPhishingUpdatedAt: 0, ssPhishingCount: 0,
@@ -1285,6 +1286,13 @@ async function renderSafetyShieldUpdated(store) {
 // migration, cannot half-apply, and can be split back into separate switches
 // later by editing markup alone — which is also how a fifth mechanism was added
 // here without touching any of the first four.
+//
+// NOT in this list, though it sits in the same section: ssFloatVideoEnabled.
+// The floating-video un-sticker has its own card and its own switch, because it
+// is not ad blocking — the player it moves is the site's own furniture, served
+// from the site's own address, and someone may well want their ads blocked
+// without their video players rearranged, or the other way round. Splitting it
+// out cost exactly the markup this comment predicted it would.
 const ADBLOCK_KEYS = [
   "ssAdTrackerEnabled",
   "ssAdNetworkEnabled",
@@ -1329,6 +1337,16 @@ function setupAdTrackerBlocker(store) {
   // (See the header of background/ad-tracker-stats.js.)
   const countNote = document.getElementById("ad-tracker-count-note");
   if (countNote && IS_FIREFOX) countNote.hidden = false;
+
+  // Its own switch, its own key, and the Guardian gate on the way down like
+  // every other protection toggle. Nothing about it is wired to the master
+  // switch above.
+  setupCheckbox(
+    "float-video-toggle",
+    "ssFloatVideoEnabled",
+    store.ssFloatVideoEnabled,
+    "Turn off floating-video un-sticking"
+  );
 }
 
 // ===========================================================================
@@ -2112,6 +2130,12 @@ const DASHBOARD_GROUPS = [
       { key: "popupHijacks", label: "Popup & Click Hijacks" },
       { key: "badLanguage", label: "Bad Language Filter", combine: ["badLanguage"] },
       { key: "cookieAutoReject", label: "Cookie Auto-Reject", combine: ["cookieAutoReject"] },
+      // Here rather than in "Ads & trackers", and the group comment below is
+      // the reason: bars scale against the busiest row in their OWN section. A
+      // page yields one or two floating players against thousands of blocked
+      // requests, so sharing a section with the request counters would draw
+      // this as a permanently empty bar.
+      { key: "floatVideo", label: "Floating Videos Un-stuck" },
     ],
   },
   {
@@ -2174,6 +2198,7 @@ const DASHBOARD_ICONS = {
   facebookAds: '<path d="M18 2h-3a5 5 0 0 0-5 5v3H7v4h3v8h4v-8h3l1-4h-4V7a1 1 0 0 1 1-1h3z"/>',
   antiAdblock: '<rect x="3" y="4" width="18" height="16" rx="1"/><line x1="3" y1="9.33" x2="21" y2="9.33"/><line x1="3" y1="14.67" x2="21" y2="14.67"/><line x1="9" y1="4" x2="9" y2="9.33"/><line x1="15" y1="9.33" x2="15" y2="14.67"/><line x1="9" y1="14.67" x2="9" y2="20"/>',
   adSlots: '<rect x="3" y="3" width="18" height="18" rx="2" stroke-dasharray="4 3"/><line x1="9" y1="15" x2="15" y2="9"/><line x1="9" y1="9" x2="15" y2="15"/>',
+  floatVideo: '<rect x="2" y="4" width="20" height="16" rx="2"/><rect x="12" y="12" width="8" height="6" rx="1"/><line x1="12" y1="18" x2="20" y2="12"/>',
 };
 
 const DASHBOARD_MOON_ICON =

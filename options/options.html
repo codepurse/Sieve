@@ -1013,8 +1013,9 @@
         </section>
 
         <!-- ============================ Ad & Trackers ========================== -->
-        <!-- ONE switch over SIX independent mechanisms, which is a deliberate
-             simplification and worth writing down.
+        <!-- TWO cards here, and the split is the point.
+             The first is ONE switch over SIX independent mechanisms, which is a
+             deliberate simplification and worth writing down.
              The six storage keys are unchanged — ssAdTrackerEnabled,
              ssAdNetworkEnabled, ssYouTubeAdsEnabled, ssFacebookAdsEnabled,
              ssAntiAdblockEnabled and ssAdSlotCollapseEnabled — and the six
@@ -1025,6 +1026,12 @@
              and no risk to the blocking itself, and splitting the switches again
              later costs nothing but markup. It is also what let the fifth and sixth
              mechanisms ship without touching any of the earlier ones.
+             The floating-video card below is the demonstration of that last
+             claim: it was built behind the master switch and moved out to its
+             own by editing markup, with no migration and no change to its
+             background module. It is separate because it is not ad blocking —
+             the player it moves is the site's own furniture, and wanting ads
+             blocked is not the same as wanting video players rearranged.
              The copy is deliberately short. It used to run to twenty paragraphs
              of caveats, which is a wall nobody reads; what survived is the one
              line that tells you what to DO when a site breaks, and a collapsed
@@ -1148,6 +1155,73 @@
                   <a href="#section-dashboard">Protection Dashboard</a>. Expect big
                   numbers: one page can pull in dozens of trackers. Only the running
                   total is kept — never which site, never which tracker.
+                </p>
+              </details>
+            </div>
+          </section>
+
+          <!-- Its own card and its own key (ssFloatVideoEnabled), read by
+               background/float-video.js, which knows nothing about the switch
+               above. Opt-in, default off, same as everything else here. -->
+          <section class="card">
+            <div class="card-header">
+              <h2 class="card-title">Floating videos <span class="badge">Beta</span></h2>
+              <p class="card-description">
+                Stop the video at the top of an article shrinking into a corner
+                and riding down the page with you.
+              </p>
+            </div>
+
+            <div class="field">
+              <div class="switch-row">
+                <div class="switch-label">
+                  <span class="label">Stop videos following you</span>
+                  <span class="description">Puts a floating player back where the site first put it — still there, still playing if it was, just no longer in the way.</span>
+                </div>
+                <label class="switch"><input type="checkbox" id="float-video-toggle" /><span class="slider"></span></label>
+              </div>
+
+              <p class="hint">
+                <strong>If a site breaks,</strong> add it to your
+                <a href="#section-blocking">Allowlist</a> — that turns this off for
+                that one site and leaves it on everywhere else.
+              </p>
+
+              <details class="bulk">
+                <summary>What it can and cannot do</summary>
+                <p class="hint">
+                  <strong>It moves the player, it does not remove it.</strong> The
+                  video goes back where the site first put it, still playing if it
+                  was. That matters on the pages where the video is the thing you
+                  came for — hiding it would leave a hole instead.
+                </p>
+                <p class="hint">
+                  It also does not press the player's own close button for you.
+                  That would tidy up a little better on the players that have one,
+                  but it would change the site's own state, and then switching this
+                  off and reloading would no longer give you the page exactly as the
+                  site sent it. Nothing here is deleted or clicked.
+                </p>
+                <p class="hint">
+                  <strong>Sites where a floating video is the whole point are left
+                  alone</strong> — YouTube, Twitch, Netflix and the rest. So is every
+                  video call: a meeting cannot lose the picture of the person
+                  talking, on the listed services or on any other, because Sieve can
+                  tell a live camera from a recording. Picture-in-picture is left
+                  alone too, because that is you asking for it.
+                </p>
+                <p class="hint">
+                  <strong>It can get the wrong box.</strong> It knows the common
+                  players by name and finds the rest by shape — a video-sized panel
+                  pinned to a corner — so something else pinned to a corner can
+                  occasionally be moved as well. Switch this off and reload and it
+                  goes back.
+                </p>
+                <p class="hint">
+                  <strong>This is not ad blocking</strong>, which is why it has its
+                  own switch. The floating player is the site's own, served from the
+                  site's own address, so there is no advertising address to block
+                  that would not also block the article.
                 </p>
               </details>
             </div>

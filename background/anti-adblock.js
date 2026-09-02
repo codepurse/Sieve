@@ -30,6 +30,8 @@
 // The consequence is that editing the allowlist has to RE-REGISTER, not just
 // re-check — hence the storage listener at the bottom watching two keys.
 
+import { adoptAdblockSwitchState } from "../common/adblock-switch.js";
+
 // Toggle key — opt-in, default OFF, same "ss…" namespace as the other blockers.
 // Turning it OFF weakens what the user set up, so the settings UI puts it behind
 // the Guardian PIN gate like every other protection toggle.
@@ -275,25 +277,18 @@ async function register(specs) {
 // exactly the person who least wants it.
 //
 // One shot: writing the key is itself what stops this running again.
-const SIBLING_KEYS = [
-  "ssAdTrackerEnabled",
-  "ssAdNetworkEnabled",
-  "ssYouTubeAdsEnabled",
-  "ssFacebookAdsEnabled",
-];
-
+//
+// The rule itself now lives in common/adblock-switch.js. It was written twice,
+// here and in background/ad-slot-collapse.js, each copy carrying its own
+// hand-written list of the other keys. Putting them side by side showed the
+// lists had drifted: the one here predated the slot collapser and never counted
+// it. The siblings this consults are therefore now the whole switch rather than
+// the four keys named here before — read that file's header for the rest.
+//
+// The write fires storage.onChanged, which calls applyAntiAdblockScript for us,
+// so this deliberately does not register anything itself.
 export async function adoptSwitchState() {
-  const stored = await chrome.storage.local.get(ANTI_ADBLOCK_ENABLED_KEY);
-  if (Object.prototype.hasOwnProperty.call(stored, ANTI_ADBLOCK_ENABLED_KEY)) return false;
-
-  const siblings = await chrome.storage.local.get(SIBLING_KEYS);
-  if (!SIBLING_KEYS.some((k) => siblings[k])) return false;
-
-  // The write fires storage.onChanged, which calls applyAntiAdblockScript for
-  // us — so this deliberately does not register anything itself.
-  await chrome.storage.local.set({ [ANTI_ADBLOCK_ENABLED_KEY]: true });
-  console.log("[Sieve] Anti-adblock adopted the existing Ad & Trackers switch state.");
-  return true;
+  return adoptAdblockSwitchState(ANTI_ADBLOCK_ENABLED_KEY, "Anti-adblock");
 }
 
 // SEPARATE listeners, additive — they touch nothing the other background modules

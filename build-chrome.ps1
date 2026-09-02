@@ -60,6 +60,8 @@ $RequiredAssets = @(
     "content\anti-adblock.js",
     "content\anti-adblock-dom.js",
     "content\ad-slot-collapse.js",
+    "content\float-video.js",
+    "content\float-video.css",
     "data\cookie-rules.json",
     "data\tracker-domains.json",
     "rules\gambling-rules.json",

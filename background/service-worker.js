@@ -12,6 +12,7 @@ import "./youtube-ads.js"; // YouTube video-ad filter (BETA) — registers the M
 import "./facebook-ads.js"; // Facebook feed-ad filter (BETA) — registers the MAIN-world scriptlet
 import "./anti-adblock.js"; // Anti-adblock defeat (BETA) — answers "you seem to be using an ad blocker"
 import "./ad-slot-collapse.js"; // Collapses the empty boxes a blocked ad leaves behind
+import "./float-video.js"; // Un-floats the video players that follow you down the page
 import "./popup-hijack.js"; // Popup & Click Hijack Blocker — blocked-popup log + recovery
 import "./url-shortener-resolver.js"; // URL Shortener Resolver — expand shortened links before blocker checks
 import "./usage-tracker.js"; // Usage Insights — opt-in local screen-time tracker

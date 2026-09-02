@@ -17,6 +17,8 @@
 // EDIT therefore has to re-register, which is why the listener at the bottom
 // watches two keys.
 
+import { adoptAdblockSwitchState } from "../common/adblock-switch.js";
+
 // Toggle key — opt-in, default OFF, same "ss…" namespace as the other blockers.
 export const AD_SLOT_COLLAPSE_ENABLED_KEY = "ssAdSlotCollapseEnabled"; // boolean, default false
 
@@ -165,29 +167,14 @@ async function register(specs) {
 // from "turned it off on purpose". One shot — the write is what stops it
 // repeating.
 //
-// A near-copy of adoptSwitchState in background/anti-adblock.js, on purpose:
-// these modules do not depend on each other, and a shared helper for two call
-// sites would buy less than the independence costs. A THIRD copy should become
-// one.
-const SIBLING_KEYS = [
-  "ssAdTrackerEnabled",
-  "ssAdNetworkEnabled",
-  "ssYouTubeAdsEnabled",
-  "ssFacebookAdsEnabled",
-  "ssAntiAdblockEnabled",
-];
-
+// This was a near-copy of adoptSwitchState in background/anti-adblock.js, kept
+// separate on purpose while there were only two of them, with a note saying a
+// THIRD copy should become one. The rule now lives in common/adblock-switch.js
+// — read its header for what putting the two copies side by side turned up.
+//
+// The write fires storage.onChanged, which runs the reconcile for us.
 export async function adoptSwitchState() {
-  const stored = await chrome.storage.local.get(AD_SLOT_COLLAPSE_ENABLED_KEY);
-  if (Object.prototype.hasOwnProperty.call(stored, AD_SLOT_COLLAPSE_ENABLED_KEY)) return false;
-
-  const siblings = await chrome.storage.local.get(SIBLING_KEYS);
-  if (!SIBLING_KEYS.some((k) => siblings[k])) return false;
-
-  // The write fires storage.onChanged, which runs the reconcile for us.
-  await chrome.storage.local.set({ [AD_SLOT_COLLAPSE_ENABLED_KEY]: true });
-  console.log("[Sieve] Ad-slot collapse adopted the existing Ad & Trackers switch state.");
-  return true;
+  return adoptAdblockSwitchState(AD_SLOT_COLLAPSE_ENABLED_KEY, "Ad-slot collapse");
 }
 
 chrome.runtime.onInstalled.addListener(async () => {
