@@ -1,0 +1,50 @@
+{
+  "_comment": [
+    "Sieve — Ad & Tracker Blocker: HAND-MAINTAINED additions.",
+    "",
+    "This is the ONE file in this path you are meant to edit by hand.",
+    "data/tracker-domains.json is generated and any manual edit to it is",
+    "destroyed by the next `node build-tracker-list.mjs`; entries here survive,",
+    "because the converter merges them in after conversion.",
+    "",
+    "WHAT BELONGS HERE: an ad or tracking domain that EasyList and EasyPrivacy",
+    "genuinely do not carry, found by using the web. Nothing else. This is not a",
+    "place to widen a rule the converter deliberately refused — if the converter",
+    "dropped something as path-scoped, it dropped it because blocking the whole",
+    "domain would take a real site down, and adding the domain here does exactly",
+    "the harm the converter was avoiding.",
+    "",
+    "EVERY ENTRY GOES THROUGH THE SAME VALIDATION AS AN UPSTREAM RULE:",
+    "the shared-infrastructure guard (NEVER_BLOCK), the public-suffix backstop,",
+    "and the same malformed-host checks. An entry the guard refuses FAILS THE",
+    "BUILD rather than being skipped quietly — a domain you meant to block and",
+    "which silently is not blocked is the worst outcome of the three.",
+    "",
+    "GROUPS: 'ads' for ad delivery, 'trackers' for analytics and fingerprinting.",
+    "'always' blocks in every context; 'thirdParty' blocks only cross-site, for a",
+    "domain that also serves legitimate first-party content.",
+    "",
+    "Also please report the domain upstream to https://easylist.to/ — this file is",
+    "the local stopgap, not the fix. Once upstream carries it, the entry here",
+    "becomes redundant and the build says so.",
+    "",
+    "LICENCE: the entries in THIS file are Sieve's own work, MIT, unlike the",
+    "generated list they are merged into. See data/ATTRIBUTION-easylist.md."
+  ],
+
+  "trackers": {
+    "always": [],
+    "thirdParty": []
+  },
+
+  "ads": {
+    "always": [
+      {
+        "domain": "trinitymedia.ai",
+        "added": "2026-09-02",
+        "note": "Trinity Audio — the 'listen to this article' player, monetised with audio ads. Measured on indiewire.com: the only ad iframe still rendering (610x64) after the whole list was applied. Absent from both EasyList and EasyPrivacy, and absent from the converter's drop log, so upstream does not carry it in any form. NOTE this also removes the listen-to-article feature on sites that use it; that is the trade, and the Allowlist is the escape hatch."
+      }
+    ],
+    "thirdParty": []
+  }
+}

@@ -1,0 +1,160 @@
+/* content/youtube-ads.css
+ * Sieve — YouTube ad slots, hidden. The cosmetic half of the YouTube ad filter.
+ *
+ * Registered (and unregistered) by background/youtube-ads.js alongside
+ * content/youtube-ads.js, so like the scriptlet it exists on the page only while
+ * the toggle is on. Nothing here is gated on a class the way
+ * content/youtube-clean.css is — the file's presence IS the gate.
+ *
+ * ---------------------------------------------------------------------------
+ * WHY THIS EXISTS WHEN THE SCRIPTLET ALREADY REMOVES THE ADS
+ *
+ * The scriptlet removes ad ITEMS from YouTube's JSON before the page renders
+ * them, which is the better fix: no element is created, so no gap is left. This
+ * file is the backstop for the cases that route around it:
+ *
+ *   • a renderer name we do not know yet. The scriptlet matches an explicit list
+ *     of names and YouTube adds to it without notice; a new name passes the JSON
+ *     pass untouched but almost always reuses one of the container elements
+ *     below.
+ *   • an ad injected by the player at runtime rather than delivered in a
+ *     response — the banner overlay across the bottom of the video.
+ *   • a response shape the scriptlet declined to touch, because failing open is
+ *     its rule.
+ *
+ * So the two layers fail in opposite directions, which is the point of having
+ * both: the scriptlet is precise and might miss, the CSS is blunt and cannot.
+ *
+ * ---------------------------------------------------------------------------
+ * WHAT IS DELIBERATELY NOT HERE
+ *
+ *   .video-ads and .ytp-ad-module — the player's own ad CONTAINER. EasyList
+ *   carries an explicit exception for it (`ads.google.com,youtube.com#@#.video-
+ *   ads`), and the reason is worth repeating: hiding the container does not stop
+ *   an ad that is already playing, it just makes it invisible. The user then
+ *   waits out a countdown they cannot see, next to a skip button they cannot
+ *   click. Removing the ad from the data is the only fix for that surface, and
+ *   that is the scriptlet's job. Hiding it here would be strictly worse than
+ *   doing nothing.
+ *
+ * Selector names verified against EasyList's youtube.com cosmetic rules
+ * (September 2026); the rest are the sibling elements YouTube uses for the same
+ * slot on other surfaces. Several rules use :has(), so they need Chrome 105+ /
+ * Firefox 121+ — on anything older that rule is ignored and the element simply
+ * is not hidden, which is the safe direction.
+ */
+
+/* ==========================================================================
+   The ad elements themselves — feed, search, watch page, Shorts, mobile.
+   Each of these names an element whose whole purpose is an ad, so hiding it
+   cannot catch anything else.
+   ========================================================================== */
+
+ytd-ad-slot-renderer,
+ytd-in-feed-ad-layout-renderer,
+ytd-display-ad-renderer,
+ytd-banner-promo-renderer,
+ytd-statement-banner-renderer,
+ytd-primetime-promo-renderer,
+ytd-carousel-ad-renderer,
+ytd-video-masthead-ad-v3-renderer,
+ytd-video-masthead-ad-advertiser-info-renderer,
+#masthead-ad,
+/* Search results */
+ytd-search-pyv-renderer,
+ytd-promoted-video-renderer,
+ytd-compact-promoted-video-renderer,
+ytd-promoted-sparkles-web-renderer,
+ytd-promoted-sparkles-text-search-renderer,
+/* Watch page — the companion banner beside the video, and the ads panel */
+#player-ads,
+ytd-companion-slot-renderer,
+ytd-action-companion-ad-renderer,
+ytd-engagement-panel-section-list-renderer[target-id="engagement-panel-ads"],
+/* YouTube advertising YouTube: the "Get YouTube Premium" / "try YouTube Music"
+   bar. It rides in the player response under `messages` rather than arriving as
+   a feed item, so it survived every ad-break removal and was the one ad still
+   showing on every video. The scriptlet strips it from the data now; this is the
+   backstop for the builds that render it from somewhere else. */
+ytd-mealbar-promo-renderer,
+ytm-mealbar-promo-renderer,
+/* Shopping / product placement shelves, which are ad inventory in all but name */
+#shopping-timely-shelf,
+yt-overlay-product-sticker,
+#sticker-layer,
+/* Mobile (m.youtube.com) uses its own element names for the same slots */
+ytm-companion-slot,
+ytm-promoted-video-renderer,
+ad-slot-renderer,
+/* The watch sidebar, where the ad is a direct child of the results list */
+.ytd-watch-next-secondary-results-renderer > ytd-ad-slot-renderer {
+  display: none !important;
+}
+
+/* ==========================================================================
+   The banner overlay the player draws ACROSS the bottom of a playing video.
+   This is an overlay on top of the picture, not the picture — hiding it cannot
+   stop playback, which is what separates it from .video-ads above.
+   ========================================================================== */
+
+.ytp-ad-overlay-slot,
+.ytp-ad-overlay-container {
+  display: none !important;
+}
+
+/* ==========================================================================
+   Collapse the CONTAINER an ad sat in.
+   Hiding the ad alone leaves its wrapper holding an empty grid cell, and a hole
+   in the feed reads as breakage rather than as an ad removed.
+
+   Every rule here is anchored to a container whose ad is a DIRECT child, so it
+   can only ever collapse a wrapper that holds the ad and nothing else. That
+   restraint is the whole design: a looser `:has(ytd-ad-slot-renderer)` on a
+   section would hide the entire results list whenever YouTube dropped one ad
+   into it — the same mistake that emptied the watch sidebar in 1.2.0 when the
+   Shorts rules were written without the :not() pair.
+
+   Kept in a block of its OWN, containing nothing but :has() selectors. An
+   invalid selector invalidates the entire comma-separated list it appears in, so
+   on an engine without :has() a single plain selector mixed in here would be
+   thrown away along with them — which is why the sidebar rule lives in the block
+   above instead.
+   ========================================================================== */
+
+/* A ytd-rich-item-renderer is ONE feed tile. So an ad anywhere inside it means
+   the whole tile is the ad, and the descendant combinator is safe here for the
+   same reason it is safe on a Short: there is no list of real content inside a
+   single tile to lose.
+   This deliberately does NOT pin the exact parent chain. The earlier version
+   did — `:has(> #content > ytd-ad-slot-renderer)` — and when YouTube's actual
+   nesting did not match, the ad itself was hidden by the rules above while its
+   tile kept the grid cell. That is the empty gap in the feed that gets reported
+   as "a blank section where the ad was": worse than the ad, because a hole reads
+   as the extension breaking the page. */
+ytd-rich-item-renderer:has(ytd-ad-slot-renderer),
+ytd-rich-item-renderer:has(ytd-in-feed-ad-layout-renderer),
+ytd-rich-item-renderer:has(ytd-display-ad-renderer),
+/* A rich SECTION can hold a shelf of real videos, so it is only collapsed for
+   the banner renderers, which are never mixed in with content. */
+ytd-rich-section-renderer:has(ytd-statement-banner-renderer),
+ytd-rich-section-renderer:has(ytd-banner-promo-renderer),
+ytd-rich-section-renderer:has(ytd-primetime-promo-renderer),
+/* Search: the promoted result sits in its own section wrapper. Narrow on
+   purpose — an item section holds many real results, so it is collapsed only
+   when the promoted result is the ONLY thing in it. */
+ytd-item-section-renderer:has(> #contents > ytd-search-pyv-renderer:only-child),
+/* Between two Shorts.
+   Two shapes for the same thing. The first is EasyList's, and it is written in
+   Polymer SCOPING classes rather than element names: YouTube gives a child the
+   class of the element it is scoped inside, so `.ytd-shorts` means "a child of
+   ytd-shorts", not the container itself. That is an implementation detail of
+   YouTube's renderer and it moves, so the second rule says the same thing in
+   element names and catches it either way.
+   The descendant combinator is safe here in a way it would not be in the feed: a
+   reel-video-renderer is ONE Short, so an ad anywhere inside it means the whole
+   thing is the ad. There is no list of real content to lose. */
+#shorts-inner-container > .ytd-shorts:has(> .ytd-reel-video-renderer > ytd-ad-slot-renderer),
+ytd-reel-video-renderer:has(ytd-ad-slot-renderer),
+#shorts-inner-container > .ytd-shorts:has(ytd-ad-slot-renderer) {
+  display: none !important;
+}

@@ -1,0 +1,94 @@
+/* content/float-video.css
+ * Sieve — un-floats the video players that follow you down the page.
+ *
+ * Registered alongside content/float-video.js by background/float-video.js,
+ * only while the toggle is on and never on a site the user allowlisted. Read
+ * that script's header for the whole design; this file is the half that does
+ * not need JavaScript.
+ *
+ * WHY A STYLESHEET AND NOT JUST THE SCRIPT
+ *
+ * A player floats because the site adds a class to it on scroll. Answering that
+ * with JavaScript is a race the site can re-run every time you scroll — it adds
+ * the class, we take the position away, it adds the class again. A stylesheet
+ * does not race: the rule is already in the cascade before the site's own code
+ * has run, so the class can be added as often as the site likes and it will not
+ * do anything. The script is for the players whose names are not listed here.
+ *
+ * WHAT IT DOES NOT DO
+ *
+ * It does not hide anything and it does not touch width or height. The player
+ * drops back into the article at the size the site gave it, still playing,
+ * still with its own controls. Leaving the size alone is deliberate: a floating
+ * player is usually shrunk to a corner size by inline styles, and forcing that
+ * back to auto is how you break a player's aspect ratio. A slightly small
+ * in-article player is a much better outcome than a stretched one.
+ *
+ * KEEPING THIS IN STEP WITH THE SCRIPT
+ *
+ * Every selector in KNOWN_FLOAT_SELECTORS in content/float-video.js must appear
+ * in this file. The script uses that list to notice that a site just tried to
+ * float something, which is what the counter counts; this file is what actually
+ * stops it. test/float-video-css-test.mjs fails if the two drift apart.
+ */
+
+/* JW Player — by a distance the most common of these. The flag class goes on
+ * the outer .jwplayer element and the fixed positioning lands on the inner
+ * .jw-wrapper, so both need the rule. */
+.jw-flag-floating,
+.jw-flag-floating .jw-wrapper,
+
+/* Video.js and Brightcove, which is Video.js underneath. */
+.vjs-sticky,
+.vjs-sticky .vjs-tech,
+.video-js.vjs-float,
+
+/* Connatix. */
+.cnx-floating,
+.cnx-fixed,
+
+/* ex.co (formerly Playbuzz). */
+.exco-floating,
+
+/* AnyClip — "lre" is its own prefix for the player shell. */
+.anyclip-floating,
+.lre-floating,
+
+/* Names sites give their own implementations. These are the ones that recur
+ * across publishers; anything rarer is the script's job, by shape rather than
+ * by name. */
+.sticky-video,
+.sticky-player,
+.video-sticky,
+.player-sticky,
+.floating-player,
+.floating-video,
+.is-sticky-video,
+.pinned-video,
+.docked-video,
+.minimized-player,
+
+/* And the players nobody has named, which content/float-video.js finds by shape
+ * and marks with this attribute. The script sets the attribute and nothing
+ * else — this rule is what actually moves the box.
+ *
+ * That split is not tidiness, it is the only version that WINS. A site whose
+ * float-on-scroll handler assigns el.style.position on every scroll event beats
+ * an inline style we set, even one flagged !important: assigning through the
+ * CSSOM replaces the declaration and drops the priority with it, verified in
+ * Chrome. An author-origin !important RULE is a higher cascade tier than any
+ * normal declaration, inline ones included, so it beats that assignment no
+ * matter how many times the site repeats it — also verified, at fifty
+ * reassignments and via cssText. Marking the element therefore holds for good,
+ * where writing a style on it only held until the site wrote over it. */
+[data-sieve-unfloated] {
+  position: static !important;
+  top: auto !important;
+  right: auto !important;
+  bottom: auto !important;
+  left: auto !important;
+  z-index: auto !important;
+  /* Some implementations do not reposition the box at all — they translate it
+   * into the corner and leave position alone. */
+  transform: none !important;
+}

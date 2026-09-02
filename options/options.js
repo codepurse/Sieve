@@ -488,6 +488,14 @@ function optionsDefaults() {
     ssGameStoresEnabled: false,
     ssGamePlatformsEnabled: false,
     ssGameStreamingEnabled: false,
+    // Ad & Tracker Blocker (BETA) — independent opt-in groups behind one switch
+    ssAdTrackerEnabled: false,
+    ssAdNetworkEnabled: false,
+    ssYouTubeAdsEnabled: false,
+    ssFacebookAdsEnabled: false,
+    ssAntiAdblockEnabled: false,
+    ssAdSlotCollapseEnabled: false,
+    ssFloatVideoEnabled: false,
     // Safety Shield "last updated" meta
     ssPiracyUpdatedAt: 0, ssPiracyCount: 0,
     ssPhishingUpdatedAt: 0, ssPhishingCount: 0,
@@ -638,6 +646,7 @@ async function applyStoredSettings(store) {
   setupFinancialProtection(store); // Phase 5 — scam + trading + mlm opt-in toggles
   setupSafetyShield(store);        // piracy + malware/phishing + … opt-in toggles
   setupGameBlocker(store);         // game portals/stores/platforms/streaming toggles
+  setupAdTrackerBlocker(store);    // Ad & Trackers (BETA) — bundled tracker-domain tier
 
   // URL Shortener Resolver — advanced setting, default ON. Turning it OFF
   // weakens protection, so it goes through the Guardian PIN gate like other
@@ -1244,6 +1253,100 @@ async function renderSafetyShieldUpdated(store) {
       ? `Fraud list last updated: ${fpFormatTime(s.ssFraudUpdatedAt)} (${s.ssFraudCount.toLocaleString()} domains)`
       : "Fraud list last updated: never";
   }
+}
+
+// ===========================================================================
+// Ad & Tracker Blocker (BETA) — two independent opt-in groups over the bundled
+// domain list in data/tracker-domains.json: trackers (EasyPrivacy) and ad
+// networks (EasyList). Separate because they carry different breakage risk — a
+// user can take analytics blocking without ad blocking. Writes ssAdTrackerEnabled
+// and ssAdNetworkEnabled;
+// background/ad-tracker-blocker.js watches that key and rebuilds its own DNR
+// band. A static list, so there is no "last updated" line to render — same as
+// the gore/shock, dating and game tiers.
+//
+// Turning it OFF weakens protection the user set for themselves, so it goes
+// through the Guardian PIN gate exactly like every other protection toggle.
+// Turning it ON is free.
+// ===========================================================================
+
+// The six keys the one switch drives. Order is cosmetic; they are written
+// together in a single storage.set so the six background modules react to one
+// change event rather than six.
+//
+//   ssAdTrackerEnabled    tracker domains (EasyPrivacy)  → ad-tracker-blocker.js
+//   ssAdNetworkEnabled    ad-network domains (EasyList)  → ad-tracker-blocker.js
+//   ssYouTubeAdsEnabled   the MAIN-world scriptlet       → youtube-ads.js
+//   ssFacebookAdsEnabled  the scripts and stylesheet     → facebook-ads.js
+//   ssAntiAdblockEnabled  the detector answer + wall sweep → anti-adblock.js
+//   ssAdSlotCollapseEnabled  hides the empty boxes left behind → ad-slot-collapse.js
+//
+// They stay separate keys on purpose. Each background module still watches only
+// its own and knows nothing about the others, so merging the UI needed no
+// migration, cannot half-apply, and can be split back into separate switches
+// later by editing markup alone — which is also how a fifth mechanism was added
+// here without touching any of the first four.
+//
+// NOT in this list, though it sits in the same section: ssFloatVideoEnabled.
+// The floating-video un-sticker has its own card and its own switch, because it
+// is not ad blocking — the player it moves is the site's own furniture, served
+// from the site's own address, and someone may well want their ads blocked
+// without their video players rearranged, or the other way round. Splitting it
+// out cost exactly the markup this comment predicted it would.
+const ADBLOCK_KEYS = [
+  "ssAdTrackerEnabled",
+  "ssAdNetworkEnabled",
+  "ssYouTubeAdsEnabled",
+  "ssFacebookAdsEnabled",
+  "ssAntiAdblockEnabled",
+  "ssAdSlotCollapseEnabled",
+];
+
+function setupAdTrackerBlocker(store) {
+  const master = document.getElementById("adblock-master-toggle");
+
+  // ON if ANY of them is on, rather than only when all of them are.
+  //
+  // That matters for a profile upgraded from the version that had four separate
+  // switches, where two might be on and two off — and for every profile that
+  // upgrades into a release adding a fifth key, which starts life false. Reading
+  // "all of them" would show this as OFF while blocking was demonstrably still
+  // happening, and a switch that says off while the feature is on is worse than
+  // a switch that rounds up. The first time it is touched they are all written
+  // together and the split state is gone.
+  if (master) {
+    master.checked = ADBLOCK_KEYS.some((k) => store[k]);
+    master.addEventListener("change", async () => {
+      // Turning it OFF weakens protection the user set for themselves, so it
+      // goes through the Guardian PIN gate like every other protection toggle.
+      // gateToggleOff waves through the ON direction itself, and reverts the
+      // checkbox for us when the PIN is refused.
+      if (!(await SieveGuardian.gateToggleOff(master, "Turn off ad & tracker blocking"))) return;
+      const on = master.checked;
+      const patch = {};
+      for (const k of ADBLOCK_KEYS) patch[k] = on;
+      chrome.storage.local.set(patch);
+    });
+  }
+
+  // The blocked-request counters read declarativeNetRequest.getMatchedRules,
+  // which Firefox keeps behind the extensions.dnr.feedback pref — so on Firefox
+  // the two request rows in the Protection Dashboard never move. The blocking is
+  // unaffected; only the tally is unreadable. Reveal the explanation rather than
+  // leave someone reading a zero as a broken blocker.
+  // (See the header of background/ad-tracker-stats.js.)
+  const countNote = document.getElementById("ad-tracker-count-note");
+  if (countNote && IS_FIREFOX) countNote.hidden = false;
+
+  // Its own switch, its own key, and the Guardian gate on the way down like
+  // every other protection toggle. Nothing about it is wired to the master
+  // switch above.
+  setupCheckbox(
+    "float-video-toggle",
+    "ssFloatVideoEnabled",
+    store.ssFloatVideoEnabled,
+    "Turn off floating-video un-sticking"
+  );
 }
 
 // ===========================================================================
@@ -2027,6 +2130,27 @@ const DASHBOARD_GROUPS = [
       { key: "popupHijacks", label: "Popup & Click Hijacks" },
       { key: "badLanguage", label: "Bad Language Filter", combine: ["badLanguage"] },
       { key: "cookieAutoReject", label: "Cookie Auto-Reject", combine: ["cookieAutoReject"] },
+      // Here rather than in "Ads & trackers", and the group comment below is
+      // the reason: bars scale against the busiest row in their OWN section. A
+      // page yields one or two floating players against thousands of blocked
+      // requests, so sharing a section with the request counters would draw
+      // this as a permanently empty bar.
+      { key: "floatVideo", label: "Floating Videos Un-stuck" },
+    ],
+  },
+  {
+    // Its own section rather than rows inside "On-page protection", and not only
+    // for tidiness: bars scale against the busiest row in their OWN section, and
+    // a tier that stops thousands of requests a day would flatten every other bar
+    // on the page to a sliver if it shared one.
+    title: "Ads & trackers",
+    rows: [
+      { key: "adTrackers", label: "Tracking Requests" },
+      { key: "adNetworks", label: "Ad-Network Requests" },
+      { key: "youtubeAds", label: "YouTube Ads" },
+      { key: "facebookAds", label: "Facebook Ads" },
+      { key: "antiAdblock", label: "Adblock Walls Cleared" },
+      { key: "adSlots", label: "Empty Ad Slots Hidden" },
     ],
   },
   {
@@ -2068,6 +2192,13 @@ const DASHBOARD_ICONS = {
   urlShortener: '<path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/>',
   badLanguage: '<polyline points="4 7 4 4 20 4 20 7"/><line x1="9" y1="20" x2="15" y2="20"/><line x1="12" y1="4" x2="12" y2="20"/>',
   cookieAutoReject: '<path d="M12 2a10 10 0 1 0 10 10 4 4 0 0 1-5-5 4 4 0 0 1-5-5"/><path d="M8.5 8.5v.01"/><path d="M16 15.5v.01"/><path d="M12 12v.01"/><path d="M11 17v.01"/><path d="M7 14v.01"/>',
+  adTrackers: '<circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="3"/><line x1="12" y1="1" x2="12" y2="5"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="1" y1="12" x2="5" y2="12"/><line x1="19" y1="12" x2="23" y2="12"/>',
+  adNetworks: '<path d="m3 11 18-5v12L3 14v-3z"/><path d="M11.6 16.8a3 3 0 1 1-5.8-1.6"/>',
+  youtubeAds: '<path d="M2.5 17a24.12 24.12 0 0 1 0-10 2 2 0 0 1 1.4-1.4 49.56 49.56 0 0 1 16.2 0A2 2 0 0 1 21.5 7a24.12 24.12 0 0 1 0 10 2 2 0 0 1-1.4 1.4 49.55 49.55 0 0 1-16.2 0A2 2 0 0 1 2.5 17"/><path d="m10 15 5-3-5-3z"/>',
+  facebookAds: '<path d="M18 2h-3a5 5 0 0 0-5 5v3H7v4h3v8h4v-8h3l1-4h-4V7a1 1 0 0 1 1-1h3z"/>',
+  antiAdblock: '<rect x="3" y="4" width="18" height="16" rx="1"/><line x1="3" y1="9.33" x2="21" y2="9.33"/><line x1="3" y1="14.67" x2="21" y2="14.67"/><line x1="9" y1="4" x2="9" y2="9.33"/><line x1="15" y1="9.33" x2="15" y2="14.67"/><line x1="9" y1="14.67" x2="9" y2="20"/>',
+  adSlots: '<rect x="3" y="3" width="18" height="18" rx="2" stroke-dasharray="4 3"/><line x1="9" y1="15" x2="15" y2="9"/><line x1="9" y1="9" x2="15" y2="15"/>',
+  floatVideo: '<rect x="2" y="4" width="20" height="16" rx="2"/><rect x="12" y="12" width="8" height="6" rx="1"/><line x1="12" y1="18" x2="20" y2="12"/>',
 };
 
 const DASHBOARD_MOON_ICON =
