@@ -62,7 +62,6 @@ jobs:
             "dist\firefox\manifest.json",
             "dist\firefox\background\service-worker.js",
             "dist\firefox\content\cookie-engine.bundle.js",
-            "dist\firefox\content\toxic-model.bundle.js",
             "dist\firefox\data\cookie-rules.json",
             "dist\firefox\rules\gambling-rules.json",
             "dist\firefox\popup\popup.html",
@@ -70,6 +69,18 @@ jobs:
           )
           foreach ($path in $required) {
             if (-not (Test-Path $path)) { throw "Missing build output: $path" }
+          }
+
+          # content\toxic-model.bundle.js is 638 KB of TensorFlow.js whose only
+          # consumer is the offscreen document, and Firefox has no
+          # chrome.offscreen. It is REQUIRED in the Chrome build (above) and
+          # must be ABSENT from the Firefox one -- asserted rather than assumed,
+          # because nothing at runtime would complain if it came back.
+          foreach ($path in @("dist\firefox\content\toxic-model.bundle.js",
+                              "dist\firefox\offscreen")) {
+            if (Test-Path $path) {
+              throw "Chrome-only payload leaked into the Firefox build: $path"
+            }
           }
 
           # Dev-only trees must never be shipped.
