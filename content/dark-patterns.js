@@ -55,6 +55,66 @@
   // Detector registry
   // ---------------------------------------------------------------------------
 
+  // ---------------------------------------------------------------------------
+  // Word matching, shared by the detectors that read page text.
+  //
+  // All three of them used `haystack.includes(word)` over a list of short words,
+  // and all three were wrong in the same way, because English is full of short
+  // words inside longer ones:
+  //
+  //   "no"     matched Know, Economy, Ignore, Nothing, Announce, Diagnose
+  //   "pass"   matched password, passenger, compass
+  //   "text"   matched context, textile, next
+  //   "ok"     matched Cookie -- on a COOKIE BANNER, which is the one place
+  //            that detector runs
+  //
+  // The consequences were not cosmetic. guilt-copy replaced the words on five
+  // ordinary buttons with "No thanks"; checkboxes badged a terms-of-service
+  // box; and the cookie leveler picked "Cookie settings" as both the Accept and
+  // the Reject button and therefore stood down on exactly the banner it exists
+  // for. All three failed silently, because nobody reports a button that still
+  // says the right thing.
+  //
+  // So: match WORDS. A phrase is matched whole, at word boundaries, with the
+  // regex built once and cached. Entries that begin or end with punctuation --
+  // an emoji, a "×" -- get a plain substring test instead, because \b only
+  // anchors against word characters and would never match them.
+  //
+  // Deliberately NOT global: a `g` regex carries lastIndex between calls, so a
+  // cached one would match on one element and skip the next.
+  const phraseCache = new Map();
+
+  function phraseRegex(phrase) {
+    if (phraseCache.has(phrase)) return phraseCache.get(phrase);
+    let re = null;
+    const escaped = String(phrase).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    const left = /^\w/.test(phrase) ? "\\b" : "";
+    const right = /\w$/.test(phrase) ? "\\b" : "";
+    try {
+      re = new RegExp(left + escaped + right, "i");
+    } catch (_) {
+      re = null; // fall back to includes() below
+    }
+    phraseCache.set(phrase, re);
+    return re;
+  }
+
+  /** True if `phrase` appears in `haystack` as a whole word or phrase. */
+  function hasWord(haystack, phrase) {
+    const text = String(haystack || "");
+    if (!text || !phrase) return false;
+    const re = phraseRegex(phrase);
+    return re ? re.test(text) : text.toLowerCase().includes(String(phrase).toLowerCase());
+  }
+
+  /** True if ANY of `phrases` appears in `haystack` as a whole word. */
+  function hasAnyWord(haystack, phrases) {
+    for (const phrase of phrases) {
+      if (hasWord(haystack, phrase)) return true;
+    }
+    return false;
+  }
+
   const detectors = new Map();
 
   function registerDetector(type, detector) {
@@ -173,6 +233,8 @@
     isMarked,
     report: reportIntervention,
     counts: getCounts,
+    hasWord,
+    hasAnyWord,
   };
 
   // ---------------------------------------------------------------------------
