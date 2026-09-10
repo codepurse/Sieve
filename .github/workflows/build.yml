@@ -100,6 +100,78 @@ jobs:
             throw "Firefox manifest is missing browser_specific_settings.gecko."
           }
 
+      - name: Content-script size budget
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Stop"
+
+          # A REGRESSION GUARD, not a target.
+          #
+          # Sieve injects script into every page the user visits, so the size of
+          # that injection is a user-facing cost in a way the rest of the
+          # package is not: it is parsed per page, and the all_frames half is
+          # parsed again per iframe. A performance pass took the top-frame
+          # figure from 289,133 bytes to 118,528 and the subframe figure from
+          # 48,700 to 36,557. Without something asserting it, that erodes a few
+          # kilobytes at a time and nobody notices until it is back where it
+          # started -- which nearly happened DURING that pass, when comments
+          # added to the all_frames scripts briefly pushed the subframe figure
+          # above where it began.
+          #
+          # MEASURE FROM A CLEAN CHECKOUT, which is what this step does and what
+          # a working tree may not be. .gitattributes normalises line endings on
+          # checkout, so a tree whose files are already LF reports a couple of
+          # kilobytes less than the CRLF files CI and every fresh clone actually
+          # build. Both figures above are clean-checkout numbers; measuring a
+          # local tree instead is how the first version of them came out ~2 KB
+          # light.
+          #
+          # Headroom is deliberate (roughly 18%) so ordinary work does not trip
+          # it. If a change genuinely needs more room, raise the number here in
+          # the same commit and say why -- the point is that it becomes a
+          # decision instead of a drift.
+          #
+          # Only <all_urls> entries count. A script scoped to youtube.com is not
+          # a cost on every page, so it is not what this measures.
+          $TOP_FRAME_BUDGET = 140000
+          $SUBFRAME_BUDGET  = 45000
+
+          $manifest = Get-Content "dist\chrome\manifest.json" -Raw | ConvertFrom-Json
+          $topOnly = 0
+          $everyFrame = 0
+
+          foreach ($cs in $manifest.content_scripts) {
+            $matchList = @($cs.matches)
+            if ($matchList.Count -ne 1 -or $matchList[0] -ne '<all_urls>') { continue }
+
+            $bytes = 0
+            foreach ($file in (@($cs.js) + @($cs.css))) {
+              if (-not $file) { continue }
+              $bytes += (Get-Item (Join-Path "dist\chrome" $file)).Length
+            }
+            if ($cs.all_frames) { $everyFrame += $bytes } else { $topOnly += $bytes }
+          }
+
+          $perTopFrame = $topOnly + $everyFrame
+          $thirtyIframes = $perTopFrame + ($everyFrame * 30)
+
+          Write-Host ("  every top frame : {0,9:N0} bytes  (budget {1,9:N0})" -f $perTopFrame, $TOP_FRAME_BUDGET)
+          Write-Host ("  every subframe  : {0,9:N0} bytes  (budget {1,9:N0})" -f $everyFrame, $SUBFRAME_BUDGET)
+          Write-Host ("  30-iframe page  : {0,9:N0} bytes  (informational)" -f $thirtyIframes)
+
+          $over = @()
+          if ($perTopFrame -gt $TOP_FRAME_BUDGET) {
+            $over += "top-frame injection is $perTopFrame bytes, over the $TOP_FRAME_BUDGET budget"
+          }
+          if ($everyFrame -gt $SUBFRAME_BUDGET) {
+            $over += "subframe injection is $everyFrame bytes, over the $SUBFRAME_BUDGET budget"
+          }
+          if ($over.Count -gt 0) {
+            foreach ($line in $over) { Write-Host "BUDGET EXCEEDED: $line" }
+            throw "Content-script size budget exceeded. Either trim the injection or raise the budget in this step, in the same commit, with a reason."
+          }
+          Write-Host "  within budget"
+
       - name: Lint Firefox build with web-ext
         shell: pwsh
         continue-on-error: true
