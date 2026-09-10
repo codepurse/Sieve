@@ -174,8 +174,78 @@ jobs:
 
       - name: Lint Firefox build with web-ext
         shell: pwsh
-        continue-on-error: true
-        run: npx --yes web-ext lint --source-dir dist/firefox --output text
+        run: |
+          # A COUNT GUARD, in the same spirit as the size budget above.
+          #
+          # This step used to be continue-on-error with text output, which meant
+          # it could never fail and nobody read it. Every warning it currently
+          # reports has been checked by hand and is benign, so failing on "any
+          # warning" would be noise -- but staying silent means a genuinely NEW
+          # warning is invisible. So the baseline is pinned instead: known
+          # warnings stay quiet, a new one fails the build.
+          #
+          # What the 17 are, as of this commit:
+          #   6  UNSAFE_VAR_ASSIGNMENT (innerHTML) -- every one is a module
+          #      constant or already escapeHtml()'d. No user input, no page
+          #      content, and no blocked-list entry reaches any of them.
+          #   9  UNSUPPORTED_API -- Chrome-only APIs on the Firefox build, all
+          #      guarded: getMatchedRules behind feedbackAvailable(),
+          #      dom.openOrClosedShadowRoot behind a chrome.dom check in
+          #      vendored Consent-O-Matic, and offscreen.* behind
+          #      hasOffscreenDoc(), which returns false where chrome.offscreen
+          #      does not exist.
+          #   2  KEY_FIREFOX_*_UNSUPPORTED_BY_MIN_VERSION -- gecko
+          #      data_collection_permissions needs Firefox 140 while
+          #      strict_min_version is 128. DELIBERATE: the key is ignored on
+          #      older Firefox rather than fatal, AMO requires the declaration,
+          #      and raising the minimum to 140 would drop Firefox ESR 128 --
+          #      the long-term-support release institutions run. Do not "fix"
+          #      this by bumping strict_min_version.
+          #
+          # If a change legitimately adds one, check it the same way, then raise
+          # the baseline here in the same commit and say what it is.
+          $WARNING_BASELINE = 17
+
+          # web-ext exits non-zero whenever it reports anything at all, so its
+          # exit code is not the signal -- the count is. Capture and read that.
+          $ErrorActionPreference = "Continue"
+          $PSNativeCommandUseErrorActionPreference = $false
+          $raw = npx --yes web-ext lint --source-dir dist/firefox --output json
+          $ErrorActionPreference = "Stop"
+
+          $report = ($raw -join "`n") | ConvertFrom-Json
+          $errorCount   = [int]$report.summary.errors
+          $warningCount = [int]$report.summary.warnings
+          $noticeCount  = [int]$report.summary.notices
+
+          Write-Host ("  errors {0} | warnings {1} | notices {2}   (warning baseline {3})" -f $errorCount, $warningCount, $noticeCount, $WARNING_BASELINE)
+
+          $all = @($report.errors) + @($report.warnings) + @($report.notices) | Where-Object { $_ }
+          if ($all.Count -gt 0) {
+            Write-Host ""
+            $all | Group-Object code | Sort-Object Count -Descending | ForEach-Object {
+              Write-Host ("  {0,3} x {1}" -f $_.Count, $_.Name)
+              $_.Group | Select-Object -First 3 | ForEach-Object {
+                $where = $_.file
+                if ($_.line) { $where = "$where`:$($_.line)" }
+                Write-Host ("        {0}" -f $where)
+              }
+              if ($_.Count -gt 3) { Write-Host ("        ... and {0} more" -f ($_.Count - 3)) }
+            }
+            Write-Host ""
+          }
+
+          if ($errorCount -gt 0) {
+            throw "web-ext lint reported $errorCount error(s). Errors block an AMO submission -- fix them."
+          }
+          if ($warningCount -gt $WARNING_BASELINE) {
+            throw "web-ext lint reported $warningCount warnings, up from the $WARNING_BASELINE known-benign ones. Check the new one, then either fix it or raise the baseline in this step with a note saying what it is."
+          }
+          if ($warningCount -lt $WARNING_BASELINE) {
+            Write-Host "  NOTE: $warningCount warnings, below the $WARNING_BASELINE baseline. Lower WARNING_BASELINE in this step so the guard stays tight."
+          } else {
+            Write-Host "  at the known-benign baseline"
+          }
 
       - name: Upload Chrome artifact
         uses: actions/upload-artifact@v4
