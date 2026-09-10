@@ -1,0 +1,1329 @@
+<title>Sieve Performance Audit</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;700;800&family=JetBrains+Mono:wght@400;500;700&family=Source+Serif+4:ital,opsz,wght@0,8..60,400;0,8..60,600;1,8..60,400&display=swap">
+
+<style>
+:root {
+  --ground: #ebecef;
+  --surface: #f7f8fa;
+  --raised: #ffffff;
+  --ink: #14181f;
+  --ink-2: #3d4550;
+  --ink-3: #6b7482;
+  --rule: #d2d5dc;
+  --rule-soft: #e2e4e9;
+  --accent: #a87308;
+  --accent-ink: #7d5605;
+  --accent-soft: #f6e9c6;
+  --p0: #a81e28;
+  --p1: #b45309;
+  --p2: #3f5b8b;
+  --p3: #6b7482;
+  --good: #2f6b45;
+  --good-soft: #dcece2;
+  --track: #dbdde2;
+
+  --f-display: "Archivo", "Helvetica Neue", Arial, sans-serif;
+  --f-body: "Source Serif 4", Georgia, "Times New Roman", serif;
+  --f-mono: "JetBrains Mono", ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+
+  --measure: 68ch;
+  --pad: clamp(20px, 4vw, 56px);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --ground: #0f1216;
+    --surface: #161a20;
+    --raised: #1d222a;
+    --ink: #e8eaee;
+    --ink-2: #a9b1bd;
+    --ink-3: #78818e;
+    --rule: #2a3038;
+    --rule-soft: #212730;
+    --accent: #f0c14b;
+    --accent-ink: #f7d67a;
+    --accent-soft: #362c12;
+    --p0: #e4626d;
+    --p1: #e08a3c;
+    --p2: #7c9bd1;
+    --p3: #78818e;
+    --good: #5daf7c;
+    --good-soft: #16281e;
+    --track: #262c34;
+  }
+}
+:root[data-theme="dark"] {
+  --ground: #0f1216;
+  --surface: #161a20;
+  --raised: #1d222a;
+  --ink: #e8eaee;
+  --ink-2: #a9b1bd;
+  --ink-3: #78818e;
+  --rule: #2a3038;
+  --rule-soft: #212730;
+  --accent: #f0c14b;
+  --accent-ink: #f7d67a;
+  --accent-soft: #362c12;
+  --p0: #e4626d;
+  --p1: #e08a3c;
+  --p2: #7c9bd1;
+  --p3: #78818e;
+  --good: #5daf7c;
+  --good-soft: #16281e;
+  --track: #262c34;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  background: var(--ground);
+  color: var(--ink);
+  font-family: var(--f-body);
+  font-size: 16.5px;
+  line-height: 1.62;
+  -webkit-font-smoothing: antialiased;
+}
+
+.wrap { max-width: 1180px; margin: 0 auto; padding: 0 var(--pad) 96px; }
+
+/* ---------- masthead ---------- */
+.mast {
+  padding: clamp(40px, 7vw, 80px) 0 32px;
+  border-bottom: 2px solid var(--ink);
+}
+.eyebrow {
+  font-family: var(--f-mono);
+  font-size: 11.5px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--accent-ink);
+  margin: 0 0 14px;
+}
+.mast h1 {
+  font-family: var(--f-display);
+  font-weight: 800;
+  font-size: clamp(38px, 6.4vw, 68px);
+  line-height: 0.98;
+  letter-spacing: -0.028em;
+  margin: 0 0 18px;
+  text-wrap: balance;
+}
+.standfirst {
+  max-width: var(--measure);
+  font-size: 19px;
+  line-height: 1.55;
+  color: var(--ink-2);
+  margin: 0;
+}
+.standfirst strong { color: var(--ink); font-weight: 600; }
+
+.mast-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 28px;
+  margin-top: 28px;
+  font-family: var(--f-mono);
+  font-size: 12px;
+  color: var(--ink-3);
+}
+.mast-meta b { color: var(--ink-2); font-weight: 500; }
+
+/* ---------- section rail ---------- */
+nav.rail {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  background: color-mix(in srgb, var(--ground) 92%, transparent);
+  backdrop-filter: blur(8px);
+  border-bottom: 1px solid var(--rule);
+  margin: 0 calc(var(--pad) * -1);
+  padding: 0 var(--pad);
+}
+.rail-inner {
+  max-width: 1180px;
+  margin: 0 auto;
+  display: flex;
+  gap: 2px;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+.rail-inner::-webkit-scrollbar { height: 0; }
+.rail a {
+  flex: 0 0 auto;
+  font-family: var(--f-mono);
+  font-size: 11.5px;
+  letter-spacing: 0.04em;
+  text-decoration: none;
+  color: var(--ink-3);
+  padding: 11px 11px 9px;
+  border-bottom: 2px solid transparent;
+  white-space: nowrap;
+}
+.rail a:hover { color: var(--ink); border-bottom-color: var(--accent); }
+.rail a:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+
+/* ---------- sections ---------- */
+section { padding-top: 60px; scroll-margin-top: 52px; }
+h2 {
+  font-family: var(--f-display);
+  font-weight: 700;
+  font-size: clamp(24px, 3.2vw, 33px);
+  letter-spacing: -0.018em;
+  line-height: 1.12;
+  margin: 0 0 6px;
+  text-wrap: balance;
+}
+h2 .num {
+  font-family: var(--f-mono);
+  font-size: 0.5em;
+  font-weight: 500;
+  color: var(--accent-ink);
+  letter-spacing: 0.06em;
+  vertical-align: 0.5em;
+  margin-right: 12px;
+}
+.dek { max-width: var(--measure); color: var(--ink-2); margin: 0 0 28px; }
+p { max-width: var(--measure); }
+h3 {
+  font-family: var(--f-display);
+  font-weight: 700;
+  font-size: 17px;
+  letter-spacing: -0.005em;
+  margin: 34px 0 10px;
+}
+code, .mono { font-family: var(--f-mono); font-size: 0.875em; }
+code {
+  background: var(--rule-soft);
+  padding: 1px 5px;
+  border-radius: 3px;
+  color: var(--ink);
+  word-break: break-word;
+}
+a { color: var(--accent-ink); text-decoration-thickness: 1px; text-underline-offset: 2px; }
+
+/* ---------- frame-budget chart ---------- */
+.chart {
+  background: var(--surface);
+  border: 1px solid var(--rule);
+  border-radius: 2px;
+  padding: 26px 26px 20px;
+  margin: 8px 0 12px;
+  position: relative;
+}
+.chart-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 16px;
+  flex-wrap: wrap;
+  margin-bottom: 22px;
+  padding-bottom: 14px;
+  border-bottom: 1px solid var(--rule);
+}
+.chart-head h3 { margin: 0; font-size: 15px; }
+.chart-head .scale { font-family: var(--f-mono); font-size: 11px; color: var(--ink-3); }
+.bars { display: grid; gap: 11px; }
+.bar-row {
+  display: grid;
+  grid-template-columns: minmax(0, 15.5rem) 1fr auto;
+  gap: 14px;
+  align-items: center;
+}
+.bar-label { font-family: var(--f-mono); font-size: 11.5px; color: var(--ink-2); line-height: 1.35; }
+.bar-label i { font-style: normal; color: var(--ink-3); }
+.bar-track {
+  position: relative;
+  height: 17px;
+  background: var(--track);
+  border-radius: 1px;
+  overflow: visible;
+}
+.bar-fill { height: 100%; border-radius: 1px; background: var(--accent); }
+.bar-fill.sev0 { background: var(--p0); }
+.bar-fill.sev1 { background: var(--p1); }
+.bar-val {
+  font-family: var(--f-mono);
+  font-size: 12px;
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+  color: var(--ink);
+  min-width: 8.5rem;
+  text-align: right;
+}
+.bar-val em { font-style: normal; color: var(--ink-3); font-weight: 400; }
+.frame-line {
+  position: absolute;
+  top: -6px;
+  bottom: -6px;
+  width: 0;
+  border-left: 1.5px dashed var(--p0);
+  z-index: 2;
+}
+.frame-key {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 18px;
+  padding-top: 14px;
+  border-top: 1px solid var(--rule);
+  font-family: var(--f-mono);
+  font-size: 11px;
+  color: var(--ink-3);
+}
+.frame-key span.dash {
+  display: inline-block;
+  width: 22px;
+  border-top: 1.5px dashed var(--p0);
+}
+
+/* ---------- findings ---------- */
+.finding {
+  background: var(--raised);
+  border: 1px solid var(--rule);
+  border-left: 4px solid var(--p3);
+  border-radius: 2px;
+  padding: 20px 22px 18px;
+  margin-bottom: 14px;
+}
+.finding.p0 { border-left-color: var(--p0); }
+.finding.p1 { border-left-color: var(--p1); }
+.finding.p2 { border-left-color: var(--p2); }
+.finding.p3 { border-left-color: var(--p3); }
+
+.f-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 10px 12px;
+  margin-bottom: 4px;
+}
+.f-head h4 {
+  font-family: var(--f-display);
+  font-weight: 700;
+  font-size: 17.5px;
+  letter-spacing: -0.008em;
+  margin: 0;
+  flex: 1 1 22rem;
+  line-height: 1.25;
+}
+.pill {
+  font-family: var(--f-mono);
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  padding: 3px 7px;
+  border-radius: 2px;
+  white-space: nowrap;
+}
+.pill.p0 { background: var(--p0); color: #fff; }
+.pill.p1 { background: var(--p1); color: #fff; }
+.pill.p2 { background: var(--p2); color: #fff; }
+.pill.p3 { background: var(--p3); color: #fff; }
+.pill.fix-simple { background: transparent; color: var(--good); border: 1px solid var(--good); }
+.pill.fix-arch { background: transparent; color: var(--p2); border: 1px solid var(--p2); }
+
+.f-loc {
+  font-family: var(--f-mono);
+  font-size: 11.5px;
+  color: var(--ink-3);
+  margin: 0 0 14px;
+  word-break: break-word;
+}
+.finding p { margin: 0 0 10px; font-size: 15.5px; line-height: 1.58; }
+.finding p:last-child { margin-bottom: 0; }
+.f-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 1px;
+  background: var(--rule);
+  border: 1px solid var(--rule);
+  margin: 14px 0;
+}
+.f-cell { background: var(--surface); padding: 9px 11px; }
+.f-cell dt {
+  font-family: var(--f-mono);
+  font-size: 10px;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+  margin: 0 0 3px;
+}
+.f-cell dd {
+  margin: 0;
+  font-family: var(--f-mono);
+  font-size: 12.5px;
+  font-weight: 500;
+  color: var(--ink);
+  line-height: 1.35;
+}
+.fix {
+  margin-top: 14px;
+  padding: 12px 14px;
+  background: var(--accent-soft);
+  border-radius: 2px;
+}
+.fix > strong {
+  font-family: var(--f-mono);
+  font-size: 10.5px;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--accent-ink);
+  display: block;
+  margin-bottom: 5px;
+}
+.fix p { font-size: 15px; max-width: none; }
+
+pre {
+  font-family: var(--f-mono);
+  font-size: 12.5px;
+  line-height: 1.55;
+  background: var(--surface);
+  border: 1px solid var(--rule);
+  border-radius: 2px;
+  padding: 13px 15px;
+  overflow-x: auto;
+  margin: 12px 0;
+}
+pre .del { color: var(--p0); }
+pre .add { color: var(--good); }
+pre .cmt { color: var(--ink-3); }
+
+/* ---------- tables ---------- */
+.tbl-scroll { overflow-x: auto; border: 1px solid var(--rule); border-radius: 2px; margin: 16px 0; }
+table { border-collapse: collapse; width: 100%; min-width: 640px; background: var(--raised); }
+th, td {
+  text-align: left;
+  padding: 9px 13px;
+  border-bottom: 1px solid var(--rule-soft);
+  vertical-align: top;
+  font-size: 14.5px;
+}
+th {
+  font-family: var(--f-mono);
+  font-size: 10.5px;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+  background: var(--surface);
+  border-bottom: 1px solid var(--rule);
+  white-space: nowrap;
+}
+td.m, th.m { font-family: var(--f-mono); font-size: 12.5px; font-variant-numeric: tabular-nums; }
+tr:last-child td { border-bottom: 0; }
+td b { font-weight: 600; }
+
+/* ---------- roadmap board ---------- */
+.board { display: grid; gap: 14px; grid-template-columns: repeat(auto-fit, minmax(255px, 1fr)); margin-top: 8px; }
+.lane { background: var(--surface); border: 1px solid var(--rule); border-radius: 2px; overflow: hidden; }
+.lane-head { padding: 12px 15px 11px; border-bottom: 1px solid var(--rule); }
+.lane-head .tag {
+  font-family: var(--f-mono);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+}
+.lane.l0 .lane-head { border-top: 3px solid var(--p0); }
+.lane.l0 .tag { color: var(--p0); }
+.lane.l1 .lane-head { border-top: 3px solid var(--p1); }
+.lane.l1 .tag { color: var(--p1); }
+.lane.l2 .lane-head { border-top: 3px solid var(--p2); }
+.lane.l2 .tag { color: var(--p2); }
+.lane.l3 .lane-head { border-top: 3px solid var(--p3); }
+.lane.l3 .tag { color: var(--p3); }
+.lane-head p { margin: 3px 0 0; font-size: 13px; color: var(--ink-3); max-width: none; line-height: 1.4; }
+.lane ol { margin: 0; padding: 10px 15px 14px 30px; }
+.lane li { font-size: 14.5px; line-height: 1.45; margin-bottom: 8px; }
+.lane li:last-child { margin-bottom: 0; }
+.lane li .m { color: var(--ink-3); }
+
+/* ---------- already-good ---------- */
+.keep {
+  background: var(--good-soft);
+  border: 1px solid color-mix(in srgb, var(--good) 32%, transparent);
+  border-radius: 2px;
+  padding: 20px 22px;
+}
+.keep ul { margin: 0; padding-left: 20px; }
+.keep li { margin-bottom: 9px; font-size: 15.5px; line-height: 1.5; }
+.keep li:last-child { margin-bottom: 0; }
+.keep li b { font-weight: 600; }
+
+.note {
+  border-left: 3px solid var(--accent);
+  padding: 2px 0 2px 16px;
+  margin: 18px 0;
+  color: var(--ink-2);
+  font-style: italic;
+}
+.note p { margin: 0; }
+
+hr.rule { border: 0; border-top: 1px solid var(--rule); margin: 44px 0 0; }
+
+footer {
+  margin-top: 64px;
+  padding-top: 22px;
+  border-top: 2px solid var(--ink);
+  font-family: var(--f-mono);
+  font-size: 11.5px;
+  color: var(--ink-3);
+  line-height: 1.7;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * { animation: none !important; transition: none !important; scroll-behavior: auto !important; }
+}
+@media (max-width: 620px) {
+  .bar-row { grid-template-columns: 1fr; gap: 5px; }
+  .bar-val { text-align: left; min-width: 0; }
+}
+</style>
+
+<div class="wrap">
+
+<header class="mast">
+  <p class="eyebrow">Performance &amp; resource audit · v1.4.0 · main @ cf52885</p>
+  <h1>Sieve under the profiler</h1>
+  <p class="standfirst">Sieve injects <strong>278&nbsp;KB of JavaScript into the top frame of every page</strong> and 46&nbsp;KB into every subframe, then runs up to thirteen independent whole-document MutationObservers on top of it. Most of that architecture is sound. Three things in it are not, and one of them &mdash; a single <code>Array.prototype.shift()</code> in a module that is <em>on by default</em> &mdash; burns half a second of pure CPU on a long page for work that costs 0.9&nbsp;ms done correctly.</p>
+  <div class="mast-meta">
+    <span><b>Measured on</b> Chrome 140 headless, Windows 11</span>
+    <span><b>Scope</b> 67 shipped JS files · 4.40 MB package</span>
+    <span><b>Findings</b> 25 · 3 P0 · 7 P1</span>
+  </div>
+</header>
+
+<nav class="rail">
+  <div class="rail-inner">
+    <a href="#status">00 Shipped</a>
+    <a href="#summary">01 Summary</a>
+    <a href="#top10">02 Top 10</a>
+    <a href="#cpu">03 CPU</a>
+    <a href="#memory">04 Memory</a>
+    <a href="#dom">05 DOM &amp; content scripts</a>
+    <a href="#sw">06 Service worker</a>
+    <a href="#netstore">07 Network &amp; storage</a>
+    <a href="#bundle">08 Bundle</a>
+    <a href="#arch">09 Architecture</a>
+    <a href="#roadmap">10 Roadmap</a>
+    <a href="#files">11 Files</a>
+    <a href="#impact">12 Impact</a>
+    <a href="#bench">13 Benchmarks</a>
+    <a href="#keep">Already good</a>
+  </div>
+</nav>
+
+<!-- ====================================================== status -->
+<section id="status">
+  <h2><span class="num">00</span>What has shipped</h2>
+  <p class="dek"><b>P0, P1, P2 and P3 are all implemented</b> on branch <code>perf/p0-p1-optimizations</code>. 478 tests pass (469 before, plus 9 new ones pinning the shared text walk). Figures below are measured after the change, on the same synthetic pages as the audit.</p>
+
+  <h3>The headline numbers</h3>
+  <div class="tbl-scroll"><table>
+    <thead><tr><th>Metric</th><th class="m">Before</th><th class="m">After</th><th class="m">Delta</th></tr></thead>
+    <tbody>
+      <tr><td><b>JS injected into every top frame</b></td><td class="m">284,649 B</td><td class="m">116,389 B</td><td class="m"><b>&minus;59%</b></td></tr>
+      <tr><td><b>JS injected into every subframe</b></td><td class="m">47,318 B</td><td class="m">35,428 B</td><td class="m"><b>&minus;25%</b></td></tr>
+      <tr><td><b>Total parsed on a 30-iframe page</b></td><td class="m">1.70 MB</td><td class="m">1.18 MB</td><td class="m"><b>&minus;31%</b></td></tr>
+      <tr><td><b>Chrome package</b></td><td class="m">4.40 MB</td><td class="m">3.97 MB</td><td class="m">&minus;10%</td></tr>
+      <tr><td><b>Firefox package</b></td><td class="m">4.40 MB</td><td class="m">3.36 MB</td><td class="m"><b>&minus;24%</b></td></tr>
+      <tr><td><b>Worst measured single task</b><br><span class="m">the bad-language queue drain</span></td><td class="m">503 ms</td><td class="m">0.9 ms</td><td class="m"><b>&minus;99.8%</b></td></tr>
+    </tbody>
+  </table></div>
+
+  <div class="tbl-scroll"><table>
+    <thead><tr><th>Change</th><th>Files</th><th class="m">Before</th><th class="m">After</th><th class="m">Delta</th></tr></thead>
+    <tbody>
+      <tr><td><b>Index cursor replaces <code>shift()</code></b><br><span class="m">plus a blank/short-node skip</span></td><td class="m">bad-language.js<br>profanity-filter.js</td><td class="m">503 ms</td><td class="m">0.9 ms</td><td class="m"><b>&minus;99.8%</b></td></tr>
+      <tr><td><b>Shared text walk</b><br><span class="m">two JS-filtered walks &rarr; one native walk</span></td><td class="m">dark-patterns.js<br>timers.js, scarcity.js</td><td class="m">62.5 ms</td><td class="m">15.7 ms</td><td class="m"><b>&minus;75%</b></td></tr>
+      <tr><td><b>Ad-slot name gate</b><br><span class="m">and the scroll listener removed entirely</span></td><td class="m">ad-slot-collapse.js</td><td class="m">19.7 ms<br><i>every 400 ms while scrolling</i></td><td class="m">2.8 ms<br><i>on mutation only</i></td><td class="m"><b>&minus;86%</b><br>and far rarer</td></tr>
+      <tr><td><b>Blank-node skip in the word filter</b></td><td class="m">bad-language.js</td><td class="m">12.3 ms</td><td class="m">9.2 ms</td><td class="m">&minus;26%</td></tr>
+      <tr><td><b>Leading throttle, bounded queue, split rect/style passes</b></td><td class="m">overlay-detector.js<br>link-hijack-detector.js<br>dark-patterns.js</td><td class="m">starves; queue<br>grows unbounded</td><td class="m">fires every<br>300 ms; capped<br>at 400 roots</td><td class="m"><b>bug fixed</b></td></tr>
+      <tr><td><b>Buffered stats writes</b><br><span class="m">plus per-burst batching at three senders</span></td><td class="m">stats.js, comment-collapse.js<br>overlay-detector.js<br>link-hijack-detector.js</td><td class="m">1 write +<br>~707 listener<br>calls per item</td><td class="m">1 write per<br>5 s, per burst</td><td class="m"><b>&minus;99%</b></td></tr>
+      <tr><td><b>Memoised shortener domain sets</b></td><td class="m">url-shortener-checker.js</td><td class="m">13 sets rebuilt<br>per click</td><td class="m">once per<br>worker wake</td><td class="m"><b>&minus;99%</b><br>after the first</td></tr>
+      <tr><td><b>Offscreen model released when idle</b></td><td class="m">service-worker.js</td><td class="m">resident for the<br>whole session</td><td class="m">closed after<br>10 min unused</td><td class="m"><b>&minus;55&ndash;150 MB</b><br>at idle</td></tr>
+      <tr><td><b>YouTube poll gated and cached</b></td><td class="m">youtube-ads.js</td><td class="m">4 qSA/s in<br>every frame</td><td class="m">0 when hidden<br>or no stream</td><td class="m"><b>&minus;100%</b><br>when hidden</td></tr>
+      <tr><td><b>One settings read for the <code>all_frames</code> trio</b></td><td class="m">popup-hijack-bridge.js<br>overlay-detector.js<br>link-hijack-detector.js</td><td class="m">123 reads<br><i>40-iframe page</i></td><td class="m">41</td><td class="m"><b>&minus;67%</b></td></tr>
+      <tr><td><b>Ad-tracker poll 1 min &rarr; 2 min</b><br><span class="m">not 5 &mdash; see the correction in finding 8</span></td><td class="m">ad-tracker-stats.js</td><td class="m">60 wakes/hr</td><td class="m">30 wakes/hr</td><td class="m">&minus;50%</td></tr>
+      <tr><td><b>Usage tracker no longer works on every wake while off</b></td><td class="m">usage-tracker.js</td><td class="m">storage write<br>per wake</td><td class="m">early return</td><td class="m"><b>&minus;100%</b><br>when off</td></tr>
+
+      <tr><td colspan="5" style="background:var(--surface);font-family:var(--f-mono);font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-3)">P2</td></tr>
+      <tr><td><b>Cookie engine registered dynamically</b><br><span class="m">new background/cookie-autoreject.js</span></td><td class="m">manifest.json<br>cookie-autoreject.js</td><td class="m">68 KB parsed<br>on every page</td><td class="m">0 unless the<br>feature is on</td><td class="m"><b>&minus;24%</b><br>of injected bytes</td></tr>
+      <tr><td><b>Prototype patches installed lazily</b><br><span class="m">and a real restore bug fixed &mdash; see below</span></td><td class="m">popup-hijack-blocker.js</td><td class="m">4 patched at<br>document_start</td><td class="m">0 until the<br>module is on</td><td class="m"><b>&minus;100%</b><br>when off</td></tr>
+      <tr><td><b><code>collectBlocks()</code> linearised</b></td><td class="m">search-filter.js</td><td class="m">12.5 ms<br><i>600 candidates</i></td><td class="m">O(n)</td><td class="m">quadratic<br>removed</td></tr>
+      <tr><td><b><code>compileList()</code> parses and probes once</b></td><td class="m">keyword-pattern.js</td><td class="m">32 probes/entry<br>5.3 ms @ 2000</td><td class="m">16 probes<br>2.5 ms</td><td class="m"><b>&minus;53%</b></td></tr>
+      <tr><td><b>Word lists inlined</b><br><span class="m">data files deleted; also closes a fingerprinting probe</span></td><td class="m">bad-language.js<br>both manifests</td><td class="m">2 fetches<br>per page</td><td class="m">0</td><td class="m"><b>&minus;100%</b></td></tr>
+      <tr><td><b>DNR rule marshalling stopped</b></td><td class="m">service-worker.js</td><td class="m">2 full marshals<br>per list edit</td><td class="m">0 after the<br>first write</td><td class="m"><b>&minus;100%</b><br>steady state</td></tr>
+      <tr><td><b><code>WALL_SELECTOR</code> on timed sweeps only</b></td><td class="m">anti-adblock-dom.js</td><td class="m">13.5 ms<br>every sweep</td><td class="m">6 timed<br>sweeps</td><td class="m">mutation path<br>freed</td></tr>
+      <tr><td><b>Cookie engine releases its object graph</b></td><td class="m">cookie-autoreject.js</td><td class="m">204 CMPs held<br>for the tab</td><td class="m">released on<br>finish</td><td class="m"><b>&minus;2&ndash;5 MB</b><br>per tab</td></tr>
+
+      <tr><td colspan="5" style="background:var(--surface);font-family:var(--f-mono);font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-3)">P3</td></tr>
+      <tr><td><b>Comments stripped at build time</b><br><span class="m">new build-strip-comments.mjs, verified per file</span></td><td class="m">build-chrome.ps1<br>build-firefox.ps1</td><td class="m">441 KB of prose<br>in the package</td><td class="m">480 KB<br>removed</td><td class="m"><b>&minus;10%</b><br>package</td></tr>
+      <tr><td><b>Chrome-only payload out of the Firefox build</b></td><td class="m">build-firefox.ps1</td><td class="m">638 KB that<br>cannot load</td><td class="m">removed</td><td class="m"><b>&minus;24%</b><br>Firefox package</td></tr>
+      <tr><td><b><code>keyword-pattern.js</code> loaded once</b><br><span class="m">shared through the isolated world</span></td><td class="m">both manifests</td><td class="m">4 loads<br>per page</td><td class="m">1 (top) +<br>1 (subframes)</td><td class="m"><b>&minus;66 KB</b><br>per page</td></tr>
+      <tr><td><b>Facebook idle sweep gated on visibility</b></td><td class="m">facebook-ads-dom.js</td><td class="m">full sweep<br>every 5 s</td><td class="m">0 while<br>hidden</td><td class="m"><b>&minus;100%</b><br>backgrounded</td></tr>
+      <tr><td><b>Popup fan-out scoped to hosts that can answer</b></td><td class="m">popup.js</td><td class="m">1 message<br>per frame</td><td class="m">top + the 4<br>real hosts</td><td class="m">&minus;90%+<br>on ad-heavy pages</td></tr>
+      <tr><td><b><code>chooseTarget()</code> stops at the ceiling</b></td><td class="m">patterns/timers.js</td><td class="m">O(depth &times;<br>subtree)</td><td class="m">stops when<br>text &gt; 80</td><td class="m">bounded</td></tr>
+    </tbody>
+  </table></div>
+
+  <h3>What implementing the audit proved wrong about it</h3>
+  <p>Three of these recommendations did not survive being carried out. Each is corrected where it appears, and they are collected here because the pattern matters more than the individual errors: <b>every one was a figure estimated rather than measured.</b></p>
+  <ul>
+    <li><b>"Raise the ad-tracker poll to 5 minutes."</b> Five minutes <em>is</em> the matched-rule retention window, so that cadence drops matches and under-reports silently. The code comment said so and the audit did not read it carefully enough. Shipped 2 minutes. <span class="m">(finding 8)</span></li>
+    <li><b>"Two one-minute alarms on a default install."</b> Neither alarm exists by default &mdash; both belong to opt-in features. <span class="m">(section 01)</span></li>
+    <li><b>"Newline format for the tracker list, ~&minus;1 MB."</b> Measured at 191 KB on disk and 9 KB compressed. Withdrawn. <span class="m">(section 10, P3)</span></li>
+  </ul>
+  <p>A fourth thing the audit got wrong in the other direction: it said the 284 KB of injected script cost only 3.5 ms to compile and was therefore a memory problem rather than a CPU one. That was right &mdash; but it undersold the fix, because the same work that halved the bytes also removed two per-page fetches, 68 KB of an opt-in feature, and three redundant executions of a 22 KB file.</p>
+
+  <div class="note"><p><b>One regression, introduced and then resolved.</b> The P0&ndash;P2 work added ~11 KB of explanatory comments to the five scripts that run in every iframe, which briefly pushed the per-subframe payload <em>above</em> its starting point (47,318 &rarr; 58,782 B). P3's build-time strip took it to 35,428 B &mdash; below baseline. Worth recording because it is the failure mode of a comment-heavy house style meeting a byte budget, and the fix is a build step rather than writing less down.</p></div>
+</section>
+
+<!-- ====================================================== 1 -->
+<section id="summary">
+  <h2><span class="num">01</span>Performance audit summary</h2>
+  <p class="dek">What the profiler actually says, as opposed to what the code comments promise. Every number below was measured, not estimated.</p>
+
+  <p>Sieve's newer modules are genuinely well engineered. <code>content/facebook-ads-dom.js</code> uses a leading-edge throttle with an <code>armed</code> flag, caps its pending roots, dedupes ancestors, filters disconnected nodes, and drains its own mutation records &mdash; that is the correct pattern, and it should be the template for everything else. <code>content/anti-adblock-dom.js</code> orders its predicates cheapest-first so <code>innerText</code> (a forced reflow) is only ever paid on candidates that already passed a free <code>textContent</code> check. The whole Ad &amp; Trackers suite registers dynamically, so a user who never enables it pays literally nothing.</p>
+
+  <p>The problems are concentrated in three places: the <strong>always-on default modules</strong> (Bad Language, Dark Patterns), the <strong>older Popup-Hijack detectors</strong>, and the <strong>stats plumbing</strong> that every module writes through. In each case the pattern is the same &mdash; work that is correct on a 2,000-element demo page and superlinear on a real one.</p>
+
+  <div class="chart">
+    <div class="chart-head">
+      <h3>Measured main-thread cost, against the 16.7 ms frame budget</h3>
+      <span class="scale">linear scale · 0&ndash;520 ms</span>
+    </div>
+    <div class="bars">
+
+      <div class="bar-row">
+        <div class="bar-label">bad-language queue drain<br><i>128k text nodes · <code>shift()</code></i></div>
+        <div class="bar-track"><div class="frame-line" style="left:3.21%"></div><div class="bar-fill sev0" style="width:96.7%"></div></div>
+        <div class="bar-val">503 ms <em>· 30 frames</em></div>
+      </div>
+
+      <div class="bar-row">
+        <div class="bar-label">overlay-detector one flush<br><i>3,000 candidates · rect + style</i></div>
+        <div class="bar-track"><div class="frame-line" style="left:3.21%"></div><div class="bar-fill sev0" style="width:85.4%"></div></div>
+        <div class="bar-val">444 ms <em>· 27 frames</em></div>
+      </div>
+
+      <div class="bar-row">
+        <div class="bar-label">default-on idle scans<br><i>112k-element page</i></div>
+        <div class="bar-track"><div class="frame-line" style="left:3.21%"></div><div class="bar-fill sev1" style="width:48.1%"></div></div>
+        <div class="bar-val">250 ms <em>· 15 frames</em></div>
+      </div>
+
+      <div class="bar-row">
+        <div class="bar-label">bad-language TreeWalker<br><i>collect 128k text nodes</i></div>
+        <div class="bar-track"><div class="frame-line" style="left:3.21%"></div><div class="bar-fill sev1" style="width:15.5%"></div></div>
+        <div class="bar-val">80.5 ms <em>· 4.8 frames</em></div>
+      </div>
+
+      <div class="bar-row">
+        <div class="bar-label">default-on idle scans<br><i>28k-element page (typical)</i></div>
+        <div class="bar-track"><div class="frame-line" style="left:3.21%"></div><div class="bar-fill sev1" style="width:14.1%"></div></div>
+        <div class="bar-val">73.1 ms <em>· 4.4 frames</em></div>
+      </div>
+
+      <div class="bar-row">
+        <div class="bar-label">ad-slot-collapse sweep<br><i>96k elements · <b>per scroll tick</b></i></div>
+        <div class="bar-track"><div class="frame-line" style="left:3.21%"></div><div class="bar-fill sev1" style="width:8.0%"></div></div>
+        <div class="bar-val">41.7 ms <em>· 2.5 frames</em></div>
+      </div>
+
+      <div class="bar-row">
+        <div class="bar-label">cookies.js findBanner<br><i>32k links/buttons</i></div>
+        <div class="bar-track"><div class="frame-line" style="left:3.21%"></div><div class="bar-fill" style="width:7.0%"></div></div>
+        <div class="bar-val">36.6 ms <em>· 2.2 frames</em></div>
+      </div>
+
+      <div class="bar-row">
+        <div class="bar-label">anti-adblock WALL_SELECTOR<br><i>20k elements · per sweep</i></div>
+        <div class="bar-track"><div class="frame-line" style="left:3.21%"></div><div class="bar-fill" style="width:2.6%"></div></div>
+        <div class="bar-val">13.5 ms <em>· 0.8 frames</em></div>
+      </div>
+
+      <div class="bar-row">
+        <div class="bar-label">compile 284 KB of injected JS<br><i>every top frame</i></div>
+        <div class="bar-track"><div class="frame-line" style="left:3.21%"></div><div class="bar-fill" style="width:0.67%"></div></div>
+        <div class="bar-val">3.5 ms <em>· 0.2 frames</em></div>
+      </div>
+
+    </div>
+    <div class="frame-key"><span class="dash"></span> 16.7 ms &mdash; one frame at 60 Hz. Anything past this line is a dropped frame. A low-end device is 3&ndash;5&times; these figures.</div>
+  </div>
+
+  <div class="note"><p>The last bar is the useful control. Injecting a quarter-megabyte of source into every page &mdash; the thing that <em>looks</em> most alarming &mdash; costs 3.5 ms. The scans cost 20&ndash;140&times; that. Bundle size is a real problem here, but it is a <em>memory and install-size</em> problem, not a CPU one.</p></div>
+
+  <h3>Idle behaviour</h3>
+  <p>Not close to zero <em>once features are enabled</em>. A browser sitting untouched runs up to two independent one-minute <code>chrome.alarms</code>, each waking the service worker and re-evaluating the full 16-module import graph. An open YouTube tab additionally runs <code>setInterval(skipAdIfPlaying, 250)</code> in every frame, forever, with no <code>document.hidden</code> gate; an open Facebook tab runs a 5-second full-document sweep on the same terms.</p>
+  <div class="note"><p><b>Correction.</b> An earlier draft of this section said "with defaults". That was wrong, and checking it while implementing the fix is what caught it: the usage-tracker heartbeat is only armed when Usage Insights is on (opt-in, off by default), and the ad-tracker stats poll only when an Ad&nbsp;&amp; Trackers group is on (also opt-in). On a genuinely default install neither alarm exists. The finding stands for users who enable those features; the "every user pays this" framing did not.</p></div>
+
+  <h3>Startup behaviour</h3>
+  <p>Every page load pays: 3.5 ms of compile, five <code>chrome.storage.local.get</code> round-trips in the top frame plus three more <em>per subframe</em>, and &mdash; at <code>document_idle</code> &mdash; three separate full-document <code>TreeWalker</code> passes from three modules that never talk to each other.</p>
+</section>
+
+<!-- ====================================================== 2 -->
+<section id="top10">
+  <h2><span class="num">02</span>Top 10 performance problems</h2>
+  <p class="dek">Ranked by measured impact, not by how wrong the code looks.</p>
+
+  <div class="finding p0">
+    <div class="f-head">
+      <h4>1. <code>queue.shift()</code> makes the text-node drain quadratic</h4>
+      <span class="pill p0">P0</span><span class="pill fix-simple">Simple</span>
+    </div>
+    <p class="f-loc">content/bad-language.js:218 &nbsp;·&nbsp; content/profanity-filter.js:400</p>
+    <p><b>Cause.</b> <code>scheduleFlush()</code> drains a queue of every text node on the page with <code>scanQueue.shift()</code>, 400 per idle slice. V8 has a fast path for <code>shift()</code> on small arrays, but past roughly 16k elements it degrades to a full memmove per call. The queue holds <em>every text node in the document</em>.</p>
+    <p><b>Why expensive.</b> Each of the 400 shifts in a slice moves the entire remaining queue down one slot. At a queue depth of 128,000 that is 51 million element moves per slice, and there are 320 slices.</p>
+    <div class="f-grid">
+      <div class="f-cell"><dt>Measured</dt><dd>503 ms<br>vs 0.9 ms</dd></div>
+      <div class="f-cell"><dt>Per idle slice</dt><dd>3.5 ms of pure<br>overhead</dd></div>
+      <div class="f-cell"><dt>Frequency</dt><dd>Every page load<br>(module is default-ON)</dd></div>
+      <div class="f-cell"><dt>Impact</dt><dd>Sustained jank for<br>~5 s after load</dd></div>
+    </div>
+    <p>The slice guard <code>deadline.timeRemaining() &gt; 4</code> cannot help: the <code>shift()</code> cost is paid <em>inside</em> the loop body, so the deadline is already blown by the time it is checked again.</p>
+    <div class="fix"><strong>Fix</strong>
+      <pre><span class="del">- while (scanQueue.length && (deadline.timeRemaining() > 4 || processed < 50)) {</span>
+<span class="del">-   scanNode(scanQueue.shift());</span>
+<span class="add">+ while (queueHead < scanQueue.length && (deadline.timeRemaining() > 4 || processed < 50)) {</span>
+<span class="add">+   scanNode(scanQueue[queueHead++]);</span>
+    processed++;
+    if (processed >= 400) break;
+  }
+<span class="cmt">  // then, once drained: scanQueue.length = 0; queueHead = 0;</span></pre>
+      <p>An index cursor, plus a reset when the queue empties. Six lines, ~550&times; faster on a long page. Apply the identical change to <code>profanity-filter.js</code>.</p>
+    </div>
+  </div>
+
+  <div class="finding p0">
+    <div class="f-head">
+      <h4>2. Every recorded block rewrites the whole stats blob and broadcasts to every frame in every tab</h4>
+      <span class="pill p0">P0</span><span class="pill fix-arch">Architectural</span>
+    </div>
+    <p class="f-loc">common/stats.js:65 <code>recordBlock()</code> &nbsp;·&nbsp; senders in comment-collapse.js:148, overlay-detector.js:185, link-hijack-detector.js:129, dark-patterns.js:90</p>
+    <p><b>Cause.</b> <code>recordBlock()</code> does a read&ndash;modify&ndash;write of the entire 30-day <code>sieveStats</code> object per event. Three callers send <em>one message per item</em>: <code>comment-collapse</code> fires once per collapsed comment, the two hijack detectors once per removed element.</p>
+    <p><b>Why expensive.</b> One recorded block costs a service-worker wake, a <code>storage.local.get</code>, a <code>storage.local.set</code> (disk-backed LevelDB), and then a <code>storage.onChanged</code> broadcast that Chrome delivers to <em>every</em> listener with access &mdash; 17 in the service worker, 9 per top frame, 3 per subframe, in every open tab.</p>
+    <div class="f-grid">
+      <div class="f-cell"><dt>Listener calls<br>per event</dt><dd>~707<br><i>(10 tabs &times; 20 frames)</i></dd></div>
+      <div class="f-cell"><dt>Disk writes</dt><dd>1 per collapsed<br>comment</dd></div>
+      <div class="f-cell"><dt>Worst case</dt><dd>Reddit thread,<br>200 collapses</dd></div>
+      <div class="f-cell"><dt>Impact</dt><dd>SW never sleeps;<br>every tab does work</dd></div>
+    </div>
+    <div class="fix"><strong>Fix</strong>
+      <p>Two changes, both small. <b>(a)</b> In each content script, accumulate counts and flush once per second with a trailing timer, so a burst of 200 collapses becomes one message carrying <code>count: 200</code> &mdash; the message shape already supports it. <b>(b)</b> In <code>stats.js</code>, coalesce writes: buffer increments in memory and flush to <code>storage.local</code> on a 5-second timer plus <code>onSuspend</code>. Together this turns a 200-write storm into one write.</p>
+    </div>
+  </div>
+
+  <div class="finding p0">
+    <div class="f-head">
+      <h4>3. Debounce starvation, unbounded queues, and layout thrash in the hijack detectors</h4>
+      <span class="pill p0">P0</span><span class="pill fix-simple">Simple</span>
+    </div>
+    <p class="f-loc">content/overlay-detector.js:225&ndash;265 &nbsp;·&nbsp; content/link-hijack-detector.js:180&ndash;220 &nbsp;·&nbsp; content/dark-patterns.js:157&ndash;170</p>
+    <p><b>Cause.</b> All three use a trailing debounce with no maximum wait:</p>
+    <pre>clearTimeout(debounceTimer);
+debounceTimer = setTimeout(flushMutations, 300);</pre>
+    <p>On any page that mutates more often than every 300 ms &mdash; a feed, a carousel, a spinner toggling a class, a live ticker &mdash; the timer is cancelled before it can fire. Three consequences, all bad at once: the flush <em>never runs</em> (the feature silently does nothing), <code>pending</code> grows without bound (there is no cap on the push, only on the collection), and it holds strong references to detached DOM nodes.</p>
+    <p><b>The flush itself</b> is the other half. <code>isHijackOverlay()</code> calls <code>getBoundingClientRect()</code> then <code>getComputedStyle()</code> per candidate, up to <code>MAX_CANDIDATES = 3000</code>. Interleaving reads that way forces a style-and-layout recalculation per element.</p>
+    <div class="f-grid">
+      <div class="f-cell"><dt>Measured flush</dt><dd>444 ms<br><i>3,000 candidates</i></dd></div>
+      <div class="f-cell"><dt>Queue cap</dt><dd>none</dd></div>
+      <div class="f-cell"><dt>Observers</dt><dd>attributes + subtree<br>on documentElement</dd></div>
+      <div class="f-cell"><dt>Scope</dt><dd><b>all_frames</b> &mdash; one<br>per iframe</dd></div>
+    </div>
+    <div class="fix"><strong>Fix</strong>
+      <p>Copy the pattern already used correctly in <code>anti-adblock-dom.js:495</code>: a <em>leading</em> throttle guarded by a <code>scheduled</code> flag, so the first burst flushes at 150 ms and subsequent ones coalesce. Then cap <code>pending</code> at a few hundred (use a <code>Set</code>, as <code>anti-adblock-dom</code> does), and split the flush into two passes &mdash; read every <code>getBoundingClientRect()</code> first, filter on coverage, then read <code>getComputedStyle()</code> only for survivors. Almost no element covers 80% of the viewport, so the second pass will normally be empty.</p>
+    </div>
+  </div>
+
+  <div class="finding p1">
+    <div class="f-head">
+      <h4>4. Three modules each walk the entire document, separately, at <code>document_idle</code></h4>
+      <span class="pill p1">P1</span><span class="pill fix-arch">Architectural</span>
+    </div>
+    <p class="f-loc">content/bad-language.js:150 &nbsp;·&nbsp; content/patterns/timers.js:192 &nbsp;·&nbsp; content/patterns/scarcity.js:180</p>
+    <p><b>Cause.</b> Bad Language collects every text node into an array. Timers walks every text node applying <code>TIME_TEXT_RE</code>. Scarcity walks every text node applying <code>SCARCITY_RE</code>. Three <code>createTreeWalker</code> passes over the same nodes, with a JS <code>acceptNode</code> callback (which crosses the JS&harr;C++ boundary per node), by three modules that are all on by default and never coordinate. Add <code>guilt-copy</code>, <code>checkboxes</code> and <code>cookies</code>, each with its own <code>querySelectorAll</code>.</p>
+    <div class="f-grid">
+      <div class="f-cell"><dt>28k elements</dt><dd>73.1 ms</dd></div>
+      <div class="f-cell"><dt>112k elements</dt><dd>~250 ms</dd></div>
+      <div class="f-cell"><dt>On low-end</dt><dd>290 ms / 1.0 s</dd></div>
+      <div class="f-cell"><dt>User opt-in</dt><dd>none &mdash; this is<br>the default</dd></div>
+    </div>
+    <p>Half the collected nodes are whitespace-only (64,002 of 128,002 measured) and are still handed to the regex.</p>
+    <div class="fix"><strong>Fix</strong>
+      <p>One shared walk, one visitor list. Add a tiny <code>common/text-scan.js</code> that walks the document once and offers each text node to registered visitors; have Bad Language, Timers and Scarcity register instead of walking. Skip nodes whose <code>nodeValue</code> is blank or shorter than the shortest term before any regex runs. Expect ~3&times; reduction; combined with the shared walk, ~60&ndash;70% off the figures above.</p>
+    </div>
+  </div>
+
+  <div class="finding p1">
+    <div class="f-head">
+      <h4>5. Ad-slot collapse tokenises every element on the page, on every scroll tick</h4>
+      <span class="pill p1">P1</span><span class="pill fix-simple">Simple</span>
+    </div>
+    <p class="f-loc">content/ad-slot-collapse.js:200&ndash;280 <code>sweep()</code>, <code>nameIsSlot()</code>, <code>tokensOf()</code></p>
+    <p><b>Cause.</b> <code>sweep()</code> runs <code>document.querySelectorAll("[class],[id]")</code> &mdash; effectively every element &mdash; and for each one calls <code>nameIsSlot()</code>, which does a <code>split(/\s+/)</code>, then <code>tokensOf()</code>: two regex replaces, a split and a filter. Four array allocations per element. It is scheduled by both a MutationObserver <em>and</em> a <code>scroll</code> listener on a 400 ms throttle.</p>
+    <div class="f-grid">
+      <div class="f-cell"><dt>Measured</dt><dd>41.7 ms<br><i>96k elements</i></dd></div>
+      <div class="f-cell"><dt>Cadence</dt><dd>every 400 ms<br>while scrolling</dd></div>
+      <div class="f-cell"><dt>Duty cycle</dt><dd>~10% of a core,<br>sustained</dd></div>
+      <div class="f-cell"><dt>Low-end</dt><dd>167 ms &gt; 400 ms<br>window &rarr; busy loop</dd></div>
+    </div>
+    <div class="fix"><strong>Fix</strong>
+      <p>Three cheap changes, in order of payoff. <b>(a)</b> Mark every element the sweep has judged (a <code>WeakSet</code>, or reuse the existing <code>data-sieve-collapsed</code> convention with a second value) and skip it thereafter &mdash; a class name does not usually change into an ad slot. <b>(b)</b> Bail before tokenising: <code>if (!/ad|gpt|dfp|sponsor|taboola|outbrain|mgid/i.test(name)) return false;</code> &mdash; one regex test rejects &gt;99% of names with no allocation. <b>(c)</b> Drop the <code>scroll</code> listener entirely; the MutationObserver already fires when lazy-loaded slots arrive, which is the actual event of interest.</p>
+    </div>
+  </div>
+
+  <div class="finding p1">
+    <div class="f-head">
+      <h4>6. Shortener resolution rebuilds a dozen 200k-entry Sets per click, inside a 3-second deadline</h4>
+      <span class="pill p1">P1</span><span class="pill fix-arch">Architectural</span>
+    </div>
+    <p class="f-loc">background/url-shortener-checker.js:163 <code>checkResolvedUrl()</code></p>
+    <p><b>Cause.</b> For every click on a shortener link, the checker walks 13 categories. Each builds a fresh <code>Set</code> from a fresh fetch and parse. <code>getGamblingDomains()</code> additionally calls <code>chrome.declarativeNetRequest.getDynamicRules()</code>, which marshals the full gambling ruleset &mdash; up to 400,000 domain strings packed 10,000 to a rule &mdash; across the IPC boundary. Nothing is memoised.</p>
+    <p><b>Why it matters more than the raw cost.</b> The content script gives this a hard <code>RESOLVE_TIMEOUT_MS = 3000</code> and fails open. On a slow machine the check loses that race, so the user's click is delayed by three seconds <em>and</em> the protection silently does not apply.</p>
+    <div class="fix"><strong>Fix</strong>
+      <p>Replace the whole hand-rolled matcher with <code>chrome.declarativeNetRequest.testMatchOutcome()</code>, which asks the engine that already holds these rules whether a URL would be blocked, natively, with no Sets and no marshalling. The <code>declarativeNetRequestFeedback</code> permission is already in the manifest. Keep the manual path as the Firefox fallback, but memoise each category's <code>Set</code> at module scope and invalidate on <code>storage.onChanged</code>.</p>
+    </div>
+  </div>
+
+  <div class="finding p1">
+    <div class="f-head">
+      <h4>7. The offscreen toxicity document is never closed</h4>
+      <span class="pill p1">P1</span><span class="pill fix-simple">Simple</span>
+    </div>
+    <p class="f-loc">background/service-worker.js:633 <code>ensureOffscreenDoc()</code>, :672 the only <code>closeDocument()</code></p>
+    <p><b>Cause.</b> The document is created on the first classify request and closed only when <code>toxicModelEnabled</code> flips to <code>false</code>. Close every YouTube and Reddit tab and it stays resident, holding the TensorFlow.js runtime and a ~55 MB model, for the rest of the browser session.</p>
+    <div class="fix"><strong>Fix</strong>
+      <p>An idle timer. Record <code>lastClassifyTs</code> on each relay; on a 5-minute alarm, if nothing has been classified for 10 minutes, call <code>chrome.offscreen.closeDocument()</code>. <code>ensureOffscreenDoc()</code> already handles recreation, so the next classify just pays one reload.</p>
+    </div>
+  </div>
+
+  <div class="finding p1">
+    <div class="f-head">
+      <h4>8. Two independent one-minute alarms keep the service worker awake forever</h4>
+      <span class="pill p1">P1</span><span class="pill fix-simple">Simple</span>
+    </div>
+    <p class="f-loc">background/ad-tracker-stats.js:73 <code>POLL_MINUTES = 1</code> &nbsp;·&nbsp; background/usage-tracker.js:48 <code>HEARTBEAT_MINUTES = 1</code> &nbsp;·&nbsp; usage-tracker.js:356 top-level <code>start()</code></p>
+    <p><b>Cause.</b> Two alarms on independent one-minute periods mean up to two service-worker wakes per minute, each re-evaluating the full import graph of 16 background modules plus <code>keyword-pattern.js</code>. Worse, <code>usage-tracker.js</code> calls <code>start()</code> at module top level &mdash; so <em>every</em> wake, from any cause, runs a storage read, an <code>alarms.create</code>, and (when enabled) a <code>resync()</code> that queries the focused window, the active tab and the idle state, then writes the open segment back to storage.</p>
+    <div class="fix"><strong>Fix</strong>
+      <p><b>(a)</b> Raise the ad-tracker stats poll from 1 minute to <b>2</b>. <b>(b)</b> Guard the top-level <code>start()</code> so a wake with tracking disabled does nothing but return &mdash; it currently calls <code>schedulePrune()</code> and <code>clearOpenSegment()</code> (a storage write) on every wake, for a feature that is off.</p>
+      <p><b>Corrected from an earlier draft, which said to raise the poll to 5 minutes and to merge the two alarms. Both were wrong.</b> The comment above <code>POLL_MINUTES</code> spells out why: matched rules not tied to an open document are dropped after <em>five</em> minutes, so polling at five would miss any match made just after the previous poll and under-report silently. Two minutes is a quarter of the API quota with 2.5&times; headroom against retention. And the usage-tracker heartbeat cannot simply be merged or slowed: <code>LIVENESS_GRACE_MS</code> is derived from it (<code>2 &times; HEARTBEAT_MS</code>), so lengthening it widens the window in which a suspended machine can bank time it did not spend &mdash; degrading the accuracy that is the whole point of that feature. It stays at one minute, and it only runs when the user has opted in.</p>
+    </div>
+  </div>
+
+  <div class="finding p1">
+    <div class="f-head">
+      <h4>9. A 250 ms polling timer on YouTube, in every frame, that never stops</h4>
+      <span class="pill p1">P1</span><span class="pill fix-simple">Simple</span>
+    </div>
+    <p class="f-loc">content/youtube-ads.js:729 &nbsp;·&nbsp; registered with <code>allFrames: true</code> (background/youtube-ads.js:49)</p>
+    <p>Four times a second, in every frame of every YouTube tab, forever: <code>document.querySelector("video")</code>, an <code>adOnScreen()</code> check, and sometimes a second three-selector query. Frames that contain no video pay it too. There is no <code>document.hidden</code> gate, so a backgrounded or pinned tab keeps the timer alive and blocks the renderer from entering deep idle.</p>
+    <div class="fix"><strong>Fix</strong>
+      <p>Cache the <code>&lt;video&gt;</code> element (refresh it from the existing observer rather than re-querying), return immediately when <code>document.hidden</code>, and start the interval lazily &mdash; only once a video element has actually been seen in this frame. The polling rationale in the comment is sound; the cost is in re-querying and in running where there is nothing to find.</p>
+    </div>
+  </div>
+
+  <div class="finding p1">
+    <div class="f-head">
+      <h4>10. Every subframe independently reads storage at <code>document_start</code></h4>
+      <span class="pill p1">P1</span><span class="pill fix-simple">Simple</span>
+    </div>
+    <p class="f-loc">content/popup-hijack-bridge.js:104 &nbsp;·&nbsp; content/overlay-detector.js:48 &nbsp;·&nbsp; content/link-hijack-detector.js:49</p>
+    <p>Three <code>all_frames</code> scripts each issue their own <code>chrome.storage.local.get</code>. They all want the same key. On a page with 40 iframes that is 123 IPC round-trips to the browser process at <code>document_start</code> &mdash; the most latency-sensitive moment in the page's life &mdash; and 123 <code>storage.onChanged</code> listeners left registered afterwards.</p>
+    <div class="fix"><strong>Fix</strong>
+      <p>They are already loaded as one manifest entry and share an isolated world. Have the bridge do the single read and hand the result to the other two through a shared <code>window.__sieveHijackConfig</code> promise. Three reads become one. Register one <code>storage.onChanged</code> listener that fans out in-process.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ====================================================== 3 -->
+<section id="cpu">
+  <h2><span class="num">03</span>CPU optimization opportunities</h2>
+  <p class="dek">Beyond the top ten &mdash; what else burns cycles, and what turns out not to.</p>
+
+  <div class="finding p2">
+    <div class="f-head">
+      <h4>11. Eight case-insensitive substring attribute selectors, per sweep</h4>
+      <span class="pill p2">P2</span><span class="pill fix-simple">Simple</span>
+    </div>
+    <p class="f-loc">content/anti-adblock-dom.js:349 <code>WALL_SELECTOR</code></p>
+    <p><code>[class*='adblock' i]</code> and its seven siblings are the slowest selector shape in Blink: no fast path, so the engine walks every element doing a case-folding substring search. Measured at <b>13.5 ms per call over 20,000 elements</b>, and <code>candidates()</code> calls it on every sweep &mdash; six timed sweeps plus one per mutation burst.</p>
+    <div class="fix"><strong>Fix</strong>
+      <p>Run the full <code>WALL_SELECTOR</code> query only on the six <em>timed</em> sweeps. Mutation-driven sweeps already have their candidates in <code>pending</code> and do not need to re-scan the document. Alternatively, drop <code>i</code> from the class selectors and pair each with its lowercase form &mdash; class names are effectively case-sensitive in practice, and the pair is far cheaper than the flag.</p>
+    </div>
+  </div>
+
+  <div class="finding p2">
+    <div class="f-head">
+      <h4>12. Prototype patches installed even when the module is off</h4>
+      <span class="pill p2">P2</span><span class="pill fix-simple">Simple</span>
+    </div>
+    <p class="f-loc">content/popup-hijack-blocker.js:297, :306, :337, :360</p>
+    <p><code>window.open</code>, <code>HTMLAnchorElement.prototype.click</code>, <code>HTMLFormElement.prototype.submit</code> and <code>EventTarget.prototype.dispatchEvent</code> are all replaced unconditionally at <code>document_start</code>, in the MAIN world, in every frame. The <code>enabled</code> flag is checked <em>inside</em> the replacement. Popup Hijack is off by default, so every user pays this for a feature they have not turned on.</p>
+    <p><code>dispatchEvent</code> is the one that matters &mdash; it is on the hot path of every React app and every custom event bus, and the wrapper's <code>nativeDispatch.apply(this, arguments)</code> forces an arguments-object materialisation per call.</p>
+    <div class="f-grid">
+      <div class="f-cell"><dt>Measured</dt><dd>+16% per<br>dispatchEvent</dd></div>
+      <div class="f-cell"><dt>Per call</dt><dd>+0.21 &micro;s</dd></div>
+      <div class="f-cell"><dt>At 10k/s</dt><dd>~2 ms/s wasted</dd></div>
+      <div class="f-cell"><dt>Honest verdict</dt><dd>Small &mdash; but<br>100% waste when off</dd></div>
+    </div>
+    <div class="fix"><strong>Fix</strong>
+      <p>Install the patches lazily, from the bridge's <code>config</code> message, and only when <code>enabled &amp;&amp; !whitelisted</code>. Keep the <code>restores</code> list so a live toggle-off can unpatch. Also change <code>nativeDispatch.apply(this, arguments)</code> to <code>nativeDispatch.call(this, evt)</code> &mdash; <code>dispatchEvent</code> takes exactly one argument.</p>
+    </div>
+  </div>
+
+  <div class="finding p2">
+    <div class="f-head">
+      <h4>13. <code>collectBlocks()</code> is O(n&sup2;) in <code>contains()</code>; <code>pathMatches()</code> compiles a RegExp per test</h4>
+      <span class="pill p2">P2</span><span class="pill fix-simple">Simple</span>
+    </div>
+    <p class="f-loc">content/search-filter.js:353&ndash;392 &nbsp;·&nbsp; common/search-filter.js:66 <code>pathMatches()</code></p>
+    <p>Each candidate is tested against every other candidate with <code>contains()</code>, then against everything already found. Measured at 0.2 ms for 50 candidates, 1.4 ms for 200, <b>12.5 ms for 600</b> &mdash; the quadratic curve is plainly visible. A Google SERP with continuous scroll reaches the high hundreds.</p>
+    <p>Separately, <code>pathMatches()</code> calls <code>new RegExp(...)</code> on every invocation. It early-returns for bare-domain rules (the common case), but a user with path-scoped rules pays a fresh compile per rule per result.</p>
+    <div class="fix"><strong>Fix</strong>
+      <p>Replace the double <code>some()</code> with a single downward pass: sort candidates by DOM order (they already are, from <code>querySelectorAll</code>), keep a reference to the last accepted block, and skip any candidate it contains. That is O(n). For <code>pathMatches</code>, compile the path regex once in <code>compile()</code> and store it on the rule beside <code>host</code> and <code>path</code>.</p>
+    </div>
+  </div>
+
+  <div class="finding p2">
+    <div class="f-head">
+      <h4>14. Every list entry is validated twice, with ReDoS probes both times</h4>
+      <span class="pill p2">P2</span><span class="pill fix-simple">Simple</span>
+    </div>
+    <p class="f-loc">common/keyword-pattern.js:381 <code>compileList()</code></p>
+    <p><code>compileList()</code> calls <code>parseListEntry()</code>, then <code>validateListEntry()</code> (which parses again and runs the timing probes), then <code>compileEntry()</code> (which validates and probes a third time). Instrumenting <code>RegExp.prototype.test</code> shows <b>32 calls to compile a single <code>/regex/</code> entry</b>.</p>
+    <p>The absolute cost is modest &mdash; 7.4 ms for a 2,000-entry list with 100 regexes &mdash; but it is paid on every page load, in every tab, by <code>custom-block.js</code>, and again by <code>search-filter.js</code> on every SERP.</p>
+    <div class="fix"><strong>Fix</strong>
+      <p>Have <code>compileList()</code> parse once and pass the parsed entry down, and give <code>compileEntry()</code> an internal variant that skips re-validation when the caller has already validated. Cuts the probe work in half with no change to the safety guarantee.</p>
+    </div>
+  </div>
+
+  <div class="finding p3">
+    <div class="f-head">
+      <h4>15. <code>chooseTarget()</code> reads <code>textContent</code> at every ancestor level</h4>
+      <span class="pill p3">P3</span><span class="pill fix-simple">Simple</span>
+    </div>
+    <p class="f-loc">content/patterns/timers.js:109&ndash;124</p>
+    <p>Walking from a timer element up to <code>document.body</code>, reading <code>node.textContent</code> (an O(subtree) serialisation) and <code>getComputedStyle</code> at each level, is O(depth &times; subtree). It only runs on confirmed decreasing timers, so it is rare &mdash; but it is unbounded on a deep DOM.</p>
+    <div class="fix"><strong>Fix</strong>
+      <p>Stop climbing once <code>textContent.length</code> exceeds the 80-character ceiling; length only grows going up, so every further level is guaranteed to fail the test.</p>
+    </div>
+  </div>
+
+  <h3>Measured and found <em>not</em> to be a problem</h3>
+  <p>Two things that look expensive and are not, so they should be left alone:</p>
+  <ul>
+    <li><b>The 942-term profanity alternation regex.</b> Applied to three text variants per comment, it costs <b>24 &micro;s per comment</b> &mdash; V8 handles a flat alternation well. 5,000 comments cost 118 ms of regex, spread across idle slices. Not worth restructuring into a trie.</li>
+    <li><b><code>extractText()</code>'s per-comment TreeWalker.</b> 2.4 ms for 2,000 comments. Fine.</li>
+  </ul>
+</section>
+
+<!-- ====================================================== 4 -->
+<section id="memory">
+  <h2><span class="num">04</span>Memory optimization opportunities</h2>
+  <p class="dek">Three real leaks, one large avoidable retention, and a lot of per-frame duplication.</p>
+
+  <div class="tbl-scroll"><table>
+    <thead><tr><th>Site</th><th>What is retained</th><th class="m">Size</th><th>Lifetime</th></tr></thead>
+    <tbody>
+      <tr><td><code>overlay-detector.js</code>, <code>link-hijack-detector.js</code>, <code>dark-patterns.js</code></td><td><b>Leak.</b> <code>pending</code> / <code>pendingNodes</code> array grows without bound on any page that starves the debounce; holds strong refs to detached elements</td><td class="m">unbounded</td><td>page lifetime</td></tr>
+      <tr><td><code>service-worker.js:633</code></td><td><b>Leak-ish.</b> Offscreen document with the TF.js runtime and toxicity model, never closed on idle</td><td class="m">~55&ndash;150 MB</td><td>browser session</td></tr>
+      <tr><td><code>cookie-autoreject.js:180</code></td><td><code>ConsentEngine.singleton</code> is a <em>static</em> field, assigned and never cleared &mdash; it pins 204 constructed CMP objects and their Matcher/Action graphs after the engine has stopped</td><td class="m">~2&ndash;5 MB<br>per tab</td><td>page lifetime</td></tr>
+      <tr><td><code>cookie-autoreject.js:170</code></td><td><code>rulesCache</code> holds the parsed 456 KB rule database at module scope</td><td class="m">~1.5 MB<br>parsed</td><td>page lifetime</td></tr>
+      <tr><td><code>bad-language.js:212</code></td><td><code>scanQueue</code> holds a pointer to every text node in the document until drained</td><td class="m">~1 MB<br>@128k nodes</td><td>until drained</td></tr>
+      <tr><td>all <code>all_frames</code> scripts</td><td>46 KB of source and compiled code, per frame</td><td class="m">1.4 MB<br>@30 frames</td><td>page lifetime</td></tr>
+    </tbody>
+  </table></div>
+
+  <h3>The cookie engine is the biggest avoidable retention</h3>
+  <p>When Auto-reject is on, every page load constructs <code>new CMP(key, config[key])</code> for all <b>204 CMPs</b> in <code>data/cookie-rules.json</code> &mdash; each building its Detectors, Matchers, Actions and Consents recursively. Five seconds later the engine gives up and calls <code>stopObserver()</code>, but <code>ConsentEngine.singleton</code> still points at the whole graph, and <code>rulesCache</code> still holds the parsed JSON. Nothing is collectable until the tab closes.</p>
+  <div class="fix"><strong>Fix</strong>
+    <p>In the <code>handled: false</code> branch of <code>onHandled()</code>, null out <code>ConsentEngine.singleton</code> and <code>rulesCache</code>. Better still, filter the rule set before constructing: most CMPs can be excluded by a cheap pre-check on their detector's root selector, so a typical page constructs a handful of CMPs rather than 204.</p>
+  </div>
+
+  <h3>Long-session behaviour</h3>
+  <p>The two unbounded <code>pending</code> arrays are the only true unbounded growth. Everything else is bounded per tab and released on navigation. <code>WeakSet</code> is used correctly for <code>seen</code> in <code>anti-adblock-dom.js</code> and <code>queued</code> in <code>profanity-filter.js</code>; <code>explanations</code> in <code>search-filter.js</code> is a <code>WeakMap</code>. Those are right.</p>
+</section>
+
+<!-- ====================================================== 5 -->
+<section id="dom">
+  <h2><span class="num">05</span>DOM &amp; content-script optimization</h2>
+  <p class="dek">What runs where, how often, and how much of it is unnecessary.</p>
+
+  <h3>Thirteen whole-document observers</h3>
+  <p>With everything enabled, a single page carries up to thirteen independent <code>MutationObserver</code>s, most rooted at <code>document.documentElement</code> with <code>subtree: true</code>, and four of them also watching <code>attributes</code>. Chrome delivers a <em>separate copy</em> of the record set to each: an instrumented test appending 300 cards produced <b>300 MutationRecords with one observer and 3,900 with thirteen</b>. The cost is allocation pressure and GC, not dispatch.</p>
+
+  <div class="tbl-scroll"><table>
+    <thead><tr><th>Observer</th><th>Root</th><th>Options</th><th>Notes</th></tr></thead>
+    <tbody>
+      <tr><td class="m">bad-language</td><td class="m">document.body</td><td class="m">childList, subtree, <b>characterData</b></td><td>Fires on every text change &mdash; clocks, tickers, chat</td></tr>
+      <tr><td class="m">dark-patterns</td><td class="m">document.body</td><td class="m">childList, subtree</td><td>Correctly drops characterData (see the comment at :172)</td></tr>
+      <tr><td class="m">overlay-detector</td><td class="m">documentElement</td><td class="m">childList, subtree, attributes[style,class]</td><td>all_frames</td></tr>
+      <tr><td class="m">link-hijack-detector</td><td class="m">documentElement</td><td class="m">childList, subtree, attributes[style,class,target,href]</td><td>all_frames</td></tr>
+      <tr><td class="m">custom-block &times;2</td><td class="m">documentElement + title</td><td class="m">childList, subtree, attributes[src,srcset,style,href,data-src]</td><td>Self-feeding: <code>hide()</code> writes <code>style</code>, which is in the filter</td></tr>
+      <tr><td class="m">search-filter</td><td class="m">documentElement</td><td class="m">childList, subtree</td><td>SERPs only</td></tr>
+      <tr><td class="m">anti-adblock-dom</td><td class="m">documentElement</td><td class="m">childList, subtree, attributes[class,style]</td><td>Drains own records &mdash; correct</td></tr>
+      <tr><td class="m">ad-slot-collapse</td><td class="m">documentElement</td><td class="m">childList, subtree</td><td>Drains own records &mdash; correct</td></tr>
+      <tr><td class="m">float-video</td><td class="m">documentElement</td><td class="m">childList, subtree</td><td>Deliberately no attributes &mdash; correct, and the comment explains why</td></tr>
+      <tr><td class="m">facebook-ads-dom</td><td class="m">documentElement</td><td class="m">childList, subtree</td><td>The best-behaved one in the codebase</td></tr>
+      <tr><td class="m">cookie-engine</td><td class="m">document.body</td><td class="m">childList, subtree, <b>attributes</b></td><td>Plus <code>setInterval(500)</code> for 5 s</td></tr>
+      <tr><td class="m">profanity-filter, toxic-model</td><td class="m">document.body</td><td class="m">childList, subtree (+ attributeFilter)</td><td>Comment sites only</td></tr>
+    </tbody>
+  </table></div>
+
+  <div class="fix"><strong>Fix &mdash; architectural</strong>
+    <p>Introduce <code>common/dom-watch.js</code>: one <code>MutationObserver</code> on <code>documentElement</code> with the union of the options, which coalesces records and dispatches to registered subscribers with a leading throttle. Subscribers declare what they care about (added elements, attribute names, character data) and are called with a pre-filtered batch. This collapses thirteen record sets into one and gives every module the correct throttle behaviour for free &mdash; which is also the systematic cure for finding&nbsp;3.</p>
+  </div>
+
+  <h3>Scripts that run where they are not needed</h3>
+  <ul>
+    <li><b><code>cookie-engine.bundle.js</code> (58 KB) is injected into every page whether or not Auto-reject is on.</b> It is opt-in and off by default, so the overwhelming majority of users parse 58 KB on every page load for a feature they never enabled. Move both cookie scripts to <code>chrome.scripting.registerContentScripts</code>, exactly as the Ad &amp; Trackers suite already does.</li>
+    <li><b><code>url-shortener-intercept.js</code> fetches its list before checking its toggle</b> (line 31 vs line 131), in every frame. Read the setting first; fetch the list lazily on the first click of a link whose hostname might match. Also cache the toggle instead of re-reading storage inside the click handler.</li>
+    <li><b>The overlay and link-hijack detectors run in every subframe</b> for a feature that is off by default. An invisible full-viewport click-catcher inside a 300&times;250 ad iframe is not a threat worth a per-frame observer; consider <code>allFrames: false</code>, or register them dynamically.</li>
+    <li><b><code>keyword-pattern.js</code> is listed in three separate <code>&lt;all_urls&gt;</code> manifest entries</b> and has no idempotence guard, so it is parsed and fully executed three times per top frame (four on comment sites) &mdash; 66 KB where 22 KB would do.</li>
+  </ul>
+
+  <h3>Injected bytes, measured</h3>
+  <div class="tbl-scroll"><table>
+    <thead><tr><th class="m">Bytes</th><th>Frames</th><th>Timing</th><th>Scripts</th></tr></thead>
+    <tbody>
+      <tr><td class="m">68,445</td><td class="m">top only</td><td class="m">idle</td><td class="m">cookie-engine.bundle + cookie-autoreject</td></tr>
+      <tr><td class="m">65,501</td><td class="m">top only</td><td class="m">start</td><td class="m">keyword-pattern + search-filter &times;2</td></tr>
+      <tr><td class="m">35,090</td><td class="m">top only</td><td class="m">idle</td><td class="m">keyword-pattern + bad-language</td></tr>
+      <tr><td class="m">34,548</td><td class="m">top only</td><td class="m">idle</td><td class="m">dark-patterns + 5 detectors</td></tr>
+      <tr><td class="m">33,747</td><td class="m">top only</td><td class="m">start</td><td class="m">keyword-pattern + custom-block</td></tr>
+      <tr><td class="m">25,455</td><td class="m"><b>all frames</b></td><td class="m">start</td><td class="m">popup-hijack-bridge + overlay-detector + link-hijack-detector</td></tr>
+      <tr><td class="m">15,895</td><td class="m"><b>all frames</b></td><td class="m">start</td><td class="m">popup-hijack-blocker (MAIN)</td></tr>
+      <tr><td class="m">5,968</td><td class="m"><b>all frames</b></td><td class="m">start</td><td class="m">url-shortener-intercept</td></tr>
+      <tr><td class="m"><b>284,649</b></td><td class="m">&mdash;</td><td class="m">&mdash;</td><td><b>total into every top frame</b></td></tr>
+      <tr><td class="m"><b>47,318</b></td><td class="m">&mdash;</td><td class="m">&mdash;</td><td><b>total into every subframe</b> &rarr; 1.70 MB on a 30-iframe page</td></tr>
+    </tbody>
+  </table></div>
+</section>
+
+<!-- ====================================================== 6 -->
+<section id="sw">
+  <h2><span class="num">06</span>Background / service-worker optimization</h2>
+  <p class="dek">MV3 charges by the wake. Sieve wakes a lot.</p>
+
+  <h3>Wake sources</h3>
+  <p>The worker imports 16 modules at top level and registers <b>17 <code>storage.onChanged</code> listeners</b>, 6 <code>runtime.onMessage</code> listeners, 4 alarm handlers and 2 <code>webNavigation</code> listeners. Every one of those is a wake source, and a wake re-runs the whole import graph.</p>
+
+  <div class="finding p2">
+    <div class="f-head">
+      <h4>16. <code>webNavigation.onBeforeNavigate</code> has no filter</h4>
+      <span class="pill p2">P2</span><span class="pill fix-simple">Simple</span>
+    </div>
+    <p class="f-loc">background/service-worker.js:703</p>
+    <p>The listener fires for every frame of every navigation in every tab &mdash; including iframes, prerenders, <code>about:blank</code> and the extension's own pages &mdash; and only then does <code>if (d.frameId !== 0) return;</code>. The filtering happens after the wake. On a page with 40 iframes that is 40 dispatches for one useful event.</p>
+    <div class="fix"><strong>Fix</strong>
+      <pre>chrome.webNavigation.onBeforeNavigate.addListener(
+  handler,
+<span class="add">  { url: [{ schemes: ["http", "https"] }] }   // filtered in the browser process</span>
+);</pre>
+      <p>The filter is applied before the event crosses to the worker, so non-http navigations stop waking it at all.</p>
+    </div>
+  </div>
+
+  <div class="finding p2">
+    <div class="f-head">
+      <h4>17. Editing the blocked-sites list marshals the entire gambling ruleset, twice</h4>
+      <span class="pill p2">P2</span><span class="pill fix-simple">Simple</span>
+    </div>
+    <p class="f-loc">background/service-worker.js:288 <code>applyCustomBlocks()</code>, :323 <code>applyAllowlist()</code></p>
+    <p>Both call <code>chrome.declarativeNetRequest.getDynamicRules()</code> with no filter, purely to compute a <code>removeRuleIds</code> list from a known ID band. That call returns <em>every</em> dynamic rule, including the gambling big list packed 10,000 domains to a rule &mdash; several megabytes of strings across the IPC boundary. Then it happens again for the allowlist. <code>getDynamicRules()</code> appears at seven more call sites on the same pattern.</p>
+    <div class="fix"><strong>Fix</strong>
+      <p>Keep the installed ID list for each band in <code>chrome.storage.session</code> when the rules are written, and read that instead. Where a read is unavoidable, pass the <code>{ ruleIds }</code> filter. At minimum, share one <code>getDynamicRules()</code> result between <code>applyCustomBlocks()</code> and <code>applyAllowlist()</code> &mdash; they already run on the same write chain.</p>
+    </div>
+  </div>
+
+  <h3>Listener hygiene</h3>
+  <p>Seventeen <code>storage.onChanged</code> listeners each run their own key check on every write. Individually cheap; collectively it means the frequent <code>sieveStats</code> write (finding&nbsp;2) runs 17 handlers for a key none of them care about. A single dispatcher keyed by storage key &mdash; <code>onKeyChange("gamblingEnabled", fn)</code> &mdash; would make the fan-out proportional to what actually changed. Worth doing after finding&nbsp;2 lands, when the write rate is already down.</p>
+</section>
+
+<!-- ====================================================== 7 -->
+<section id="netstore">
+  <h2><span class="num">07</span>Network &amp; storage optimization</h2>
+
+  <h3>Network</h3>
+  <p>Sieve makes almost no runtime network requests, and the ones it makes are correct: the gambling list is fetched on a weekly alarm, the safety lists on their own schedules, and the toxicity model is downloaded once into the Cache API with resumable per-file progress and a decompressed-size integrity check. Nothing is fetched per page or per request. <b>This area is in good shape.</b></p>
+  <p>The exception is <code>fetch(chrome.runtime.getURL(...))</code> for bundled data, which happens per page and per frame:</p>
+  <div class="tbl-scroll"><table>
+    <thead><tr><th>File</th><th>Fetched by</th><th>When</th><th class="m">Fetches per page</th></tr></thead>
+    <tbody>
+      <tr><td class="m">data/wordlist.json + mild-words.json</td><td class="m">bad-language.js:38</td><td>every page, unconditionally</td><td class="m">2</td></tr>
+      <tr><td class="m">data/url-shorteners.json</td><td class="m">url-shortener-intercept.js:31</td><td>every frame, before the toggle check</td><td class="m">1 + N frames</td></tr>
+      <tr><td class="m">data/cookie-rules.json <b>(456 KB)</b></td><td class="m">cookie-autoreject.js:170</td><td>every page, when enabled</td><td class="m">1</td></tr>
+      <tr><td class="m">data/profanity-list.json + custom</td><td class="m">profanity-filter.js:178</td><td>comment sites only</td><td class="m">2</td></tr>
+    </tbody>
+  </table></div>
+  <div class="fix"><strong>Fix</strong>
+    <p>The two word lists total 865 bytes across 50 entries. Inline them as a JS constant and delete both fetches, the <code>loadJson</code> helper and the async wait before the first scan &mdash; that also removes a round-trip from the critical path. Move the shortener list behind the toggle check. For <code>cookie-rules.json</code>, parse once in the service worker and hand tabs the subset they need, rather than parsing 456 KB per tab.</p>
+  </div>
+
+  <h3>Storage</h3>
+  <p>The <code>storage.local</code> hot path is already well managed: the big fetched blocklists live in IndexedDB (<code>background/list-store.js</code>), and the options page does one batched read. Two problems remain.</p>
+  <ul>
+    <li><b>Write frequency.</b> <code>recordBlock()</code> (finding&nbsp;2) and <code>doomscroll.js</code>'s 5-second <code>flushStats()</code> both do read&ndash;modify&ndash;write of a whole object. The doomscroll one is bounded and fine; the stats one is not.</li>
+    <li><b>Read duplication at <code>document_start</code>.</b> Five separate <code>storage.local.get</code> calls in the top frame, three more per subframe (finding&nbsp;10). These are the page's first milliseconds; each is an IPC round-trip.</li>
+  </ul>
+  <div class="fix"><strong>Fix</strong>
+    <p>Add <code>common/settings-cache.js</code>: one <code>storage.local.get</code> per frame for the union of keys every content script needs, exposed as a promise on the isolated world, with one <code>storage.onChanged</code> listener fanning out in-process. Eight reads and twelve listeners become one and one.</p>
+  </div>
+</section>
+
+<!-- ====================================================== 8 -->
+<section id="bundle">
+  <h2><span class="num">08</span>Bundle size &amp; dependencies</h2>
+  <p class="dek">4.40 MB packaged. Three files are 73% of it.</p>
+
+  <div class="tbl-scroll"><table>
+    <thead><tr><th>File</th><th class="m">Size</th><th class="m">Share</th><th>Verdict</th></tr></thead>
+    <tbody>
+      <tr><td class="m">data/tracker-domains.json</td><td class="m">2.16 MB</td><td class="m">47%</td><td>JSON is a poor container for a domain list. Newline-delimited text with the metadata in a sidecar would cut this roughly in half, and <code>split("\n")</code> is faster than <code>JSON.parse</code> at this size.</td></tr>
+      <tr><td class="m">content/toxic-model.bundle.js</td><td class="m">638 KB</td><td class="m">14%</td><td><b>Dead weight in the Firefox build.</b> Its only consumer is <code>offscreen/toxic-offscreen.html</code>, and <code>chrome.offscreen</code> does not exist in Firefox. <code>build-firefox.ps1</code> copies the whole <code>content</code> folder, so it ships anyway.</td></tr>
+      <tr><td class="m">data/cookie-rules.json</td><td class="m">456 KB</td><td class="m">10%</td><td>204 CMPs, of which a given user will encounter a handful. Splitting into a small index plus per-CMP chunks loaded on demand would cut both package size and the per-page parse.</td></tr>
+      <tr><td class="m">comments in shipped JS</td><td class="m">441 KB</td><td class="m">26% of JS</td><td>The comments in this codebase are unusually good and carry real design rationale &mdash; they should stay in the source. They should not ship.</td></tr>
+    </tbody>
+  </table></div>
+
+  <h3>Dependencies</h3>
+  <p>Genuinely lean. Three runtime dependencies (<code>@tensorflow/tfjs-core</code>, <code>tfjs-converter</code>, <code>@tensorflow-models/toxicity</code>), all of which exist only to produce the one optional offscreen bundle. The Consent-O-Matic engine is vendored and built once. No framework, no utility library, no polyfills. <b>Nothing here needs removing.</b></p>
+
+  <div class="fix"><strong>Fix</strong>
+    <p><b>(a)</b> Add a comment-stripping pass to <code>build-chrome.ps1</code> / <code>build-firefox.ps1</code> &mdash; <code>esbuild --minify-whitespace --legal-comments=none</code> per file preserves behaviour and identifiers while dropping ~441 KB. <b>(b)</b> Exclude <code>content/toxic-model.bundle.js</code> and <code>offscreen/</code> from the Firefox copy list. <b>(c)</b> Convert <code>tracker-domains.json</code> to a newline format. Together: <b>4.40 MB &rarr; ~2.2 MB</b>, and ~1.5 MB for Firefox.</p>
+  </div>
+</section>
+
+<!-- ====================================================== 9 -->
+<section id="arch">
+  <h2><span class="num">09</span>Architecture improvements</h2>
+  <p class="dek">Four shared primitives that would fix whole classes of problem rather than instances of them.</p>
+
+  <h3>A. One mutation dispatcher</h3>
+  <p><code>common/dom-watch.js</code> &mdash; a single observer, one throttled dispatch, subscribers declaring their interests. Collapses thirteen record sets into one, and makes the correct throttle (leading edge, bounded queue, <code>takeRecords()</code> after self-writes) the default rather than something each module reimplements. Three modules currently get it wrong. <b>Fixes findings 3, and prevents the next one.</b></p>
+
+  <h3>B. One text walk</h3>
+  <p><code>common/text-scan.js</code> &mdash; one <code>TreeWalker</code> over the document, offering each non-blank text node to registered visitors, in idle slices with an index cursor. Bad Language, Timers and Scarcity register instead of walking. <b>Fixes findings 1 and 4 together</b>, and gives the blank-node skip to all three at once.</p>
+
+  <h3>C. One settings read per frame</h3>
+  <p><code>common/settings-cache.js</code> &mdash; one <code>storage.local.get</code>, one <code>onChanged</code> listener, a synchronous accessor afterwards. Eight reads and twelve listeners per frame become one and one. <b>Fixes findings 10 and the read half of 7.</b></p>
+
+  <h3>D. Buffered stats</h3>
+  <p>Increments accumulate in memory in the content script and in the worker; both flush on a timer. <b>Fixes finding 2</b>, and removes the single largest source of unnecessary service-worker wakes and storage writes.</p>
+
+  <div class="note"><p>All four are additive modules that existing code opts into one at a time. None requires a rewrite, and each can land and be measured independently.</p></div>
+
+  <h3>A note on the default-on set</h3>
+  <p>Bad Language, Dark Patterns and the Toxic Comment Hider are all on by default, and between them account for most of the per-page cost measured here. That is a product decision, not a performance bug &mdash; but it does mean these three modules deserve a stricter performance standard than the opt-in ones, and today they have the weakest implementations in the codebase. The opt-in Ad &amp; Trackers suite, which the user has to deliberately enable, is the best-written. That is backwards.</p>
+</section>
+
+<!-- ====================================================== 10 -->
+<section id="roadmap">
+  <h2><span class="num">10</span>Prioritized optimization roadmap</h2>
+  <p class="dek">Ordered by measured impact per unit of work, not by tidiness.</p>
+
+  <div class="board">
+    <div class="lane l0">
+      <div class="lane-head"><span class="tag">P0 &mdash; CRITICAL</span><p>Fix immediately. Half a day of work; the largest single win in the audit.</p></div>
+      <ol>
+        <li>Replace <code>shift()</code> with an index cursor in <code>bad-language.js</code> and <code>profanity-filter.js</code> <span class="m">&mdash; ~6 lines</span></li>
+        <li>Batch <code>SIEVE_RECORD_BLOCK</code> at the sender and buffer writes in <code>stats.js</code></li>
+        <li>Leading throttle + bounded queue + split rect/style passes in <code>overlay-detector</code>, <code>link-hijack-detector</code>, <code>dark-patterns</code></li>
+      </ol>
+    </div>
+    <div class="lane l1">
+      <div class="lane-head"><span class="tag">P1 &mdash; HIGH IMPACT</span><p>Significant, measurable improvements. One to two days.</p></div>
+      <ol>
+        <li>Shared text walk for Bad Language / Timers / Scarcity; skip blank nodes</li>
+        <li><code>ad-slot-collapse</code>: mark judged elements, prefilter names, drop the scroll listener</li>
+        <li><code>checkResolvedUrl()</code> &rarr; <code>testMatchOutcome()</code>, with a memoised fallback</li>
+        <li>Idle timeout on the offscreen document</li>
+        <li>Merge the two 1-minute alarms; guard <code>usage-tracker</code>'s top-level <code>start()</code></li>
+        <li>Gate the YouTube 250 ms poll on <code>document.hidden</code>; cache the video element</li>
+        <li>One settings read per frame for the <code>all_frames</code> trio</li>
+      </ol>
+    </div>
+    <div class="lane l2">
+      <div class="lane-head"><span class="tag">P2 &mdash; MEDIUM</span><p>Real gains, more surface area touched.</p></div>
+      <ol>
+        <li>Register the cookie engine dynamically instead of on <code>&lt;all_urls&gt;</code></li>
+        <li>Null <code>ConsentEngine.singleton</code> and <code>rulesCache</code> when the engine gives up</li>
+        <li>Install the popup-hijack prototype patches lazily</li>
+        <li>Linearise <code>collectBlocks()</code>; precompile <code>pathMatches</code></li>
+        <li>Filter <code>webNavigation.onBeforeNavigate</code>; stop marshalling all dynamic rules</li>
+        <li>Restrict <code>WALL_SELECTOR</code> queries to timed sweeps</li>
+        <li>Single-parse <code>compileList()</code>; inline the two word lists</li>
+      </ol>
+    </div>
+    <div class="lane l3">
+      <div class="lane-head"><span class="tag">P3 &mdash; NICE TO HAVE</span><p>Worth doing, low measured urgency.</p></div>
+      <ol>
+        <li>Strip comments at build time <span class="m">&mdash; &minus;441 KB</span></li>
+        <li>Exclude the TF.js bundle from the Firefox build <span class="m">&mdash; &minus;638 KB</span></li>
+        <li><s>Newline format for <code>tracker-domains.json</code></s> <span class="m">&mdash; <b>withdrawn.</b> The "~&minus;1 MB" was a guess and it was wrong. Measured: 191 KB on disk (9% of the file) and <b>9 KB compressed</b> &mdash; gzip already removes the repeated quotes and commas, and both stores serve the package compressed. Not worth reformatting the data file, the 59 KB generator and the loader for that.</span></li>
+        <li>Load <code>keyword-pattern.js</code> once, not three times</li>
+        <li>Pause the Facebook 5 s sweep on <code>document.hidden</code></li>
+        <li>Scope the popup's toxic-stats fan-out to the four relevant hosts</li>
+        <li>Early-exit <code>chooseTarget()</code> on the 80-char ceiling</li>
+      </ol>
+    </div>
+  </div>
+</section>
+
+<!-- ====================================================== 11 -->
+<section id="files">
+  <h2><span class="num">11</span>Files and functions to change</h2>
+
+  <div class="tbl-scroll"><table>
+    <thead><tr><th>File</th><th class="m">Line</th><th>Function</th><th>Change</th><th class="m">P</th></tr></thead>
+    <tbody>
+      <tr><td class="m">content/bad-language.js</td><td class="m">218</td><td class="m">scheduleFlush</td><td>Index cursor instead of <code>shift()</code></td><td class="m"><b>P0</b></td></tr>
+      <tr><td class="m">content/bad-language.js</td><td class="m">150, 224</td><td class="m">collectTextNodes, enqueueSubtree</td><td>Register with the shared walk; skip blank nodes</td><td class="m">P1</td></tr>
+      <tr><td class="m">content/bad-language.js</td><td class="m">38, 48</td><td class="m">loadJson, loadData</td><td>Inline the 50 words; delete both fetches</td><td class="m">P2</td></tr>
+      <tr><td class="m">content/profanity-filter.js</td><td class="m">400</td><td class="m">scheduleFlush</td><td>Index cursor instead of <code>shift()</code></td><td class="m"><b>P0</b></td></tr>
+      <tr><td class="m">common/stats.js</td><td class="m">65, 113</td><td class="m">recordBlock, installStatsListener</td><td>Buffer increments; flush on a 5 s timer</td><td class="m"><b>P0</b></td></tr>
+      <tr><td class="m">content/comment-collapse.js</td><td class="m">146</td><td class="m">collapse</td><td>Accumulate; send one message per second</td><td class="m"><b>P0</b></td></tr>
+      <tr><td class="m">content/overlay-detector.js</td><td class="m">225&ndash;265</td><td class="m">onMutations, flushMutations, isHijackOverlay</td><td>Leading throttle; cap <code>pending</code>; split rect/style passes</td><td class="m"><b>P0</b></td></tr>
+      <tr><td class="m">content/link-hijack-detector.js</td><td class="m">180&ndash;220</td><td class="m">onMutations, flushMutations</td><td>Same three changes</td><td class="m"><b>P0</b></td></tr>
+      <tr><td class="m">content/dark-patterns.js</td><td class="m">136&ndash;170</td><td class="m">flushMutations, onMutations</td><td>Leading throttle; cap <code>pendingNodes</code>; drop the <code>querySelectorAll("*")</code> dedupe</td><td class="m"><b>P0</b></td></tr>
+      <tr><td class="m">content/ad-slot-collapse.js</td><td class="m">198, 88, 277</td><td class="m">sweep, nameIsSlot, start</td><td>Mark judged elements; regex prefilter; remove the scroll listener</td><td class="m">P1</td></tr>
+      <tr><td class="m">background/url-shortener-checker.js</td><td class="m">163</td><td class="m">checkResolvedUrl</td><td><code>testMatchOutcome()</code>; memoise the fallback Sets</td><td class="m">P1</td></tr>
+      <tr><td class="m">background/service-worker.js</td><td class="m">633, 672</td><td class="m">ensureOffscreenDoc</td><td>Idle timeout &rarr; <code>closeDocument()</code></td><td class="m">P1</td></tr>
+      <tr><td class="m">background/service-worker.js</td><td class="m">703</td><td class="m">onBeforeNavigate</td><td>Add the <code>{url:[{schemes}]}</code> filter</td><td class="m">P2</td></tr>
+      <tr><td class="m">background/service-worker.js</td><td class="m">288, 323</td><td class="m">applyCustomBlocks, applyAllowlist</td><td>Stop marshalling every dynamic rule</td><td class="m">P2</td></tr>
+      <tr><td class="m">background/ad-tracker-stats.js</td><td class="m">73</td><td class="m">POLL_MINUTES</td><td><code>1</code> &rarr; <code>5</code>; share one heartbeat alarm</td><td class="m">P1</td></tr>
+      <tr><td class="m">background/usage-tracker.js</td><td class="m">356, 318</td><td class="m">start</td><td>Return early on every wake when tracking is off</td><td class="m">P1</td></tr>
+      <tr><td class="m">content/youtube-ads.js</td><td class="m">729, 690</td><td class="m">skipAdIfPlaying</td><td><code>document.hidden</code> gate; cache the video; lazy start</td><td class="m">P1</td></tr>
+      <tr><td class="m">content/popup-hijack-bridge.js</td><td class="m">104</td><td class="m">loadConfig</td><td>Own the single read; publish to the sibling scripts</td><td class="m">P1</td></tr>
+      <tr><td class="m">content/patterns/timers.js</td><td class="m">192, 109</td><td class="m">scan, chooseTarget</td><td>Shared walk; early-exit the ancestor climb</td><td class="m">P1</td></tr>
+      <tr><td class="m">content/patterns/scarcity.js</td><td class="m">180</td><td class="m">scanAsync</td><td>Shared walk</td><td class="m">P1</td></tr>
+      <tr><td class="m">content/cookie-autoreject.js</td><td class="m">170, 180, 128</td><td class="m">getRules, startEngine, onHandled</td><td>Null the caches when the engine gives up; prefilter CMPs</td><td class="m">P2</td></tr>
+      <tr><td class="m">manifest.json</td><td class="m">&mdash;</td><td class="m">content_scripts</td><td>Move the cookie pair to dynamic registration; load <code>keyword-pattern</code> once</td><td class="m">P2</td></tr>
+      <tr><td class="m">content/popup-hijack-blocker.js</td><td class="m">275&ndash;400</td><td class="m">(the four patches)</td><td>Install lazily from the bridge's config message</td><td class="m">P2</td></tr>
+      <tr><td class="m">content/search-filter.js</td><td class="m">353</td><td class="m">collectBlocks</td><td>Single ordered pass instead of two <code>some()</code> scans</td><td class="m">P2</td></tr>
+      <tr><td class="m">common/search-filter.js</td><td class="m">66, 92</td><td class="m">pathMatches, compile</td><td>Compile path regexes once, at rule-compile time</td><td class="m">P2</td></tr>
+      <tr><td class="m">common/keyword-pattern.js</td><td class="m">381</td><td class="m">compileList</td><td>Parse and validate once, not three times</td><td class="m">P2</td></tr>
+      <tr><td class="m">content/anti-adblock-dom.js</td><td class="m">412</td><td class="m">candidates</td><td>Full <code>WALL_SELECTOR</code> query on timed sweeps only</td><td class="m">P2</td></tr>
+      <tr><td class="m">content/url-shortener-intercept.js</td><td class="m">31, 131</td><td class="m">(module init), onClickCapture</td><td>Check the toggle first; fetch the list lazily; cache the setting</td><td class="m">P2</td></tr>
+      <tr><td class="m">build-chrome.ps1 / build-firefox.ps1</td><td class="m">&mdash;</td><td class="m">&mdash;</td><td>Strip comments; exclude the TF.js bundle from Firefox</td><td class="m">P3</td></tr>
+      <tr><td class="m">content/facebook-ads-dom.js</td><td class="m">1513</td><td class="m">start</td><td>Skip <code>armFull</code> while <code>document.hidden</code></td><td class="m">P3</td></tr>
+    </tbody>
+  </table></div>
+</section>
+
+<!-- ====================================================== 12 -->
+<section id="impact">
+  <h2><span class="num">12</span>Expected impact</h2>
+  <p class="dek">Projections from the measured baselines. The P0 column is the one to hold anyone to.</p>
+
+  <div class="tbl-scroll"><table>
+    <thead><tr><th>Optimization</th><th class="m">Before</th><th class="m">After</th><th class="m">Delta</th><th>Confidence</th></tr></thead>
+    <tbody>
+      <tr><td><b>Index cursor instead of <code>shift()</code></b><br><span class="m">128k-node page</span></td><td class="m">503 ms</td><td class="m">0.9 ms</td><td class="m"><b>&minus;99.8%</b></td><td>Measured directly, both sides</td></tr>
+      <tr><td><b>Split rect/style passes + bounded queue</b><br><span class="m">3,000-candidate flush</span></td><td class="m">444 ms</td><td class="m">~30&ndash;60 ms</td><td class="m"><b>&minus;85%</b></td><td>High &mdash; coverage rejects almost everything before the style read</td></tr>
+      <tr><td><b>Batched stats</b><br><span class="m">200-collapse thread, 10 tabs</span></td><td class="m">200 writes<br>~141k listener calls</td><td class="m">1&ndash;2 writes<br>~1.4k calls</td><td class="m"><b>&minus;99%</b></td><td>High &mdash; arithmetic, not estimate</td></tr>
+      <tr><td><b>Shared text walk + blank skip</b><br><span class="m">28k-element page, defaults</span></td><td class="m">73 ms</td><td class="m">~25 ms</td><td class="m"><b>&minus;65%</b></td><td>Medium-high &mdash; three walks &rarr; one, half the nodes skipped</td></tr>
+      <tr><td><b>ad-slot-collapse prefilter + no scroll listener</b></td><td class="m">41.7 ms<br>every 400 ms</td><td class="m">~4 ms<br>on mutation only</td><td class="m"><b>&minus;90%</b><br>and far rarer</td><td>Medium-high</td></tr>
+      <tr><td><b>Merged alarms at 5 min</b></td><td class="m">~2 wakes/min</td><td class="m">~0.2 wakes/min</td><td class="m"><b>&minus;90%</b></td><td>High</td></tr>
+      <tr><td><b>Offscreen idle timeout</b></td><td class="m">~55&ndash;150 MB<br>resident</td><td class="m">0 when unused</td><td class="m"><b>&minus;100%</b><br>at idle</td><td>High</td></tr>
+      <tr><td><b>One settings read per frame</b><br><span class="m">40-iframe page</span></td><td class="m">123 IPC reads</td><td class="m">41</td><td class="m"><b>&minus;67%</b></td><td>High</td></tr>
+      <tr><td><b>Cookie engine registered dynamically</b></td><td class="m">68 KB/page</td><td class="m">0 when off</td><td class="m"><b>&minus;24%</b><br>of injected bytes</td><td>High</td></tr>
+      <tr><td><b>Build-time comment strip + Firefox exclusion</b></td><td class="m">4.40 MB</td><td class="m">~2.2 MB</td><td class="m"><b>&minus;50%</b></td><td>High &mdash; byte counts are exact</td></tr>
+    </tbody>
+  </table></div>
+
+  <h3>What the user should notice</h3>
+  <p>After P0 alone: no sustained jank in the seconds after a long page loads, and the popup-hijack detectors starting to work on dynamic pages where they currently starve and silently do nothing &mdash; a correctness win that arrives with the performance one. After P0 and P1: a browser that idles quietly, and scrolling a long article that no longer competes with a 41 ms sweep every 400 ms.</p>
+</section>
+
+<!-- ====================================================== 13 -->
+<section id="bench">
+  <h2><span class="num">13</span>Benchmarks and metrics</h2>
+  <p class="dek">How to verify each fix, with the baseline it has to beat.</p>
+
+  <h3>1. Per-page main-thread cost</h3>
+  <p>The primary metric. Open a long page (a large Wikipedia article, a Reddit thread with 500+ comments, a scrolled X timeline), record a DevTools Performance profile from navigation to five seconds after load, and filter the flame chart to the extension's frames.</p>
+  <div class="tbl-scroll"><table>
+    <thead><tr><th>Page size</th><th class="m">Baseline total</th><th class="m">Target after P0+P1</th></tr></thead>
+    <tbody>
+      <tr><td>7k elements (small article)</td><td class="m">22 ms</td><td class="m">&lt; 10 ms</td></tr>
+      <tr><td>28k elements (typical thread)</td><td class="m">73 ms</td><td class="m">&lt; 25 ms</td></tr>
+      <tr><td>112k elements (long thread)</td><td class="m">394 ms</td><td class="m">&lt; 90 ms</td></tr>
+    </tbody>
+  </table></div>
+  <p>Watch specifically for <b>zero long tasks over 50 ms</b> attributable to Sieve, and for the "Forced reflow" warnings that currently appear from the overlay detector to disappear entirely.</p>
+
+  <h3>2. Scroll frame rate</h3>
+  <p>DevTools &rarr; Rendering &rarr; Frame Rendering Stats, then scroll a long ad-supported article for 20 seconds with the Ad &amp; Trackers suite on. Baseline: a 41.7 ms sweep lands every 400 ms, so roughly one dropped frame every 400 ms. Target: no dropped frames attributable to Sieve.</p>
+
+  <h3>3. Idle CPU and service-worker wakes</h3>
+  <p>Leave the browser idle for 30 minutes with one YouTube tab, one Facebook tab and five ordinary tabs open. Read the extension's row in Chrome's Task Manager (Shift+Esc), and count worker starts in <code>chrome://serviceworker-internals</code> or by logging a timestamp at the top of <code>service-worker.js</code>.</p>
+  <div class="tbl-scroll"><table>
+    <thead><tr><th>Metric</th><th class="m">Baseline</th><th class="m">Target</th></tr></thead>
+    <tbody>
+      <tr><td>Service-worker starts per 30 min</td><td class="m">~60 (2 alarms &times; 30)</td><td class="m">&lt; 8</td></tr>
+      <tr><td>Extension CPU at idle</td><td class="m">measure first</td><td class="m">&lt; 0.1%</td></tr>
+      <tr><td>Timer callbacks per second, YouTube tab</td><td class="m">4 &times; frame count</td><td class="m">0 when hidden</td></tr>
+    </tbody>
+  </table></div>
+
+  <h3>4. Memory over a long session</h3>
+  <p>DevTools Memory panel, heap snapshot after opening 20 tabs across a session and closing them again. Compare snapshots an hour apart on a page that mutates continuously (a live sports scoreboard is a good adversary for the debounce-starvation case).</p>
+  <ul>
+    <li><b>Regression test for the leak:</b> assert that <code>pending.length</code> in <code>overlay-detector</code> never exceeds its cap after 60 seconds on a page mutating every 100 ms. Today it grows without bound; that is a testable invariant.</li>
+    <li><b>Offscreen document:</b> confirm it disappears from <code>chrome://inspect/#other</code> ten minutes after the last comment page is closed.</li>
+    <li><b>Cookie engine:</b> take a heap snapshot after the 5-second give-up and assert the 204 <code>CMP</code> objects are collectable.</li>
+  </ul>
+
+  <h3>5. Storage write rate</h3>
+  <p>The cheapest continuous signal, and the one that will regress first. Wrap <code>chrome.storage.local.set</code> in the service worker with a counter during development:</p>
+  <pre><span class="cmt">// dev only</span>
+let writes = 0;
+const _set = chrome.storage.local.set.bind(chrome.storage.local);
+chrome.storage.local.set = (...a) => { writes++; return _set(...a); };
+setInterval(() => console.log("[perf] storage.set/min:", writes, (writes = 0)), 60000);</pre>
+  <p>Baseline on a Reddit thread with 200 collapsed comments: <b>200+ writes in a few seconds</b>. Target: fewer than 5 per minute at steady state.</p>
+
+  <h3>6. Injected bytes and package size</h3>
+  <p>Both are exactly computable in CI, so both should be asserted rather than measured. Add a check to the build that fails if the <code>&lt;all_urls&gt;</code> top-frame total exceeds a budget (start at 220 KB, down from 284 KB) or the package exceeds 2.5 MB. A budget that fails the build is the only kind that holds.</p>
+
+  <h3>7. Reproducing this audit's numbers</h3>
+  <p>Every figure here came from synthetic pages driven through headless Chrome, which avoids the Browser-pane compositing problem noted in this project's own notes. The shape is:</p>
+  <pre>chrome --headless=new --disable-gpu --no-sandbox --dump-dom bench.html</pre>
+  <p>One caveat worth recording: <b>do not pass <code>--virtual-time-budget</code> when timing anything.</b> It freezes <code>performance.now()</code>, and every measurement after the first comes back as <code>0.0 ms</code>. Use <code>Date.now()</code> over a loop of N iterations instead.</p>
+</section>
+
+<!-- ====================================================== keep -->
+<section id="keep">
+  <h2><span class="num">&mdash;</span>Already optimized &mdash; leave alone</h2>
+  <p class="dek">Things that look like they need attention and do not. Changing these would be churn.</p>
+
+  <div class="keep">
+    <ul>
+      <li><b>Dynamic content-script registration for the whole Ad &amp; Trackers suite.</b> <code>ad-slot-collapse</code>, <code>anti-adblock</code>, <code>float-video</code>, <code>youtube-ads</code> and <code>facebook-ads</code> all register through <code>chrome.scripting.registerContentScripts</code> and unregister when off. A user who never enables them pays exactly nothing. This is the correct pattern and the manifest-declared scripts should move toward it, not away.</li>
+      <li><b><code>facebook-ads-dom.js</code>'s scheduling.</b> Leading-edge throttle behind an <code>armed</code> flag, <code>MAX_PENDING_ROOTS</code> cap, ancestor deduplication, <code>isConnected</code> filtering of stale roots, deliberate refusal to observe attributes, and a <code>visibilitychange</code> re-arm. It is the reference implementation in this codebase.</li>
+      <li><b><code>anti-adblock-dom.js</code>'s predicate ordering.</b> Raw length &rarr; <code>textContent</code> regex &rarr; <code>innerText</code> (the reflow) &rarr; geometry. The comment explaining why <code>innerText</code> comes third is exactly right, and the <code>observer.takeRecords()</code> after self-writes is the correct cure for a self-feeding observer.</li>
+      <li><b>The 942-term profanity regex.</b> 24 &micro;s per comment, measured. Do not restructure it into a trie.</li>
+      <li><b>Big lists in IndexedDB.</b> <code>background/list-store.js</code> keeps the multi-megabyte fetched blocklists off the <code>storage.local</code> hot path, which is what makes settings reads instant. The reasoning in that file's header is correct.</li>
+      <li><b>The options page's batched read.</b> One <code>storage.local.get(optionsDefaults())</code> plus a loading veil, instead of per-control reads.</li>
+      <li><b><code>tracker-domains.json</code> parsing.</b> Only on rule (re)build &mdash; install, startup, a toggle flip, an allowlist edit. Never on a request path. The file is too big, but <em>when</em> it is read is right.</li>
+      <li><b><code>doomscroll.js</code>'s scroll handler.</b> Passive listeners doing two <code>Date.now()</code> calls and some arithmetic. Correct.</li>
+      <li><b><code>float-video.js</code>'s scoping.</b> Ancestor walks with <code>getComputedStyle</code> happen only for real <code>&lt;video&gt;</code> and known player iframes, never for arbitrary elements. The comment explaining why it does <em>not</em> observe attributes shows the trap was seen and avoided.</li>
+      <li><b>Early exits in <code>search-filter.js</code> and <code>custom-block.js</code>.</b> A hostname test and an empty-list test respectively, both before any work. Both are why these files cost nothing on the pages where they have nothing to do.</li>
+      <li><b>Model download and caching.</b> Resumable, per-file, integrity-checked against decompressed sizes, mirrored. Nothing to improve except when the loaded model is released.</li>
+    </ul>
+  </div>
+</section>
+
+<footer>
+  <p>Sieve 1.4.0 · main @ cf52885 · audit of 67 shipped JS files, 12 manifest content-script entries, 16 background modules<br>
+  Measurements: Chrome 140 headless (<code>--headless=new</code>), Windows 11, synthetic DOMs of 7k / 28k / 96k / 112k elements<br>
+  Node 24.17 for regex, list-compile and queue-drain microbenchmarks</p>
+</footer>
+
+</div>

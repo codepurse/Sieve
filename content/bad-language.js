@@ -17,9 +17,42 @@
   const SKIP_TAGS = new Set(["SCRIPT", "STYLE", "NOSCRIPT", "TEXTAREA", "CODE", "PRE"]);
   const SKIP_SELECTOR = "script,style,noscript,textarea,code,pre";
 
-  // Bundled word lists, loaded once.
-  let baseWords = null; // data/wordlist.json
-  let mildWords = null; // data/mild-words.json
+  // Deliberately NOT global: a `g` regex carries lastIndex between calls, so a
+  // shared one would match on one node and skip the next. Same reason
+  // common/keyword-pattern.js refuses the flag outright.
+  const NON_SPACE_RE = /\S/;
+
+  // The word lists, INLINE.
+  //
+  // These used to be data/wordlist.json and data/mild-words.json, fetched with
+  // chrome.runtime.getURL on every page load of every tab. Two round-trips and
+  // two JSON parses, before the first scan could start, for 865 bytes — and
+  // they had to sit in web_accessible_resources to be fetchable at all, which
+  // hands every page on the internet a reliable way to detect that Sieve is
+  // installed (request the URL; a 200 means Sieve). Inlining removes the
+  // round-trips, takes the wait off the critical path, and closes that probe.
+  //
+  // The value is the "funny" replacement; the key is what gets matched. There
+  // is deliberately no second copy in data/ — one source of truth, no drift.
+  const BASE_WORDS = {
+    arse: "bum", arsehole: "grump", ass: "butt", asshole: "jerk",
+    bastard: "meanie", bitch: "meanie", bloody: "blooming", bollocks: "nonsense",
+    bugger: "rascal", bullshit: "nonsense", cock: "rooster", crap: "crud",
+    cunt: "meanie", damn: "darn", dick: "jerk", dickhead: "jerk",
+    douche: "jerk", douchebag: "jerk", dumbass: "silly", fuck: "fudge",
+    fucked: "messed", fucker: "fudger", fucking: "freaking", goddamn: "golly",
+    hell: "heck", jackass: "jerk", motherfucker: "motherfudger", piss: "tick",
+    pissed: "ticked", prick: "jerk", shit: "shoot", shitty: "lousy",
+    slut: "meanie", twat: "twit", wanker: "wally", whore: "meanie",
+  };
+
+  // Milder words, folded in only when the user asks for family-safe.
+  const MILD_WORDS = {
+    stupid: "silly", idiot: "goofball", dumb: "silly", moron: "goofball",
+    loser: "underdog", sucks: "stinks", suck: "stink", sucked: "stunk",
+    fart: "toot", farted: "tooted", farting: "tooting", screwed: "messed up",
+    crappy: "lousy", lame: "weak",
+  };
 
   // Live settings (mirrors chrome.storage.local).
   let settings = { enabled: true, style: "funny", familySafe: false, customWords: [] };
@@ -31,23 +64,6 @@
   let customPatterns = []; // user /regex/ entries, compiled separately
   let recordedForPage = false; // shared stats: only record once per page
   let modifiedAny = false; // did we change any node? gates the restore walk
-
-  // --- Load a bundled JSON file -------------------------------------------
-  async function loadJson(path) {
-    try {
-      const res = await fetch(chrome.runtime.getURL(path));
-      return await res.json();
-    } catch (err) {
-      console.error("[Sieve] Could not load", path, err);
-      return {};
-    }
-  }
-
-  // --- Load the two bundled word lists once -------------------------------
-  async function loadData() {
-    if (!baseWords) baseWords = await loadJson("data/wordlist.json");
-    if (!mildWords) mildWords = await loadJson("data/mild-words.json");
-  }
 
   // --- Read the user's settings from storage ------------------------------
   async function loadSettings() {
@@ -74,8 +90,8 @@
 
   // --- Build the active word -> replacement map from current settings -----
   function buildActiveMap() {
-    const map = { ...baseWords };
-    if (settings.familySafe) Object.assign(map, mildWords);
+    const map = { ...BASE_WORDS };
+    if (settings.familySafe) Object.assign(map, MILD_WORDS);
     for (const word of settings.customWords) {
       if (isRegexWord(word)) continue; // a pattern has no single key to map
       const key = word.toLowerCase();
@@ -89,6 +105,19 @@
     const literals = words.filter((w) => !isRegexWord(w));
     const escaped = literals.map((w) => w.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"));
     return escaped.length ? new RegExp("\\b(" + escaped.join("|") + ")\\b", "gi") : null;
+  }
+
+  // The length of the shortest literal in play, used to reject a text node
+  // before the regex ever sees it. A custom /regex/ entry could match a single
+  // character, so any of those drops the floor to 1 — correctness first; the
+  // blank-node test in scanNode still does most of the work.
+  function shortestMatchLength(words) {
+    if (customPatterns.length > 0) return 1;
+    let shortest = Infinity;
+    for (const word of words) {
+      if (word.length < shortest) shortest = word.length;
+    }
+    return Number.isFinite(shortest) ? Math.max(1, shortest) : 1;
   }
 
   // Each user pattern compiled separately, with `g` added so replace() covers
@@ -186,9 +215,22 @@
     }
   }
 
+  // The shortest thing any active pattern could match. A node shorter than this
+  // cannot contain a banned word, so it never reaches the regex. Recomputed
+  // whenever the word list changes; a custom /regex/ entry has no knowable
+  // minimum, so its presence drops the floor to 1 and the check becomes the
+  // blank-node test alone.
+  let minMatchLength = 1;
+
   // --- Scan a single text node, remembering the original if changed -------
   function scanNode(node) {
     const original = node.nodeValue;
+    // HALF the text nodes on a real page are the whitespace between tags —
+    // 64,002 of 128,002 measured on a long thread — and every one of them used
+    // to be handed to the word regex. A length test and a whitespace test are
+    // both far cheaper than the match they replace.
+    if (original.length < minMatchLength) return;
+    if (!NON_SPACE_RE.test(original)) return;
     const cleaned = cleanText(original);
     if (cleaned !== original) {
       if (node.__sieveOriginal === undefined) node.__sieveOriginal = original;
@@ -205,8 +247,25 @@
   // long task on load.
   const ric =
     window.requestIdleCallback || ((cb) => setTimeout(() => cb({ timeRemaining: () => 16 }), 0));
+
+  // A CURSOR, not shift(). The queue holds every text node in the document, and
+  // V8 only keeps its cheap left-trim for shift() while the array is small —
+  // past roughly sixteen thousand elements each call becomes a memmove of the
+  // whole remaining queue. Measured on a 128,000-node page: 503ms of pure
+  // overhead to drain by shift(), 0.9ms to drain by index. The slice guard
+  // below cannot save us from it either, because the cost is paid inside the
+  // loop body and the deadline is only re-read afterwards.
+  //
+  // The cursor is reset — and the backing array actually emptied — only once
+  // the queue is drained, so a long page does not hold its node list twice.
   let scanQueue = [];
+  let queueHead = 0;
   let flushScheduled = false;
+
+  function clearQueue() {
+    scanQueue = [];
+    queueHead = 0;
+  }
 
   function scheduleFlush() {
     if (flushScheduled) return;
@@ -214,12 +273,13 @@
     ric((deadline) => {
       flushScheduled = false;
       let processed = 0;
-      while (scanQueue.length && (deadline.timeRemaining() > 4 || processed < 50)) {
-        scanNode(scanQueue.shift());
+      while (queueHead < scanQueue.length && (deadline.timeRemaining() > 4 || processed < 50)) {
+        scanNode(scanQueue[queueHead++]);
         processed++;
         if (processed >= 400) break; // hard cap per slice
       }
-      if (scanQueue.length) scheduleFlush();
+      if (queueHead < scanQueue.length) scheduleFlush();
+      else clearQueue(); // drained — drop the node references
     });
   }
 
@@ -227,6 +287,10 @@
   function enqueueSubtree(root) {
     const nodes = collectTextNodes(root);
     if (nodes.length === 0) return;
+    // Compact away the drained prefix before growing the queue again, so a page
+    // that keeps adding content does not keep a pointer to every node it has
+    // ever shown.
+    if (queueHead > 0 && queueHead === scanQueue.length) clearQueue();
     for (const n of nodes) scanQueue.push(n);
     scheduleFlush();
   }
@@ -264,7 +328,6 @@
 
   // --- Turn filtering ON with the current settings ------------------------
   async function enableFilter() {
-    await loadData();
     activeMap = buildActiveMap();
     const words = Object.keys(activeMap);
     customPatterns = buildCustomPatterns(settings.customWords || []);
@@ -272,6 +335,7 @@
     // longer bail on an empty word map alone.
     if (words.length === 0 && customPatterns.length === 0) return;
     pattern = buildPattern(words);
+    minMatchLength = shortestMatchLength(words);
     enqueueSubtree(document.body);
     observer = createObserver();
     observer.observe(document.body, { childList: true, subtree: true, characterData: true });
@@ -284,7 +348,7 @@
       observer = null;
     }
     // Drop any not-yet-processed nodes so a disabled filter stops working.
-    scanQueue = [];
+    clearQueue();
     // Only walk the whole document to restore text if we actually changed
     // something. On a normal load (filter off, or nothing matched) this skips a
     // full-page TreeWalker that previously ran on every init regardless.

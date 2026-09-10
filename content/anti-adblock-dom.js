@@ -409,30 +409,48 @@
     }
   }
 
-  function candidates() {
+  // `wide` asks for the whole-document WALL_SELECTOR query as well as whatever
+  // the observer queued.
+  //
+  // Eight of its twelve clauses are case-insensitive substring attribute
+  // selectors ([class*='adblock' i] and friends), which are the slowest shape
+  // Blink has: no fast path, so the engine walks every element doing a
+  // case-folding substring search. Measured at 13.5ms per call over 20,000
+  // elements. It used to run on EVERY sweep, including the mutation-driven ones
+  // — which already know their candidates, because the observer just handed
+  // them over. Now only the six timed sweeps pay for it, which is what it was
+  // there for: catching a wall that was in the markup before we started
+  // watching, or swapped in by a route change the observer coalesced away.
+  function candidates(wide) {
     const out = [];
     for (const el of pending) consider(el, out);
     pending.clear();
-    try {
-      for (const el of document.querySelectorAll(WALL_SELECTOR)) {
-        if (out.length >= MAX_CANDIDATES_PER_SWEEP) break;
-        consider(el, out);
+    if (wide) {
+      try {
+        for (const el of document.querySelectorAll(WALL_SELECTOR)) {
+          if (out.length >= MAX_CANDIDATES_PER_SWEEP) break;
+          consider(el, out);
+        }
+      } catch {
+        /* a browser without case-insensitive attribute selectors — the observer
+           and bodyCandidates still feed this, so the sweep degrades rather than
+           stops */
       }
-    } catch {
-      /* a browser without case-insensitive attribute selectors — the observer
-         and bodyCandidates still feed this, so the sweep degrades rather than
-         stops */
+      bodyCandidates(out);
     }
-    bodyCandidates(out);
     return out.slice(0, MAX_CANDIDATES_PER_SWEEP);
   }
 
-  function sweep() {
+  // `wide` is passed through to candidates(). It DEFAULTS TO TRUE, so the
+  // thorough sweep is what any caller gets unless it deliberately asks for the
+  // cheap one; only the observer path, which already knows its candidates,
+  // passes false.
+  function sweep(wide = true) {
     scheduled = false;
     if (cleared >= MAX_CLEARED || !document.body) return;
 
     let hit = 0;
-    for (const el of candidates()) {
+    for (const el of candidates(wide)) {
       if (cleared >= MAX_CLEARED) break;
 
       // TWO STAGES on the text, and the order is what lets the candidate list
@@ -497,7 +515,7 @@
     if (scheduled) return;
     scheduled = true;
     try {
-      setTimeout(sweep, 150);
+      setTimeout(() => sweep(false), 150);
     } catch {
       scheduled = false;
     }
@@ -535,7 +553,7 @@
   function start() {
     for (const delay of SWEEP_DELAYS_MS) {
       try {
-        setTimeout(sweep, delay);
+        setTimeout(() => sweep(true), delay);
       } catch {
         /* no timers in this context */
       }

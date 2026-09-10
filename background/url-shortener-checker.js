@@ -29,6 +29,52 @@ const PREDICTION_MARKET_ENABLED_KEY = "predictionMarketEnabled";
 const ALLOWLIST_KEY = "allowlist";
 
 // ---------------------------------------------------------------------------
+// Memoising the domain sets.
+//
+// A click on a shortened link has a hard three-second deadline in the content
+// script, after which it fails open and the user goes to the short URL
+// unchecked. Everything below used to be rebuilt from scratch inside that
+// window, on every click: thirteen categories, each re-fetching and re-parsing
+// its list into a fresh Set of up to a couple of hundred thousand entries — and
+// the gambling one additionally calling getDynamicRules(), which marshals every
+// dynamic rule the extension owns, packed ten thousand domains to a rule,
+// across the process boundary. On a slow machine the check lost its own race.
+//
+// So each set is built once and kept. The worker is torn down often enough that
+// this is not a long-lived cache; within one wake it turns thirteen rebuilds
+// per click into thirteen rebuilds, once.
+//
+// Invalidated by storage.onChanged below, because the lists genuinely do change
+// — a weekly refresh, a toggle flip, an allowlist edit.
+const setCache = new Map();
+
+function cachedSet(name, build) {
+  let hit = setCache.get(name);
+  if (!hit) {
+    // The PROMISE is cached, not the resolved value, so two clicks in flight at
+    // once share one build instead of racing to do it twice.
+    hit = build().catch((err) => {
+      setCache.delete(name); // a failed build must not be remembered
+      throw err;
+    });
+    setCache.set(name, hit);
+  }
+  return hit;
+}
+
+/** Drop the memoised sets. Exported so tests can reset between cases. */
+export function invalidateShortenerCaches() {
+  setCache.clear();
+}
+
+// Any of these changing means at least one set is now stale. Cheaper and far
+// less error-prone than mapping each key to the sets it feeds — rebuilding is
+// only paid on the next click, and list edits are rare.
+chrome.storage?.onChanged?.addListener((_changes, area) => {
+  if (area === "local" || area === "session") invalidateShortenerCaches();
+});
+
+// ---------------------------------------------------------------------------
 // Domain matching — mirrors DNR requestDomains semantics (domain + subdomains).
 // ---------------------------------------------------------------------------
 function normalizeHostname(hostname) {
@@ -85,65 +131,80 @@ async function ruleDomainsFrom(path) {
   return domains;
 }
 
-async function getAllowlist() {
-  const { allowlist } = await chrome.storage.local.get({ [ALLOWLIST_KEY]: [] });
-  return toDomainSet(allowlist);
+function getAllowlist() {
+  return cachedSet("allowlist", async () => {
+    const { allowlist } = await chrome.storage.local.get({ [ALLOWLIST_KEY]: [] });
+    return toDomainSet(allowlist);
+  });
 }
 
-async function getGamblingDomains() {
-  const domains = await ruleDomainsFrom("rules/gambling-rules.json");
-  try {
-    const rules = await chrome.declarativeNetRequest.getDynamicRules();
-    for (const rule of rules) {
-      // The gambling blocker owns dynamic-rule IDs below 10000.
-      if (rule.id >= 10000) continue;
-      const list = rule?.condition?.requestDomains;
-      if (Array.isArray(list)) domains.push(...list);
+function getGamblingDomains() {
+  return cachedSet("gambling", async () => {
+    const domains = await ruleDomainsFrom("rules/gambling-rules.json");
+    try {
+      // The single most expensive call in this file: with the big list
+      // installed this hands back tens of rules carrying hundreds of thousands
+      // of domain strings. Worth doing once per worker wake; ruinous per click.
+      const rules = await chrome.declarativeNetRequest.getDynamicRules();
+      for (const rule of rules) {
+        // The gambling blocker owns dynamic-rule IDs below 10000.
+        if (rule.id >= 10000) continue;
+        const list = rule?.condition?.requestDomains;
+        if (Array.isArray(list)) domains.push(...list);
+      }
+    } catch (err) {
+      console.warn("[Sieve] Could not read gambling dynamic rules:", err);
     }
-  } catch (err) {
-    console.warn("[Sieve] Could not read gambling dynamic rules:", err);
-  }
-  return toDomainSet(domains);
-}
-
-async function getPredictionMarketDomains() {
-  return toDomainSet(await ruleDomainsFrom("rules/prediction-market-rules.json"));
-}
-
-async function getTradingDomains() {
-  return toDomainSet(await fetchJsonArray("data/trading-sites.json"));
-}
-
-async function getMlmDomains() {
-  return toDomainSet(await fetchJsonArray("data/mlm-sites.json"));
-}
-
-async function getGoreShockDomains() {
-  return toDomainSet(await fetchJsonArray("data/gore-shock-sites.json"));
-}
-
-async function getDatingDomains() {
-  return toDomainSet(await fetchJsonArray("data/dating-sites.json"));
-}
-
-async function getStoredSafetyDomains(name) {
-  try {
-    const { domains } = await getStoredSafetyList(name);
     return toDomainSet(domains);
-  } catch (err) {
-    console.warn("[Sieve] Could not read safety list:", name, err);
-    return new Set();
-  }
+  });
 }
 
-async function getStoredScamDomains() {
-  try {
-    const { domains } = await getStoredScamList();
-    return toDomainSet(domains);
-  } catch (err) {
-    console.warn("[Sieve] Could not read scam list:", err);
-    return new Set();
-  }
+function getPredictionMarketDomains() {
+  return cachedSet("predictionMarkets", async () =>
+    toDomainSet(await ruleDomainsFrom("rules/prediction-market-rules.json"))
+  );
+}
+
+function getTradingDomains() {
+  return cachedSet("trading", async () => toDomainSet(await fetchJsonArray("data/trading-sites.json")));
+}
+
+function getMlmDomains() {
+  return cachedSet("mlm", async () => toDomainSet(await fetchJsonArray("data/mlm-sites.json")));
+}
+
+function getGoreShockDomains() {
+  return cachedSet("goreShock", async () =>
+    toDomainSet(await fetchJsonArray("data/gore-shock-sites.json"))
+  );
+}
+
+function getDatingDomains() {
+  return cachedSet("dating", async () => toDomainSet(await fetchJsonArray("data/dating-sites.json")));
+}
+
+function getStoredSafetyDomains(name) {
+  return cachedSet("safety:" + name, async () => {
+    try {
+      const { domains } = await getStoredSafetyList(name);
+      return toDomainSet(domains);
+    } catch (err) {
+      console.warn("[Sieve] Could not read safety list:", name, err);
+      return new Set();
+    }
+  });
+}
+
+function getStoredScamDomains() {
+  return cachedSet("scam", async () => {
+    try {
+      const { domains } = await getStoredScamList();
+      return toDomainSet(domains);
+    } catch (err) {
+      console.warn("[Sieve] Could not read scam list:", err);
+      return new Set();
+    }
+  });
 }
 
 // ---------------------------------------------------------------------------

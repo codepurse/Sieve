@@ -1509,8 +1509,18 @@
       console.debug("[Sieve] Facebook ad filter: could not observe the document", err);
     }
     // The safety net for the two-step injections the subtree scan cannot see.
+    //
+    // Gated on visibility. A pinned Facebook tab is a normal thing to have open
+    // all day, and this used to run a full-document sweep every five seconds
+    // for the whole of it, whether or not anyone was looking — enough on its own
+    // to keep the renderer out of deep idle. Nothing is missed by skipping it:
+    // the visibilitychange handler below calls armFull() the moment the tab is
+    // looked at again, so a return to the tab gets a fresh sweep immediately.
     try {
-      setInterval(armFull, FULL_SWEEP_INTERVAL);
+      setInterval(() => {
+        if (document.hidden) return;
+        armFull();
+      }, FULL_SWEEP_INTERVAL);
     } catch {
       /* non-fatal — inserted nodes are still swept */
     }

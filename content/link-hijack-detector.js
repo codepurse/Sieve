@@ -33,18 +33,35 @@
   const SELECTOR = "a[href][target]";
   const TINY_PX = 8;
   const MAX_CANDIDATES = 3000;
-  const DEBOUNCE_MS = 300;
+  // A LEADING throttle, not a trailing debounce — see the long note in
+  // content/overlay-detector.js. The old `clearTimeout` + `setTimeout` pair let
+  // any continuously-mutating page cancel the scan forever, which both stopped
+  // the feature working and grew `pending` without bound.
+  const THROTTLE_MS = 300;
+  const MAX_PENDING = 400;
 
   let enabled = false;
   let observer = null;
-  let pending = [];
-  let debounceTimer = null;
+  let pending = new Set();
+  let throttleTimer = null;
+  let wantFullScan = false;
   let removedCount = 0; // surfaced to the popup in Step 5
 
   // ---------------------------------------------------------------------------
   // Settings
   // ---------------------------------------------------------------------------
+  // Shared with content/popup-hijack-bridge.js — one storage read and one
+  // onChanged listener for all three scripts in this manifest entry, instead of
+  // three of each per frame. See the note in the bridge.
   async function loadEnabled() {
+    const shared = window.__sieveHijackConfig;
+    if (shared && shared.subscribe) {
+      enabled = !!(await shared.subscribe((on) => {
+        enabled = on;
+        applyEnabled();
+      }));
+      return;
+    }
     try {
       const stored = await chrome.storage.local.get({ [ENABLED_KEY]: false });
       enabled = !!stored[ENABLED_KEY];
@@ -76,19 +93,23 @@
     return cs.position === "absolute" || cs.position === "fixed";
   }
 
-  function isHiddenHijackLink(a) {
+  // The three tests are separated so a scan can run them in three passes over
+  // the whole candidate list rather than all three per element. Reading a
+  // computed style between two geometry reads forces the layout to be recomputed
+  // for the second one; batching keeps it to a single layout pass per scan.
+  //
+  // The order also matters: the two free tests reject nearly every anchor on a
+  // page before any layout or style is touched at all.
+
+  // 1) free — attributes and a URL parse, no layout, no style.
+  function looksLikeHijackCandidate(a) {
     if (!a || a.nodeType !== 1 || a.tagName !== "A") return false;
     if (!isBlankTarget(a)) return false;
-    if (!isCrossOrigin(a)) return false; // same-origin _blank links are normal
+    return isCrossOrigin(a); // same-origin _blank links are normal
+  }
 
-    let cs;
-    try {
-      cs = window.getComputedStyle(a);
-    } catch {
-      return false;
-    }
-    if (!isPositioned(cs)) return false;
-
+  // 2) geometry only.
+  function isCloaked(a) {
     let rect;
     try {
       rect = a.getBoundingClientRect();
@@ -102,6 +123,22 @@
     const offScreen = rect.right <= 1 || rect.bottom <= 1; // shoved up/left off the page
     const tiny = rect.width < TINY_PX || rect.height < TINY_PX; // pixel-sized decoy
     return offScreen || tiny;
+  }
+
+  // 3) computed style only — reached by almost nothing.
+  function isPositionedEl(a) {
+    let cs;
+    try {
+      cs = window.getComputedStyle(a);
+    } catch {
+      return false;
+    }
+    return isPositioned(cs);
+  }
+
+  // Kept as one predicate for the console/test hook and for single-element use.
+  function isHiddenHijackLink(a) {
+    return looksLikeHijackCandidate(a) && isCloaked(a) && isPositionedEl(a);
   }
 
   function describe(a) {
@@ -119,22 +156,28 @@
     }
   }
 
+  // One integer per scan rather than one message per removal — see the note in
+  // content/comment-collapse.js.
+  function report(count) {
+    if (count <= 0) return;
+    try {
+      chrome.runtime
+        .sendMessage({ type: "SIEVE_RECORD_BLOCK", category: "popupHijacks", count })
+        ?.catch(() => {});
+    } catch (err) {
+      // Extension context may be unavailable in unusual conditions.
+    }
+  }
+
   function removeLink(a) {
     try {
       a.remove();
       removedCount++;
-      // Feed the shared Protection Dashboard stats store.
-      try {
-        chrome.runtime
-          .sendMessage({ type: "SIEVE_RECORD_BLOCK", category: "popupHijacks", count: 1 })
-          .catch(() => {});
-      } catch (err) {
-        // Extension context may be unavailable in unusual conditions.
-      }
       // Never silent — log every removal so a mistaken one can be spotted.
       console.warn("[Sieve] Removed a hidden click-hijack link:", describe(a));
+      return true;
     } catch {
-      /* already detached */
+      return false; /* already detached */
     }
   }
 
@@ -155,13 +198,34 @@
     }
   }
 
+  // Three passes over the list rather than three tests per anchor. Nearly every
+  // anchor is dropped by the first, which touches neither layout nor style.
+  function judge(anchors) {
+    const candidates = [];
+    for (const a of anchors) {
+      if (looksLikeHijackCandidate(a)) candidates.push(a);
+    }
+    if (candidates.length === 0) return;
+
+    const cloaked = [];
+    for (const a of candidates) {
+      if (isCloaked(a)) cloaked.push(a);
+    }
+    if (cloaked.length === 0) return;
+
+    let removed = 0;
+    for (const a of cloaked) {
+      if (!a.isConnected) continue;
+      if (isPositionedEl(a) && removeLink(a)) removed++;
+    }
+    report(removed);
+  }
+
   function scanFrom(roots) {
     if (!enabled) return;
     const anchors = [];
     for (const root of roots) collectAnchors(root, anchors);
-    for (const a of anchors) {
-      if (isHiddenHijackLink(a)) removeLink(a);
-    }
+    judge(anchors);
   }
 
   function fullScan() {
@@ -172,9 +236,7 @@
     } catch {
       return;
     }
-    for (const a of anchors) {
-      if (isHiddenHijackLink(a)) removeLink(a);
-    }
+    judge(anchors);
   }
 
   // ---------------------------------------------------------------------------
@@ -182,11 +244,22 @@
   // change, and some sites re-inject after removal.
   // ---------------------------------------------------------------------------
   function flushMutations() {
-    debounceTimer = null;
+    throttleTimer = null;
     const batch = pending;
-    pending = [];
+    const full = wantFullScan;
+    pending = new Set();
+    wantFullScan = false;
     if (!enabled) return;
-    scanFrom(batch);
+    if (full) fullScan();
+    else scanFrom(batch);
+  }
+
+  function queueCandidate(node) {
+    if (pending.size >= MAX_PENDING) {
+      wantFullScan = true; // a whole surface is being replaced; sweep instead
+      return;
+    }
+    pending.add(node);
   }
 
   function onMutations(mutations) {
@@ -195,18 +268,19 @@
       if (m.type === "childList") {
         for (const node of m.addedNodes) {
           if (node.nodeType === 1) {
-            pending.push(node);
+            queueCandidate(node);
             queued = true;
           }
         }
       } else if (m.type === "attributes" && m.target && m.target.tagName === "A") {
-        pending.push(m.target); // style/class/target/href change on an anchor
+        queueCandidate(m.target); // style/class/target/href change on an anchor
         queued = true;
       }
     }
     if (!queued) return;
-    clearTimeout(debounceTimer);
-    debounceTimer = setTimeout(flushMutations, DEBOUNCE_MS);
+    // Leading edge — never reset. See the note beside THROTTLE_MS.
+    if (throttleTimer !== null) return;
+    throttleTimer = setTimeout(flushMutations, THROTTLE_MS);
   }
 
   function startObserver() {
@@ -224,9 +298,10 @@
     if (!observer) return;
     observer.disconnect();
     observer = null;
-    pending = [];
-    clearTimeout(debounceTimer);
-    debounceTimer = null;
+    pending = new Set();
+    wantFullScan = false;
+    clearTimeout(throttleTimer);
+    throttleTimer = null;
   }
 
   // ---------------------------------------------------------------------------
@@ -241,11 +316,15 @@
     }
   }
 
-  chrome.storage.onChanged.addListener((changes, area) => {
-    if (area !== "local" || !changes[ENABLED_KEY]) return;
-    enabled = !!changes[ENABLED_KEY].newValue;
-    applyEnabled();
-  });
+  // Only without the bridge — see the matching note in overlay-detector.js.
+  if (!window.__sieveHijackConfig || !window.__sieveHijackConfig.subscribe) {
+    chrome.storage.onChanged.addListener((changes, area) => {
+      if (area !== "local" || !changes[ENABLED_KEY]) return;
+      enabled = !!changes[ENABLED_KEY].newValue;
+      applyEnabled();
+    });
+  }
+
 
   chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     if (!message) return false;

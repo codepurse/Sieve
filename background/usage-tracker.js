@@ -326,13 +326,22 @@ function applyIdleDetection(enabled) {
 // retention window changes instead.
 async function start() {
   const enabled = await isEnabled();
-  applyIdleDetection(enabled);
-  schedulePrune();
   if (!enabled) {
+    // OFF is the default, and this function runs on EVERY worker wake — from
+    // any cause, not just ours. It used to schedule an alarm and write to
+    // storage on each of those, tidying up state that a disabled feature never
+    // created. The teardown belongs on the transition to off (the
+    // storage.onChanged handler below, and onInstalled/onStartup), not on every
+    // wake for the rest of time.
+    applyIdleDetection(false);
     stopHeartbeat();
-    await clearOpenSegment();
+    // The prune alarm stays scheduled either way: a user who turned tracking
+    // off still has yesterday's history on disk, and it should still age out.
+    schedulePrune();
     return;
   }
+  applyIdleDetection(true);
+  schedulePrune();
   startHeartbeat();
   await resync();
 }

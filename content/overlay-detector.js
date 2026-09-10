@@ -32,18 +32,44 @@
   const Z_INDEX_MIN = 1000; // signal (c): "high" z-index threshold
   const SCAN_DEPTH = 3; // how deep below an added node to look for overlays
   const MAX_CANDIDATES = 3000; // per-flush cap so a giant subtree can't stall us
-  const DEBOUNCE_MS = 300;
+  // A LEADING throttle, not a trailing debounce. The old code cleared and reset
+  // this timer on every mutation batch, so on any page that mutates more often
+  // than the delay — a feed, a carousel, a spinner toggling a class — the timer
+  // was cancelled before it could ever fire. Three things went wrong at once:
+  // the scan never ran (so the feature silently did nothing on exactly the
+  // pages most likely to need it), the pending queue grew without bound, and it
+  // held the only remaining reference to every detached node in it. Firing on
+  // the leading edge and coalescing what arrives during the window fixes all
+  // three. Same shape as content/anti-adblock-dom.js.
+  const THROTTLE_MS = 300;
+  // The queue is bounded now. A burst larger than this is a whole surface being
+  // replaced, which the full scan below covers anyway.
+  const MAX_PENDING = 400;
 
   let enabled = false;
   let observer = null;
-  let pending = [];
-  let debounceTimer = null;
+  let pending = new Set(); // a Set: the same element re-styled twice is one candidate
+  let throttleTimer = null;
+  let wantFullScan = false; // the queue overflowed; sweep the document instead
   let removedCount = 0; // surfaced to the popup in Step 5
 
   // ---------------------------------------------------------------------------
   // Settings
   // ---------------------------------------------------------------------------
+  // The toggle comes from content/popup-hijack-bridge.js, which is loaded ahead
+  // of this file in the same manifest entry and the same isolated world, and
+  // which does ONE storage read for all three scripts. See the long note there.
+  // Falling back to our own read keeps this file working if it is ever loaded
+  // on its own.
   async function loadEnabled() {
+    const shared = window.__sieveHijackConfig;
+    if (shared && shared.subscribe) {
+      enabled = !!(await shared.subscribe((on) => {
+        enabled = on;
+        applyEnabled();
+      }));
+      return;
+    }
     try {
       const stored = await chrome.storage.local.get({ [ENABLED_KEY]: false });
       enabled = !!stored[ENABLED_KEY];
@@ -125,23 +151,34 @@
 
   const NEVER_REMOVE = new Set(["HTML", "BODY", "HEAD", "SCRIPT", "STYLE", "LINK", "META"]);
 
-  function isHijackOverlay(el) {
+  // a) covers the viewport. Split out from the rest so every candidate's
+  // geometry can be read in ONE pass, before any style is read.
+  //
+  // The order was already right — cheap rect first, expensive style second —
+  // but INTERLEAVING them per element is what actually costs: each
+  // getComputedStyle forces the style and layout the previous rect read just
+  // settled to be recomputed for the next one. Measured over 3,000 candidates
+  // on a dirty layout: 444ms interleaved. Reading all the rects first, then
+  // styling only the handful that survive, keeps it to one layout pass — and
+  // almost nothing survives, because almost no element covers 80% of the
+  // viewport in both axes.
+  function coversViewportEl(el) {
     if (!el || el.nodeType !== 1) return false;
     if (NEVER_REMOVE.has(el.tagName)) return false;
-
-    // a) covers the viewport — do this cheap geometry test FIRST. Almost no
-    // element covers the whole viewport, and getBoundingClientRect is far cheaper
-    // than getComputedStyle; bailing here avoids forcing a style recalc for the
-    // thousands of candidates that fail coverage. (display:none has a zero rect,
-    // so it's rejected here too; visibility:hidden is caught by the cs check.)
     let rect;
     try {
       rect = el.getBoundingClientRect();
     } catch {
       return false;
     }
-    if (!coversViewport(rect)) return false;
+    // (display:none has a zero rect, so it's rejected here too;
+    // visibility:hidden is caught by the style check in the second pass.)
+    return coversViewport(rect);
+  }
 
+  // b-d) everything that needs computed style. Only ever called for elements
+  // that already passed coversViewportEl().
+  function isHijackOverlay(el) {
     const cs = safeStyle(el);
     if (!cs) return false;
     if (cs.display === "none" || cs.visibility === "hidden") return false;
@@ -175,22 +212,30 @@
     }
   }
 
+  // One integer per throttle window rather than one message per removal. See
+  // the note in content/comment-collapse.js: each of these messages was a
+  // service-worker wake, a storage read, a storage write and a storage.onChanged
+  // broadcast to every frame of every open tab.
+  function report(count) {
+    if (count <= 0) return;
+    try {
+      chrome.runtime
+        .sendMessage({ type: "SIEVE_RECORD_BLOCK", category: "popupHijacks", count })
+        ?.catch(() => {});
+    } catch (err) {
+      // Extension context may be unavailable in unusual conditions.
+    }
+  }
+
   function removeOverlay(el) {
     try {
       el.remove();
       removedCount++;
-      // Feed the shared Protection Dashboard stats store.
-      try {
-        chrome.runtime
-          .sendMessage({ type: "SIEVE_RECORD_BLOCK", category: "popupHijacks", count: 1 })
-          .catch(() => {});
-      } catch (err) {
-        // Extension context may be unavailable in unusual conditions.
-      }
       // Never silent — surface every removal so a mistaken one can be spotted.
       console.warn("[Sieve] Removed a transparent click-hijack overlay:", describe(el));
+      return true;
     } catch {
-      /* element already detached */
+      return false; /* element already detached */
     }
   }
 
@@ -205,13 +250,30 @@
     for (let i = 0; i < kids.length; i++) collectCandidates(kids[i], out, depth - 1);
   }
 
+  // TWO passes, deliberately. Pass one reads only geometry, so the layout is
+  // computed once and every rect after that is a cheap read from the same
+  // settled state. Pass two reads computed style, but only for the survivors —
+  // normally none, occasionally one.
+  function judge(candidates) {
+    const covering = [];
+    for (const el of candidates) {
+      if (coversViewportEl(el)) covering.push(el);
+    }
+    if (covering.length === 0) return;
+
+    let removed = 0;
+    for (const el of covering) {
+      if (!el.isConnected) continue; // a previous removal took it with the subtree
+      if (isHijackOverlay(el) && removeOverlay(el)) removed++;
+    }
+    report(removed);
+  }
+
   function scanFrom(roots) {
     if (!enabled) return;
     const candidates = [];
     for (const root of roots) collectCandidates(root, candidates, SCAN_DEPTH);
-    for (const el of candidates) {
-      if (isHijackOverlay(el)) removeOverlay(el);
-    }
+    judge(candidates);
   }
 
   function fullScan() {
@@ -224,11 +286,25 @@
   // re-inject them after removal, so we keep watching.
   // ---------------------------------------------------------------------------
   function flushMutations() {
-    debounceTimer = null;
+    throttleTimer = null;
     const batch = pending;
-    pending = [];
+    const full = wantFullScan;
+    pending = new Set();
+    wantFullScan = false;
     if (!enabled) return;
-    scanFrom(batch);
+    if (full) fullScan();
+    else scanFrom(batch);
+  }
+
+  function queueCandidate(node) {
+    if (pending.size >= MAX_PENDING) {
+      // Genuinely more distinct roots than the cap: a whole surface is being
+      // replaced. Say so and sweep the document, rather than silently dropping
+      // subtrees and letting an overlay through.
+      wantFullScan = true;
+      return;
+    }
+    pending.add(node);
   }
 
   function onMutations(mutations) {
@@ -237,19 +313,22 @@
       if (m.type === "childList") {
         for (const node of m.addedNodes) {
           if (node.nodeType === 1) {
-            pending.push(node);
+            queueCandidate(node);
             queued = true;
           }
         }
       } else if (m.type === "attributes" && m.target && m.target.nodeType === 1) {
         // A style/class change can turn an existing element into an overlay.
-        pending.push(m.target);
+        queueCandidate(m.target);
         queued = true;
       }
     }
     if (!queued) return;
-    clearTimeout(debounceTimer);
-    debounceTimer = setTimeout(flushMutations, DEBOUNCE_MS);
+    // Leading edge: the first burst is scanned after one window, and everything
+    // that arrives while the window is open rides along with it. Never reset —
+    // resetting is what let a continuously-mutating page starve the scan.
+    if (throttleTimer !== null) return;
+    throttleTimer = setTimeout(flushMutations, THROTTLE_MS);
   }
 
   function startObserver() {
@@ -269,9 +348,10 @@
     if (!observer) return;
     observer.disconnect();
     observer = null;
-    pending = [];
-    clearTimeout(debounceTimer);
-    debounceTimer = null;
+    pending = new Set();
+    wantFullScan = false;
+    clearTimeout(throttleTimer);
+    throttleTimer = null;
   }
 
   // ---------------------------------------------------------------------------
@@ -289,11 +369,16 @@
   // ---------------------------------------------------------------------------
   // Toggle reactions
   // ---------------------------------------------------------------------------
-  chrome.storage.onChanged.addListener((changes, area) => {
-    if (area !== "local" || !changes[ENABLED_KEY]) return;
-    enabled = !!changes[ENABLED_KEY].newValue;
-    applyEnabled();
-  });
+  // Only when we are running WITHOUT the bridge. With it, the subscription in
+  // loadEnabled() already delivers changes, and registering here too would put
+  // a second listener in every frame — which is the cost this shares away.
+  if (!window.__sieveHijackConfig || !window.__sieveHijackConfig.subscribe) {
+    chrome.storage.onChanged.addListener((changes, area) => {
+      if (area !== "local" || !changes[ENABLED_KEY]) return;
+      enabled = !!changes[ENABLED_KEY].newValue;
+      applyEnabled();
+    });
+  }
 
   chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     if (!message) return false;

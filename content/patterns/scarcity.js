@@ -174,19 +174,43 @@
   // Public scan
   // ---------------------------------------------------------------------------
 
+  // The walk lives in content/dark-patterns.js now — see the note there and in
+  // content/patterns/timers.js. What is left here is the part that is actually
+  // about scarcity.
+  //
+  // The cross-load cache is read from storage once, asynchronously, and every
+  // decision this detector makes depends on it. So a match that arrives before
+  // it is ready is held rather than judged: dimming an element requires knowing
+  // whether its number has been seen before, and without the cache the answer
+  // would always be "no".
+  let deferred = [];
+
+  function onScarcityText(el, context) {
+    ctx = context;
+    if (cacheLoaded) {
+      processElement(el);
+      return;
+    }
+    if (deferred.length < 200) deferred.push(el);
+    loadCache()
+      .then(() => {
+        const held = deferred;
+        deferred = [];
+        for (const node of held) {
+          if (node.isConnected && !ctx.isMarked(node)) processElement(node);
+        }
+      })
+      .catch((err) => console.error("[Sieve] Scarcity cache load failed:", err));
+  }
+
+  // Kept for direct/console use. The coordinator no longer calls it.
   async function scanAsync(root) {
     await loadCache();
-
-    const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, {
-      acceptNode(node) {
-        return SCARCITY_RE.test(node.textContent || "")
-          ? NodeFilter.FILTER_ACCEPT
-          : NodeFilter.FILTER_REJECT;
-      },
-    });
-
+    const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, null);
     let node;
     while ((node = walker.nextNode())) {
+      const value = node.nodeValue;
+      if (!value || !SCARCITY_RE.test(value)) continue;
       const el = node.parentElement;
       if (!el || ctx.isMarked(el)) continue;
       processElement(el);
@@ -199,5 +223,7 @@
     return 0; // reporting happens asynchronously
   }
 
-  window.SieveDarkPatterns.register(TYPE, { scan });
+  window.SieveDarkPatterns.registerText(TYPE, SCARCITY_RE, onScarcityText);
+  window.SieveDarkPatterns.register(TYPE, { scanText: true });
+  window.__sieveScarcityScan = scan; // console / test hook
 })();

@@ -34,7 +34,6 @@ $RuntimeFolders = @(
     "content",
     "data",
     "icons",
-    "offscreen",
     "options",
     "pages",
     "popup",
@@ -50,7 +49,6 @@ $RequiredAssets = @(
     "background\service-worker.js",
     "background\ad-tracker-stats.js",
     "content\cookie-engine.bundle.js",
-    "content\toxic-model.bundle.js",
     "content\youtube-ads.js",
     "content\youtube-ads-bridge.js",
     "content\youtube-ads.css",
@@ -103,6 +101,28 @@ foreach ($file in $RuntimeFiles) {
         Copy-Item -Path $src -Destination (Join-Path $OutDir $file) -Force
     }
 }
+
+Write-Host "==> Removing Chrome-only payload" -ForegroundColor Cyan
+# content\toxic-model.bundle.js is 638 KB of TensorFlow.js, and its ONLY consumer
+# is offscreen\toxic-offscreen.html. Firefox has no chrome.offscreen, so that
+# document can never be created and the bundle can never be loaded - it was 14%
+# of the Firefox package doing nothing at all. The offscreen folder is excluded
+# from $RuntimeFolders above for the same reason; this removes the bundle, which
+# lives under content\ alongside the scripts that ARE injected.
+$DeadPayload = Join-Path $OutDir "content\toxic-model.bundle.js"
+if (Test-Path $DeadPayload) {
+    Remove-Item -Path $DeadPayload -Force
+}
+
+Write-Host "==> Stripping comments from the packaged JavaScript" -ForegroundColor Cyan
+# The source is heavily commented on purpose; the package does not need any of
+# it. This removes comments ONLY - every statement keeps its own line and its
+# indentation, so the shipped code is still readable and is not "minified" in
+# the sense Mozilla's add-on policies mean. Each file is verified against its
+# original (esbuild minifies both; they must match byte for byte) and is copied
+# through untouched if it does not, so this can never ship a broken file.
+& node (Join-Path $SrcDir "build-strip-comments.mjs") $OutDir
+if ($LASTEXITCODE -ne 0) { throw "build-strip-comments.mjs failed" }
 
 Write-Host "==> Verifying required assets" -ForegroundColor Cyan
 foreach ($asset in $RequiredAssets) {
