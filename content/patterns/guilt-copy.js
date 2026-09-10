@@ -41,16 +41,20 @@
     return !!clickable;
   }
 
-  function isGuiltTrip(text) {
+  // WHOLE WORDS, not substrings. `includes()` here was rewriting the words on
+  // ordinary buttons: "no" is inside Know, Economy, Ignore and Nothing, and
+  // "pass" is inside password, so "Know more about our free trial" and "Reset
+  // the password for member accounts" both came out as "No thanks". See the
+  // note beside hasWord() in content/dark-patterns.js.
+  function isGuiltTrip(text, ctx) {
     const t = text.toLowerCase();
+    const matches = ctx && ctx.hasAnyWord ? ctx.hasAnyWord : (h, list) => list.some((w) => h.includes(w));
 
     // Must contain negative framing.
-    const hasNegative = NEGATIVE_WORDS.some((w) => t.includes(w));
-    if (!hasNegative) return false;
+    if (!matches(t, NEGATIVE_WORDS)) return false;
 
     // Must mention something positive the user is supposedly rejecting.
-    const hasPositive = POSITIVE_THINGS.some((w) => t.includes(w));
-    if (!hasPositive) return false;
+    if (!matches(t, POSITIVE_THINGS)) return false;
 
     // Guilt-trip copy is typically much longer than a normal dismiss button.
     if (text.length < 20) return false;
@@ -62,7 +66,7 @@
     if (ctx.isMarked(el)) return;
 
     const text = (el.textContent || "").trim();
-    if (!isGuiltTrip(text)) return;
+    if (!isGuiltTrip(text, ctx)) return;
 
     const label = neutralLabel(text);
 
@@ -98,7 +102,7 @@
       if (!looksLikeButton(el) || ctx.isMarked(el)) continue;
       const text = (el.textContent || "").trim();
       if (text.length > 80) continue; // too long to be a button; probably a paragraph
-      if (isGuiltTrip(text)) rewriteButton(el, ctx);
+      if (isGuiltTrip(text, ctx)) rewriteButton(el, ctx);
     }
 
     // rewriteButton() already reports each rewrite via ctx.report(). Return 0 so

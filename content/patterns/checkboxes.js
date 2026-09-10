@@ -19,7 +19,7 @@
 
   const BADGE_TEXT = "pre-checked";
 
-  function hasMarketingContext(checkbox) {
+  function hasMarketingContext(checkbox, ctx) {
     const textSources = [];
 
     if (checkbox.id) {
@@ -32,13 +32,33 @@
 
     textSources.push(checkbox.name || "", checkbox.getAttribute("aria-label") || "");
 
+    // Climb for surrounding context, but STOP at the first ancestor that holds
+    // another checkbox.
+    //
+    // Three unconditional levels was too many. On a consent form the boxes are
+    // siblings, so the third level up is routinely the form — or, on a simple
+    // page, <body> — and its textContent is every other checkbox's label. One
+    // marketing opt-in anywhere on the page then badged all of them, including
+    // "I have read and accept the terms". An ancestor shared with another
+    // checkbox describes the group, not this control, so it is not context.
     let parent = checkbox.parentElement;
     for (let i = 0; i < 3 && parent; i++) {
+      let siblings = 1;
+      try {
+        siblings = parent.querySelectorAll('input[type="checkbox"]').length;
+      } catch (_) {
+        /* treat an unqueryable ancestor as its own context */
+      }
+      if (siblings > 1) break;
       textSources.push(parent.textContent || "");
       parent = parent.parentElement;
     }
 
+    // WHOLE WORDS: "text" is one of the keywords and is inside "context",
+    // "textile" and "next". See the note beside hasWord() in
+    // content/dark-patterns.js.
     const haystack = textSources.join(" ").toLowerCase();
+    if (ctx && ctx.hasAnyWord) return ctx.hasAnyWord(haystack, MARKETING_KEYWORDS);
     return MARKETING_KEYWORDS.some((kw) => haystack.includes(kw));
   }
 
@@ -90,7 +110,7 @@
     if (ctx.isMarked(checkbox)) return;
     if (checkbox.type !== "checkbox") return;
     if (!checkbox.checked) return;
-    if (!hasMarketingContext(checkbox)) return;
+    if (!hasMarketingContext(checkbox, ctx)) return;
 
     highlight(checkbox);
     addBadge(checkbox);

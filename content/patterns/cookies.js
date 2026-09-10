@@ -35,7 +35,7 @@
     "manage cookies", "cookie settings", "customize",
   ];
 
-  function findBanner(root) {
+  function findBanner(root, ctx) {
     for (const sel of BANNER_SELECTORS) {
       const el = root.matches?.(sel) ? root : root.querySelector(sel);
       if (el) return el;
@@ -44,8 +44,8 @@
     // Fallback: a fixed/sticky container containing cookie-related text and
     // both accept- and reject-like buttons.
     const buttons = root.querySelectorAll("button, a, [role='button']");
-    const acceptBtn = findButtonByWords(buttons, ACCEPT_WORDS);
-    const rejectBtn = findButtonByWords(buttons, REJECT_WORDS);
+    const acceptBtn = findButtonByWords(buttons, ACCEPT_WORDS, ctx);
+    const rejectBtn = findButtonByWords(buttons, REJECT_WORDS, ctx, acceptBtn);
     if (acceptBtn && rejectBtn) {
       let node = acceptBtn.parentElement;
       while (node && node !== document.body) {
@@ -61,12 +61,31 @@
     return null;
   }
 
-  function findButtonByWords(buttons, words) {
+  // WHOLE WORDS, and this is the detector where it mattered most: "ok" was one
+  // of the accept words, and it is inside "cookie". On a banner — the only
+  // place this runs — a "Cookie settings" button therefore matched the accept
+  // list, and it matches the reject list too ("cookie settings" is in it), so
+  // the SAME button was returned as both Accept and Reject. The pair then
+  // looked perfectly balanced, the detector stood down, and the genuinely
+  // hidden Reject button was left hidden. See hasWord() in
+  // content/dark-patterns.js.
+  //
+  // `skip` lets the caller refuse a button already claimed by the other role,
+  // so Accept and Reject can never be the same element.
+  function findButtonsByWords(buttons, words, ctx, skip) {
+    const out = [];
     for (const btn of buttons) {
+      if (skip && btn === skip) continue;
       const text = (btn.textContent || "").toLowerCase();
-      if (words.some((w) => text.includes(w))) return btn;
+      const hit =
+        ctx && ctx.hasAnyWord ? ctx.hasAnyWord(text, words) : words.some((w) => text.includes(w));
+      if (hit) out.push(btn);
     }
-    return null;
+    return out;
+  }
+
+  function findButtonByWords(buttons, words, ctx, skip) {
+    return findButtonsByWords(buttons, words, ctx, skip)[0] || null;
   }
 
   function isVisuallySuppressed(el) {
@@ -120,14 +139,27 @@
   }
 
   function scan(root, ctx) {
-    const banner = findBanner(root);
+    const banner = findBanner(root, ctx);
     if (!banner || ctx.isMarked(banner)) return 0;
 
     const buttons = banner.querySelectorAll("button, a, [role='button']");
-    const acceptBtn = findButtonByWords(buttons, ACCEPT_WORDS);
-    const rejectBtn = findButtonByWords(buttons, REJECT_WORDS);
+    const acceptBtn = findButtonByWords(buttons, ACCEPT_WORDS, ctx);
+    // Never the same element as Accept: a "Cookie settings" button reads as
+    // both, and pairing it with itself is how this used to conclude that a
+    // banner was already fair.
+    const rejectCandidates = findButtonsByWords(buttons, REJECT_WORDS, ctx, acceptBtn);
 
-    if (!acceptBtn || !rejectBtn) return 0;
+    if (!acceptBtn || rejectCandidates.length === 0) return 0;
+
+    // ALL the reject-ish buttons, and prefer whichever is actually suppressed.
+    //
+    // The commonest manipulative layout has three: a prominent "Accept all", a
+    // normal-looking "Cookie settings", and a "Reject" shrunk to a sliver.
+    // Taking the first match found "Cookie settings", judged the pair balanced,
+    // and left the sliver alone — standing down on precisely the shape this
+    // detector exists for.
+    const rejectBtn =
+      rejectCandidates.find((b) => isVisuallySuppressed(b) || isTiny(b)) || rejectCandidates[0];
 
     // Only act if the banner looks manipulative: reject is hidden or much
     // smaller/less prominent than accept.
