@@ -16,7 +16,11 @@
 //   bridge -> main : { dir:'to-main',   kind:'config', enabled, whitelisted }
 //   main   -> bridge: { dir:'to-bridge', kind:'hello' }            (request config)
 //   main   -> bridge: { dir:'to-bridge', kind:'blocked', entry }   (log a block)
-//   main   -> bridge: { dir:'to-bridge', kind:'whitelist-add' }    ("Always allow")
+//
+// THAT CHANNEL IS FORGEABLE. Both halves share a window, so the page can send
+// and read every message above. Nothing crossing it may change stored state --
+// there used to be a 'whitelist-add' here, and any site could post it to exempt
+// itself permanently. Allowing a site is now done from the toolbar popup.
 //
 // The interceptors that hook page JS (window.open / .click / .submit /
 // dispatchEvent) MUST live here in the MAIN world. The DOM-cleanup pieces
@@ -196,9 +200,6 @@
       /* ignore */
     }
   }
-  function performAll() {
-    for (const id of Array.from(pending.keys())) performPending(id);
-  }
 
   // --- on-page prompt (Shadow DOM so page CSS can't touch it) ---
   let promptHost = null;
@@ -216,15 +217,28 @@
       "border:1px solid #334155;border-radius:10px;padding:12px 14px;width:300px;box-shadow:0 8px 24px rgba(0,0,0,.4)}" +
       ".t{font-weight:600;margin-bottom:4px}.u{color:#94a3b8;font-size:11px;word-break:break-all;margin-bottom:10px;max-height:48px;overflow:hidden}" +
       ".row{display:flex;gap:8px;flex-wrap:wrap}button{font:inherit;border-radius:6px;padding:5px 10px;cursor:pointer;border:1px solid #334155}" +
-      ".allow{background:#38bdf8;color:#06283d;border-color:#38bdf8;font-weight:600}.site{background:transparent;color:#38bdf8}" +
-      ".x{background:transparent;color:#94a3b8;margin-left:auto}";
+      ".allow{background:#38bdf8;color:#06283d;border-color:#38bdf8;font-weight:600}" +
+      ".x{background:transparent;color:#94a3b8;margin-left:auto}" +
+      ".hint{color:#94a3b8;font-size:11px;margin-top:8px}";
     const box = document.createElement("div");
     box.className = "box";
+    // No "Always allow this site" button here any more.
+    //
+    // It posted "whitelist-add" to the isolated half, which wrote the host into
+    // storage — and the isolated half cannot tell that message from one the PAGE
+    // sent, because both halves share a window. Any site could post that single
+    // line and permanently exempt itself from this blocker. The sites this
+    // module exists to stop are exactly the ones that would.
+    //
+    // Allowing a site permanently now happens in the toolbar popup, which
+    // already has the control ("Allow popups on <host>") and which a page cannot
+    // reach. "Allow" below stays: it is a one-off, it performs an action the
+    // user just asked for, and it changes nothing that outlives the page.
     box.innerHTML =
       '<div class="t"></div><div class="u"></div>' +
       '<div class="row"><button class="allow"></button>' +
-      '<button class="site">Always allow this site</button>' +
-      '<button class="x">✕</button></div>';
+      '<button class="x">✕</button></div>' +
+      '<div class="hint">To always allow this site, open Sieve from the toolbar.</div>';
     promptShadow.appendChild(style);
     promptShadow.appendChild(box);
 
@@ -233,12 +247,6 @@
       const id = latestId();
       if (id != null) performPending(id);
       renderPrompt();
-    });
-    box.querySelector(".site").addEventListener("click", () => {
-      postToBridge("whitelist-add", {});
-      whitelisted = true;
-      performAll();
-      hidePrompt();
     });
     box.querySelector(".x").addEventListener("click", hidePrompt);
   }
