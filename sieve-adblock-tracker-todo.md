@@ -2,22 +2,28 @@
 
 **Target release:** 1.4.0, ~**22 September 2026** (1.3.0 uploaded 1 September)
 **New section:** "Ad & Trackers", its own sidebar entry, shipped with a **BETA** banner
-**Status:** planned — nothing built yet
+**Status:** **BUILT — in `main`, unreleased.** Every checklist below is done.
+What remains before 1.4.0 ships is the part no checklist can do for you: the
+week of real browsing in Week 3, and the store upload.
 
 ---
 
 ## How to use this file
 
-1. Copy the **THE PROMPT** section below into Claude / Claude Code.
-2. Make sure this file is attached, or in the project so it can be read.
-3. Work through the week-by-week TODO checklists — tick items off as each is
-   confirmed working, not as each is written.
-4. Finish the domain tier completely before even discussing cosmetic filtering.
+This started as a plan to hand to Claude Code and is now mostly a **record**.
+Read it that way: the checklists say what was decided and where it ended up, and
+the notes under them say where the plan was wrong. Nothing here needs pasting
+into anything any more.
 
-> ⚠️ **The main failure mode of this release is scope creep.** MV3 turns out to
-> allow far more than it first appears (scriptlets, cosmetics — see below), and
-> that makes it tempting to keep going. Don't. Ship the domain tier, learn the
-> breakage rate, then decide.
+The parts still worth acting on are marked **OPEN** — there are two, both in
+Week 3, and both are somebody sitting in front of a browser rather than code.
+
+> ⚠️ **The main failure mode of this release was scope creep, and it happened.**
+> The warning below was written before anything was built. It was right that the
+> risk was real and wrong about the outcome: three of the four things listed as
+> out of scope shipped anyway. See "Explicitly OUT of scope" near the bottom,
+> which now carries what actually became of each one. Kept as written because a
+> prediction is only useful if you can still read what it said.
 
 ---
 
@@ -90,7 +96,12 @@ game.
 
 ---
 
-## THE PROMPT (copy this)
+## THE PROMPT (historical — this is what was handed over)
+
+> Kept as a record of what the work was actually asked for, which is worth
+> having when reading the decisions above. **Do not paste this in now:** it
+> opens by saying the feature does not exist yet, and it would send anyone who
+> ran it off rebuilding something that is already in `main`.
 
 ```
 Sieve 1.3.0 is shipped and live in both stores. Everything currently in the
@@ -208,63 +219,90 @@ do not redirect subresources — that breaks pages harder than blocking them.
 
 ---
 
-## Week 1 — the tier
+## Week 1 — the tier — **DONE**
 
-- [ ] Decide list source. Default: **EasyPrivacy**, domain-only entries.
-- [ ] **Check the licence before writing any code.** EasyPrivacy is GPLv3 /
-      CC BY-SA 3.0. Confirm what attribution the store listing and the repo
-      need, and whether it obliges anything about Sieve's own licence. This is
-      a blocker, not a footnote — resolve it first.
-- [ ] Write the converter: filter the list to plain-domain entries, drop
-      everything needing a rule form DNR cannot express (`$redirect-rule=`,
-      cosmetics, scriptlets, `$csp`, regex-only entries), and emit a sorted,
-      deduped domain array.
-- [ ] Decide **bundled vs fetched**. Recommendation: **bundle it**, matching
-      how MLM and dating ship. No first-run network dependency, no stale-list
-      failure mode, refresh costs a release. Reserve fetching for lists too big
-      to bundle (scam, malware).
-- [ ] Log what the converter dropped and why, so the count is honest and a
-      later refresh is reproducible.
-- [ ] Add the group(s) to the safety-shield-style spec with id band `180000`.
-- [ ] Wire the toggle key(s) in the `ss…` namespace, default **OFF**.
-- [ ] Subresource types: block. `main_frame`: redirect to the blocked page.
+- [x] List source: **EasyPrivacy** for trackers, **EasyList** for ad networks.
+      Two sources, because the two groups carry different breakage risk.
+- [x] Licence resolved and it was the right thing to do first. CC BY-SA 3.0 was
+      the elected licence; the reasoning, the attribution, and a third section
+      answering "did you copy uBlock Origin" live in `data/ATTRIBUTION-easylist.md`.
+- [x] Converter: `build-tracker-list.mjs`. It emits five shapes, not one —
+      `always`, `thirdParty`, `scoped`, `typed` and `spared` — because the
+      upstream lists carve out per-site exceptions that a flat domain array
+      cannot express. `scoped` became `excludedInitiatorDomains`, `spared`
+      became `excludedRequestDomains`.
+- [x] **Bundled**, as recommended. `data/tracker-domains.json`, 2.16 MB, parsed
+      only when a group is on and only when the rules are rebuilt.
+- [x] Drops are logged: `tracker-list-report.md`, plus a `_dropped` block inside
+      the JSON so the count travels with the data.
+- [x] Id band `180000`. **Both** groups fit in the one band rather than costing
+      a second — see the Open questions below, where this was expected to need
+      `190000`. That band is still free and now reserved for a third source.
+- [x] `ssAdTrackerEnabled` and `ssAdNetworkEnabled`, both default **OFF**.
+- [x] Subresources blocked; `main_frame` redirects to the blocked page.
 
-## Week 2 — UI, banner, honesty
+## Week 2 — UI, banner, honesty — **DONE**
 
-- [ ] New sidebar section + nav entry in `options/options.html`
-      (`#section-adblock`), following the existing `.section` / `.card` markup.
-- [ ] **BETA banner** on the section. Reuse the existing `.badge` / `.badge.on`
-      pill for the nav or card title, and add a short explanatory callout: what
-      it does block (third-party ad and tracker domains), what it does **not**
-      (YouTube ads, anti-adblock walls, first-party ads), and that breakage
-      should be reported.
-- [ ] Toggle(s) wired through `setupSafetyShield`-style handlers; Guardian gate
-      on turning **off** (weakening protection), free to turn on.
-- [ ] **Allowlist must apply.** Non-negotiable — this is the tier most likely to
-      break a checkout, and the allowlist is the user's escape hatch.
-- [ ] Blocked-page wording for a `main_frame` hit that names the switch to turn
-      off, like every other tier.
-- [ ] Store listing copy: "tracker & ad-network blocker". Never "adblocker".
-- [ ] Add the release-notes entry to `common/changelog.js` (1.4.0, top of the
-      array, `date: "Unreleased"` until release day).
+- [x] Sidebar section and nav entry in `options/options.html`.
+- [x] **Beta** pill on the section, with the callout saying what is and is not
+      blocked, and a link for reporting a site that broke
+      (`github.com/codepurse/Sieve`).
+- [x] Toggles wired in the safety-shield style; Guardian gates turning **off**,
+      turning on is free.
+- [x] **Allowlist applies** — and this was the one real architectural surprise
+      of the release. It could not be done with the shared allow rule, because
+      this tier blocks requests made *from* the site you are on rather than *to*
+      it. It is `excludedInitiatorDomains` on this tier's own rules. See the
+      section further down; it is the note most likely to matter later.
+- [x] Blocked-page wording names the switch, like every other tier.
+- [x] Store listing copy holds the line: "tracker & ad-network blocker".
+- [x] Release notes in `common/changelog.js`. Now 38 items, because the
+      performance pass that followed added eight more — including one that is a
+      correction rather than a feature (the Popup & Click Hijack Blocker was
+      silently doing nothing on any page that kept changing).
 
 ## Week 3 — triage, and this is where the time actually goes
 
-- [ ] Run it on your own daily sites with the toggle on for the whole week.
-- [ ] Deliberately test the known-fragile surfaces: **logins / SSO, checkout
-      and payment flows, analytics-gated UI, embedded video players, comment
-      widgets, consent flows** (watch for interaction with cookie auto-reject).
-- [ ] Every breakage found: either drop the domain from the bundled list or
-      document it in the beta banner's known-issues line.
-- [ ] Re-run the full test suite (`test/*.mjs`) and add a converter test in the
-      style of `test/blocklist-pattern-test.mjs`.
-- [ ] Verify the options page headlessly (headless Chrome + throwaway chrome
-      shim; the Browser-pane MCP does not composite here). Remember the shim's
-      `storage.local.get` must resolve the DEFAULTS object it is handed, or
-      later `setup…` calls throw and everything after them silently stops.
-- [ ] Bump `manifest.json`, `manifest.firefox.json`, `package.json` to 1.4.0 and
-      date the changelog entry.
-- [ ] `build-chrome.ps1 -Bundle -Zip` and `build-firefox.ps1 -Zip`.
+Two items here are still **OPEN**, and they are the two nobody can do for you.
+Everything a machine can check is done and green.
+
+- [ ] **OPEN — run it on your own daily sites for a week with both toggles on.**
+      This is the item the release actually depends on, and no test substitutes
+      for it. The breakage rate is the thing 1.4.0 exists to learn.
+- [ ] **OPEN — deliberately exercise the fragile surfaces:** logins / SSO,
+      checkout and payment, analytics-gated UI, embedded players, comment
+      widgets, consent flows. Watch especially for the consent-flow interaction
+      with cookie auto-reject, which now registers dynamically and so is only
+      present on a page when it is switched on.
+- [x] Breakage handling exists in both directions: drop the domain, or add one
+      the lists missed via `data/tracker-additions.json`. The first gap found
+      was an audio-advert player neither list carries.
+- [x] Test suite green — **478 passing**, and `test/tracker-list-test.mjs` is
+      the converter test. (The count rose from 469 during the performance pass;
+      nine of those pin the shared text walk.)
+- [x] Options page verified headlessly. The shim gotcha in the original note is
+      real and cost time — it is now written down properly in the project memory
+      rather than only here.
+- [x] `manifest.json`, `manifest.firefox.json` and `package.json` all at 1.4.0.
+      The changelog entry still reads `date: "September 2026"` — **date it on
+      upload day.**
+- [x] Both builds run clean, with `-Zip`, and CI runs them on every PR.
+      Chrome 1,247,548 bytes zipped; Firefox 1,092,984.
+
+### After the tier: the performance pass
+
+Not part of the original plan, and worth recording because it changed what this
+release ships. An audit of every hot path found that the Ad & Trackers work had
+landed well — dynamic registration means a user who never enables it pays
+nothing — while the *older, default-on* modules were the expensive ones. That is
+backwards, and it is the thing to watch as more gets added here.
+
+Measured, before and after: the script Sieve puts into every top frame went from
+284,649 to 116,389 bytes, the Chrome package from 4.40 to 3.97 MB, the Firefox
+package to 3.36 MB, and the worst single main-thread task from 503 ms to 0.9 ms.
+Three latent bugs came out of it that were not performance problems at all — see
+`sieve-performance-audit.html`, which also records three of its own
+recommendations that did not survive being implemented.
 
 ---
 
@@ -318,16 +356,28 @@ If cosmetic filtering ever ships, it needs the same treatment.
 
 ---
 
-## Open questions
+## Open questions — all three answered
 
-- One toggle or two? "Trackers" and "Ad networks" as separate switches matches
-  how the game blocker split into four, and lets a user take analytics blocking
-  without ad blocking. Costs a second id band (`190000`). Leaning **two**.
-- Does the beta banner need a "report a broken site" link, and where does it
-  point — GitHub issues?
-- Should the tier ship OFF for existing users but be offered in onboarding for
-  new ones, or stay purely opt-in everywhere? (Every other tier is purely
-  opt-in; consistency argues for that.)
+- ~~One toggle or two?~~ **Two**, as the leaning said: `ssAdTrackerEnabled` and
+  `ssAdNetworkEnabled`. The cost estimate was wrong in a useful direction —
+  both groups fit inside the one `180000` band rather than needing `190000`,
+  because a band holds groups, not switches. `190000` stays free.
+- ~~Does the beta banner need a "report a broken site" link?~~ **Yes**, and it
+  points at `github.com/codepurse/Sieve`. On a tier whose whole risk is silent
+  breakage, a user who cannot tell you is a bug report you never get.
+- ~~Ship OFF for existing users but offer it in onboarding?~~ **Purely opt-in
+  everywhere**, as consistency argued. Nothing in this section turns itself on.
+
+### Still genuinely open, for next release
+
+- Cosmetic filtering stays out, and the anti-adblock work is now a *reason* to
+  keep it out rather than a step towards it — see the note in the out-of-scope
+  section. Revisit only with a plan for how the two stop fighting.
+- A faithful `window.googletag` stub is the next increment if walls start
+  getting past. The scriptlet says why a half-built slot API is worse than none.
+- The performance audit's P2/P3 leftovers, if anyone wants them: build-time
+  budget assertions on injected bytes and package size, so the gains above do
+  not quietly erode.
 
 ---
 
