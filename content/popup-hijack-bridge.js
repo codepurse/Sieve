@@ -5,10 +5,14 @@
 // can't use chrome.* APIs. This isolated companion owns what needs them:
 //   - reads the popupHijackEnabled toggle AND the per-site whitelist, and tells
 //     the MAIN half whether to act on THIS host (enabled + whitelisted)
-//   - on "Always allow this site", adds the host to the whitelist
 //   - forwards each blocked popup to the background relay (chrome.storage.session)
 //
-// Talks to the MAIN half over window.postMessage on the shared window.
+// It does NOT write the whitelist. It used to, on a message from the MAIN half —
+// see the note on the message listener for why that had to go.
+//
+// Talks to the MAIN half over window.postMessage on the shared window. That
+// channel is READABLE AND FORGEABLE BY THE PAGE, because both halves live in the
+// same window; treat everything arriving on it as untrusted input.
 
 (() => {
   "use strict";
@@ -49,12 +53,28 @@
       const d = event.data;
       if (!d || d[TAG] !== true || d.dir !== "to-bridge") return;
 
+      // NOTHING HERE MAY CHANGE STORED STATE.
+      //
+      // This listener cannot tell a message from the MAIN-world half apart from
+      // one the page sent itself: the two halves share a window, so
+      // `event.source === window` is true for both, and any token they exchange
+      // is readable by a page listening on that same window. There is no fix
+      // for that at this layer — so the rule is that this channel may only
+      // carry things it is safe for a hostile page to say.
+      //
+      // It used to carry "whitelist-add", which wrote the current host into
+      // popupHijackWhitelist. Any page could post that one line and permanently
+      // exempt itself from the Popup & Click Hijack Blocker — the sites this
+      // module exists to stop being the obvious ones to do it. That case is
+      // gone; the whitelist is now only written from the toolbar popup, which a
+      // page cannot reach. See the note in content/popup-hijack-blocker.js.
       if (d.kind === "hello") {
         pushConfig();
       } else if (d.kind === "blocked" && d.entry) {
+        // Safe to forge: the worst a page achieves is putting a line in its own
+        // tab's blocked-popup list, which is per-tab, capped, and rendered as
+        // text. It cannot change a setting.
         forwardBlocked(d.entry);
-      } else if (d.kind === "whitelist-add") {
-        addCurrentHostToWhitelist();
       }
     },
     false
@@ -82,19 +102,12 @@
   // ---------------------------------------------------------------------------
   // Whitelist
   // ---------------------------------------------------------------------------
-  async function addCurrentHostToWhitelist() {
-    try {
-      const stored = await chrome.storage.local.get({ [WHITELIST_KEY]: [] });
-      const list = Array.isArray(stored[WHITELIST_KEY]) ? stored[WHITELIST_KEY] : [];
-      if (!list.includes(host)) {
-        list.push(host);
-        await chrome.storage.local.set({ [WHITELIST_KEY]: list });
-        // storage.onChanged below will refresh `whitelist` + re-push config.
-      }
-    } catch {
-      /* ignore */
-    }
-  }
+  //
+  // READ ONLY, deliberately. This file used to have addCurrentHostToWhitelist(),
+  // reachable from a postMessage, which meant any page could permanently exempt
+  // itself. There is no writer here now and there should not be one: the only
+  // place the whitelist is written is the toolbar popup ("Allow popups on
+  // <host>" in popup/popup.js), which the page cannot reach.
 
   // ---------------------------------------------------------------------------
   // Load config
