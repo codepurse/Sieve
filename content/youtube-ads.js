@@ -699,9 +699,32 @@
   }
 
   let lastSkipped = null;
+  // The <video> element, remembered between ticks. This runs four times a
+  // second for as long as the tab is open, in every frame, so re-running a
+  // document-wide querySelector each time is the one thing it must not do.
+  // Re-resolved only when the cached node has left the document.
+  let cachedVideo = null;
+  function videoEl() {
+    if (cachedVideo && cachedVideo.isConnected) return cachedVideo;
+    cachedVideo = document.querySelector("video");
+    return cachedVideo;
+  }
+
   function skipAdIfPlaying() {
     try {
-      const video = document.querySelector("video");
+      // Three gates before any DOM work, cheapest first.
+      //
+      // A hidden tab is not showing anyone an ad, and a backgrounded YouTube
+      // tab left open for hours was previously enough to keep this timer — and
+      // the renderer — out of deep idle for the whole time.
+      if (document.hidden) return;
+      // No media stream has been seen in THIS frame, so there is no ad here to
+      // skip. This is what excludes every frame on the page that is not the
+      // player: allFrames is true because an embedded player is a frame, but
+      // most frames never set streamingId at all.
+      if (!streamingId) return;
+
+      const video = videoEl();
       if (!adOnScreen(video)) return;
       const target = video.duration - 0.05;
       if (video.currentTime >= target) return;

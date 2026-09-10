@@ -14,6 +14,7 @@ import "./anti-adblock.js"; // Anti-adblock defeat (BETA) — answers "you seem 
 import "./ad-slot-collapse.js"; // Collapses the empty boxes a blocked ad leaves behind
 import "./float-video.js"; // Un-floats the video players that follow you down the page
 import "./popup-hijack.js"; // Popup & Click Hijack Blocker — blocked-popup log + recovery
+import "./cookie-autoreject.js"; // Cookie auto-reject — registers the consent engine only while it is on
 import "./url-shortener-resolver.js"; // URL Shortener Resolver — expand shortened links before blocker checks
 import "./usage-tracker.js"; // Usage Insights — opt-in local screen-time tracker
 // A plain script, not an ES module: importing it for its side effect is what
@@ -283,16 +284,35 @@ function buildAllowRules(domains) {
 // is always on and independent of every toggle (just like the shared allowlist
 // below), so this applies unconditionally — turning the Gambling Blocker (or any
 // other blocker) on/off never affects it. IDs stay in [10000, 20000).
+// Which ids this band currently holds, WITHOUT dragging every other band's
+// rules across the process boundary to find out.
+//
+// getDynamicRules() takes no id filter and returns everything — including the
+// gambling big list, packed ten thousand domains to a rule, which is megabytes
+// of strings. Both writers below called it purely to derive a handful of
+// integers from a band they already own, and they called it separately, so one
+// edit to the blocked-sites list marshalled the whole rule set twice.
+//
+// We know what we wrote, so we remember it. `null` means this worker has not
+// written yet — a cold wake — and only then is the real thing consulted.
+let installedCustomBlockIds = null;
+
+async function customBlockIdsToRemove() {
+  if (installedCustomBlockIds) return installedCustomBlockIds;
+  const existing = await chrome.declarativeNetRequest.getDynamicRules();
+  return existing
+    .filter((r) => r.id >= CUSTOM_BLOCK_ID_START && r.id < ALLOW_ID_START)
+    .map((r) => r.id);
+}
+
 async function applyCustomBlocks() {
   return enqueueAllowBlockWrite(async () => {
-    const existing = await chrome.declarativeNetRequest.getDynamicRules();
-    const removeRuleIds = existing
-      .filter((r) => r.id >= CUSTOM_BLOCK_ID_START && r.id < ALLOW_ID_START)
-      .map((r) => r.id);
+    const removeRuleIds = await customBlockIdsToRemove();
     const { customBlocks } = await chrome.storage.local.get({ customBlocks: [] });
     const addRules = await customBlockRules(customBlocks);
     try {
       await chrome.declarativeNetRequest.updateDynamicRules({ removeRuleIds, addRules });
+      installedCustomBlockIds = addRules.map((r) => r.id);
     } catch (err) {
       // updateDynamicRules is all-or-nothing: one pattern the browser refuses
       // takes the whole list down with it, which would mean a single bad line
@@ -309,6 +329,7 @@ async function applyCustomBlocks() {
         removeRuleIds,
         addRules: withoutPatterns,
       });
+      installedCustomBlockIds = withoutPatterns.map((r) => r.id);
     }
   });
 }
@@ -320,10 +341,10 @@ async function applyCustomBlocks() {
 // list removes the rule. This is the user's single escape hatch for all tiers.
 async function applyAllowlist() {
   return enqueueAllowBlockWrite(async () => {
-    const existing = await chrome.declarativeNetRequest.getDynamicRules();
-    const removeRuleIds = existing
-      .filter((r) => r.id >= ALLOW_ID_START && r.id < FP_DYNAMIC_ID_START)
-      .map((r) => r.id);
+    // buildAllowRules() emits at most ONE rule, always at ALLOW_ID_START, so
+    // the id to clear is known without asking. updateDynamicRules ignores an id
+    // that is not present, which is exactly the empty-list case.
+    const removeRuleIds = [ALLOW_ID_START];
     const { allowlist } = await chrome.storage.local.get({ allowlist: [] });
     const addRules = buildAllowRules(allowlist);
     await chrome.declarativeNetRequest.updateDynamicRules({ removeRuleIds, addRules });
@@ -649,12 +670,68 @@ async function ensureOffscreenDoc() {
   return offscreenCreating;
 }
 
+// ---------------------------------------------------------------------------
+// Releasing the model when nobody is using it.
+//
+// The document used to be created on the first classify and closed only when
+// the user turned smart detection OFF. Close every YouTube and Reddit tab and
+// it stayed resident anyway — the TensorFlow.js runtime plus a ~55 MB model,
+// held for the rest of the browser session, for a feature nothing on screen was
+// asking for any more.
+//
+// So it is now released after a spell with no work. ensureOffscreenDoc() already
+// recreates it on demand, so the cost of being wrong is one reload on the next
+// comment page, which is exactly the cost the user already pays on the first.
+const OFFSCREEN_IDLE_ALARM = "sieveOffscreenIdle";
+const OFFSCREEN_IDLE_MS = 10 * 60 * 1000;
+const OFFSCREEN_CHECK_MINUTES = 5;
+let lastClassifyTs = 0;
+
+function keepOffscreenAlive() {
+  lastClassifyTs = Date.now();
+  // A periodic alarm rather than a timer: the worker itself is torn down
+  // between classifies, and a setTimeout would go with it.
+  chrome.alarms?.create(OFFSCREEN_IDLE_ALARM, {
+    periodInMinutes: OFFSCREEN_CHECK_MINUTES,
+    delayInMinutes: OFFSCREEN_CHECK_MINUTES,
+  });
+}
+
+async function closeOffscreenIfIdle() {
+  if (!(await hasOffscreenDoc())) {
+    await chrome.alarms?.clear(OFFSCREEN_IDLE_ALARM);
+    return;
+  }
+  // lastClassifyTs is zero after a worker restart. That is not evidence the
+  // model is idle — it is evidence we have forgotten. Start the clock again
+  // rather than closing a document that may be in active use.
+  if (lastClassifyTs === 0) {
+    lastClassifyTs = Date.now();
+    return;
+  }
+  if (Date.now() - lastClassifyTs < OFFSCREEN_IDLE_MS) return;
+  try {
+    await chrome.offscreen.closeDocument();
+  } catch {
+    /* already closed */
+  }
+  await chrome.alarms?.clear(OFFSCREEN_IDLE_ALARM);
+}
+
+chrome.alarms.onAlarm.addListener((alarm) => {
+  if (alarm.name !== OFFSCREEN_IDLE_ALARM) return;
+  closeOffscreenIfIdle().catch((err) =>
+    console.error("[Sieve] offscreen idle check failed:", err)
+  );
+});
+
 // Relay classify requests from content scripts to the offscreen model.
 chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
   if (message && message.type === "sieve:classify") {
     (async () => {
       try {
         await ensureOffscreenDoc();
+        keepOffscreenAlive();
         const resp = await chrome.runtime.sendMessage({
           type: "sieve:offscreen-classify",
           texts: message.texts,
@@ -700,11 +777,19 @@ chrome.storage.onChanged.addListener(async (changes, area) => {
 const lastTopNavByTab = new Map();
 const BLOCKED_NAV_TTL_MS = 30000;
 
-chrome.webNavigation.onBeforeNavigate.addListener((d) => {
-  if (d.frameId !== 0) return; // top frame only
-  if (!/^https?:\/\//i.test(d.url || "")) return; // ignore our chrome-extension:// page, about:, etc.
-  lastTopNavByTab.set(d.tabId, { url: d.url, ts: Date.now() });
-});
+chrome.webNavigation.onBeforeNavigate.addListener(
+  (d) => {
+    if (d.frameId !== 0) return; // top frame only
+    lastTopNavByTab.set(d.tabId, { url: d.url, ts: Date.now() });
+  },
+  // The filter is applied in the BROWSER process, before the event crosses to
+  // the worker. Without it this fired for every frame of every navigation in
+  // every tab — iframes, prerenders, about:blank, our own extension pages — and
+  // the frameId check above only ran once the worker had already been woken to
+  // run it. On a page with forty iframes that was forty wake-ups for one useful
+  // event. The scheme filter is what the URL test used to do, moved upstream.
+  { url: [{ schemes: ["http", "https"] }] }
+);
 chrome.tabs.onRemoved.addListener((tabId) => lastTopNavByTab.delete(tabId));
 
 // Normalize + validate exactly like the options page (strip scheme/www/path), so

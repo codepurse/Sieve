@@ -47,7 +47,6 @@
         "<all_urls>"
       ],
       "js": [
-        "common/keyword-pattern.js",
         "content/bad-language.js"
       ],
       "run_at": "document_idle"
@@ -73,16 +72,6 @@
         "content/patterns/checkboxes.js",
         "content/patterns/cookies.js",
         "content/patterns/scarcity.js"
-      ],
-      "run_at": "document_idle"
-    },
-    {
-      "matches": [
-        "<all_urls>"
-      ],
-      "js": [
-        "content/cookie-engine.bundle.js",
-        "content/cookie-autoreject.js"
       ],
       "run_at": "document_idle"
     },
@@ -114,7 +103,6 @@
         "*://*.x.com/*"
       ],
       "js": [
-        "common/keyword-pattern.js",
         "content/comment-collapse.js",
         "content/profanity-filter.js",
         "content/toxic-model.js"
@@ -174,7 +162,6 @@
         "<all_urls>"
       ],
       "js": [
-        "common/keyword-pattern.js",
         "common/search-filter.js",
         "content/search-filter.js"
       ],
@@ -208,8 +195,6 @@
   "web_accessible_resources": [
     {
       "resources": [
-        "data/wordlist.json",
-        "data/mild-words.json",
         "data/site-configs.json",
         "data/profanity-list.json",
         "data/profanity-custom.json",

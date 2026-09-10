@@ -132,6 +132,28 @@
   // Engine lifecycle
   // ---------------------------------------------------------------------------
 
+  // Let go of the engine and the rule database.
+  //
+  // Constructing the engine builds a CMP object — with its Detectors, Matchers,
+  // Actions and Consents, recursively — for all 204 entries in
+  // data/cookie-rules.json, on every page load. Five seconds later the engine
+  // gives up and stops observing, but two references kept the whole graph and
+  // the parsed 456 KB of rules alive for the rest of the tab's life:
+  // ConsentEngine.singleton, which is a STATIC field and so outlives the
+  // instance, and our own rulesCache. Neither is read again once the engine has
+  // finished, so both are dropped here.
+  function releaseEngine() {
+    try {
+      const NS = window.SieveCookieEngine;
+      if (NS && NS.ConsentEngine && NS.ConsentEngine.singleton) {
+        NS.ConsentEngine.singleton = null;
+      }
+    } catch (e) {
+      /* nothing to release */
+    }
+    rulesCache = null;
+  }
+
   function onHandled(evt) {
     if (evt && evt.handled) {
       // A CMP rule matched and we clicked through it.
@@ -142,6 +164,8 @@
       // unsupported sites still get some benefit.
       runFallbackLeveling();
     }
+    // Either way the engine's work on this page is over.
+    releaseEngine();
   }
 
   // ---------------------------------------------------------------------------

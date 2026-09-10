@@ -26,9 +26,15 @@
   for (const type of PATTERN_TYPES) counts[type] = 0;
   let totalCount = 0;
 
+  // Coalescing window for the mutation observer, and the ceiling on how many
+  // distinct roots one window may hold before it gives up and rescans the body.
+  const THROTTLE_MS = 250;
+  const MAX_PENDING = 400;
+
   let settings = {};
   let observer = null;
-  let pendingNodes = [];
+  let pendingNodes = new Set();
+  let wantFullScan = false;
   let debounceTimer = null;
 
   // ---------------------------------------------------------------------------
@@ -57,6 +63,67 @@
       return;
     }
     detectors.set(type, detector);
+  }
+
+  // ---------------------------------------------------------------------------
+  // The shared text walk.
+  //
+  // Two detectors — timers and scarcity — used to do the same thing: build a
+  // TreeWalker over every text node under the root, with a JS acceptNode filter
+  // testing one regex, and act on the parents of the nodes that matched. Two
+  // walks, over the same nodes, in the same pass, neither aware of the other.
+  // Measured separately on a 112,000-element page: 57.8ms and 38.7ms.
+  //
+  // The walk is the expensive half, not the regex, so they now share one. A
+  // detector declares its pattern and what to do with a match, and this does a
+  // single pass testing every active pattern per node.
+  //
+  // Note the `null` filter: a JS acceptNode callback is invoked for every node
+  // in the subtree, across the JS/C++ boundary. Filtering in the loop instead
+  // keeps the walk itself native.
+  const textVisitors = []; // { type, pattern, onMatch }
+
+  // Nothing any registered pattern can match is shorter than this. "0:00" is
+  // the shortest thing TIME_TEXT_RE accepts.
+  const MIN_TEXT_LENGTH = 4;
+
+  function registerTextVisitor(type, pattern, onMatch) {
+    if (!PATTERN_TYPES.includes(type)) {
+      console.warn("[Sieve] Unknown dark pattern type registered:", type);
+      return;
+    }
+    if (!(pattern instanceof RegExp) || typeof onMatch !== "function") {
+      console.warn("[Sieve] registerText needs a RegExp and a function:", type);
+      return;
+    }
+    if (pattern.global || pattern.sticky) {
+      // lastIndex would carry between nodes and make every other test miss.
+      console.warn("[Sieve] registerText refuses a g/y pattern:", type);
+      return;
+    }
+    textVisitors.push({ type, pattern, onMatch });
+  }
+
+  function scanTextNodes(root) {
+    const active = textVisitors.filter((v) => isTypeEnabled(v.type));
+    if (active.length === 0) return;
+
+    const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, null);
+    let node;
+    while ((node = walker.nextNode())) {
+      const value = node.nodeValue;
+      if (!value || value.length < MIN_TEXT_LENGTH) continue;
+      const el = node.parentElement;
+      if (!el || isMarked(el)) continue;
+      for (const visitor of active) {
+        if (!visitor.pattern.test(value)) continue;
+        try {
+          visitor.onMatch(el, detectorCtx);
+        } catch (err) {
+          console.error("[Sieve] Dark pattern text visitor failed:", visitor.type, err);
+        }
+      }
+    }
   }
 
   // ---------------------------------------------------------------------------
@@ -128,6 +195,10 @@
         console.error("[Sieve] Dark pattern detector failed:", type, err);
       }
     }
+
+    // One text pass for every detector that wants text, after the
+    // selector-based ones have had their turn.
+    scanTextNodes(root);
   }
 
   // ---------------------------------------------------------------------------
@@ -137,17 +208,36 @@
   function flushMutations() {
     debounceTimer = null;
     const batch = pendingNodes;
-    pendingNodes = [];
+    const full = wantFullScan;
+    pendingNodes = new Set();
+    wantFullScan = false;
     if (!settings[STORAGE_KEYS.master]) return;
+    if (full) {
+      if (document.body) scanRoot(document.body);
+      return;
+    }
 
     // Build a minimal set of roots (skip nested children when parent is scanned).
+    //
+    // This used to walk every descendant of every added node into a WeakSet —
+    // `for (const child of node.querySelectorAll("*")) skip.add(child)` — which
+    // is O(total descendants) work to save a dedupe. A feed adding a hundred
+    // 500-element cards paid fifty thousand WeakSet inserts per flush, and the
+    // set was rebuilt from scratch every time. Asking each candidate whether an
+    // ALREADY-CHOSEN root contains it costs a handful of `contains` calls
+    // instead, because there are only ever a few roots.
     const roots = [];
-    const skip = new WeakSet();
     for (const node of batch) {
       if (node.nodeType !== Node.ELEMENT_NODE) continue;
-      if (skip.has(node)) continue;
-      roots.push(node);
-      for (const child of node.querySelectorAll("*")) skip.add(child);
+      if (!node.isConnected) continue; // removed again before we got to it
+      let covered = false;
+      for (const root of roots) {
+        if (root.contains(node)) {
+          covered = true;
+          break;
+        }
+      }
+      if (!covered) roots.push(node);
     }
 
     for (const root of roots) scanRoot(root);
@@ -157,16 +247,23 @@
     let hasAdded = false;
     for (const mutation of mutations) {
       for (const node of mutation.addedNodes) {
-        if (node.nodeType === Node.ELEMENT_NODE) {
-          pendingNodes.push(node);
-          hasAdded = true;
+        if (node.nodeType !== Node.ELEMENT_NODE) continue;
+        hasAdded = true;
+        if (pendingNodes.size >= MAX_PENDING) {
+          wantFullScan = true; // a whole surface is being replaced
+          continue;
         }
+        pendingNodes.add(node);
       }
     }
     if (!hasAdded) return;
 
-    clearTimeout(debounceTimer);
-    debounceTimer = setTimeout(flushMutations, 250);
+    // A LEADING throttle. The old code cleared and reset this timer on every
+    // batch, so a page mutating more often than the delay — any feed, any
+    // carousel, any live ticker — cancelled the flush forever: the detectors
+    // never ran, and pendingNodes grew without bound holding detached elements.
+    if (debounceTimer !== null) return;
+    debounceTimer = setTimeout(flushMutations, THROTTLE_MS);
   }
 
   function startObserver() {
@@ -183,6 +280,12 @@
     if (!observer) return;
     observer.disconnect();
     observer = null;
+    // Drop the queue too, or a disabled blocker keeps a page's detached nodes
+    // alive until the next navigation.
+    pendingNodes = new Set();
+    wantFullScan = false;
+    clearTimeout(debounceTimer);
+    debounceTimer = null;
   }
 
   // ---------------------------------------------------------------------------
@@ -230,6 +333,7 @@
 
   window.SieveDarkPatterns = {
     register: registerDetector,
+    registerText: registerTextVisitor,
     ...detectorCtx,
   };
 

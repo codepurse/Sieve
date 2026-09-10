@@ -99,6 +99,46 @@
   // ---------------------------------------------------------------------------
   // Load config
   // ---------------------------------------------------------------------------
+  // ---------------------------------------------------------------------------
+  // The shared read.
+  //
+  // This file, overlay-detector.js and link-hijack-detector.js are one manifest
+  // entry, share one isolated world, and all three want popupHijackEnabled. They
+  // each used to fetch it themselves, which on a page with forty iframes is a
+  // hundred and twenty IPC round-trips at document_start — the most
+  // latency-sensitive moment there is — plus a hundred and twenty
+  // storage.onChanged listeners left registered afterwards.
+  //
+  // So the bridge does the one read and publishes it. The other two await this
+  // promise instead of asking the browser. Published on `window` rather than
+  // passed around because the three are separate IIFEs with no shared scope; the
+  // world is isolated, so the page cannot see or forge it.
+  const SHARED = (window.__sieveHijackConfig = window.__sieveHijackConfig || {});
+  SHARED.subscribers = SHARED.subscribers || new Set();
+
+  function publish() {
+    SHARED.enabled = enabled;
+    SHARED.whitelisted = isWhitelisted();
+    for (const fn of SHARED.subscribers) {
+      try {
+        fn(SHARED.enabled);
+      } catch {
+        /* one bad subscriber must not stop the others */
+      }
+    }
+  }
+
+  let resolveReady;
+  SHARED.ready = new Promise((resolve) => {
+    resolveReady = resolve;
+  });
+  // Subscribe to later changes. Returns the value at the time of subscribing so
+  // a caller does not need to await separately.
+  SHARED.subscribe = (fn) => {
+    SHARED.subscribers.add(fn);
+    return SHARED.ready.then(() => SHARED.enabled);
+  };
+
   async function loadConfig() {
     try {
       const stored = await chrome.storage.local.get({ [ENABLED_KEY]: false, [WHITELIST_KEY]: [] });
@@ -107,6 +147,11 @@
     } catch {
       enabled = false;
       whitelist = [];
+    }
+    publish();
+    if (resolveReady) {
+      resolveReady();
+      resolveReady = null;
     }
     pushConfig();
   }
@@ -122,7 +167,10 @@
       whitelist = Array.isArray(changes[WHITELIST_KEY].newValue) ? changes[WHITELIST_KEY].newValue : [];
       changed = true;
     }
-    if (changed) pushConfig();
+    if (changed) {
+      publish(); // the two detectors listen here instead of registering their own
+      pushConfig();
+    }
   });
 
   // ---------------------------------------------------------------------------

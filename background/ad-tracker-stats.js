@@ -36,9 +36,15 @@
 //     FIVE MINUTES. Poll slower than that and the counts are simply wrong.
 //   • QUOTA — MAX_GETMATCHEDRULES_CALLS_PER_INTERVAL is 20 calls per 10 minutes.
 //     Faster than one call every 30s and the API starts failing outright.
-// One minute sits in the middle: 10 calls per 10 minutes (half the quota), with
-// five times the headroom against the retention window. Do not lower it without
-// re-reading both numbers.
+// TWO minutes sits in the middle: 5 calls per 10 minutes (a quarter of the
+// quota), with 2.5x the headroom against the retention window. Do not lower it
+// without re-reading both numbers — and do NOT raise it to five, which is the
+// retention window itself: at that cadence a match made just after a poll is
+// dropped before the next one sees it, and the counts silently under-report.
+//
+// It was one minute until the performance pass, which halved the number of
+// times this alarm wakes the service worker. The counter is a dashboard number,
+// so the extra headroom bought nothing that justified the wake-ups.
 //
 // ---------------------------------------------------------------------------
 // ON THE PERMISSION
@@ -58,7 +64,7 @@
 // ---------------------------------------------------------------------------
 
 import { AD_TRACKER_GROUPS, isAdTrackerEnabled } from "./ad-tracker-blocker.js";
-import { recordBlock } from "../common/stats.js";
+import { recordBlock, flushStatsNow } from "../common/stats.js";
 
 // Dashboard stats keys, one per rule band. Deliberately NOT the same strings as
 // the blocker's own `category` values ("trackers" / "ads"): those are what
@@ -70,7 +76,7 @@ export const STATS_KEY_BY_GROUP = {
 };
 
 const ALARM = "sieveAdTrackerStats";
-const POLL_MINUTES = 1; // see the quota / retention note above
+const POLL_MINUTES = 2; // see the quota / retention note above
 const CURSOR_KEY = "adTrackerMatchCursor";
 
 // After this many consecutive failures, stop polling until the next startup or
@@ -280,6 +286,12 @@ export async function pollAdTrackerMatches() {
   for (const [key, n] of Object.entries(counted)) {
     if (n > 0) await recordBlock(key, n);
   }
+  // recordBlock buffers, because its usual callers are content scripts firing
+  // in bursts. This one is not: it runs on an alarm, it has already batched a
+  // whole polling window into one number per category, and the worker may be
+  // torn down the moment it returns. So land it now — there is nothing left to
+  // coalesce with.
+  await flushStatsNow();
   return counted;
 }
 

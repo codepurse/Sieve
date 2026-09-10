@@ -202,7 +202,22 @@ async function refreshToxicHiderCount() {
 
     let frames = [{ frameId: 0 }];
     try {
-      frames = (await chrome.webNavigation.getAllFrames({ tabId: tab.id })) || frames;
+      const all = (await chrome.webNavigation.getAllFrames({ tabId: tab.id })) || [];
+      // Only the frames that can actually be running the hider. The content
+      // script is registered on four hosts; every other frame on the page — and
+      // an ad-heavy page has dozens — would just be a message that finds no
+      // listener and comes back as a lastError we discard. Asking the four
+      // that might answer is the same result for a fraction of the traffic.
+      const CAN_HOST_HIDER = /(^|\.)(youtube\.com|reddit\.com|twitter\.com|x\.com|disqus\.com)$/;
+      const relevant = all.filter((f) => {
+        if (f.frameId === 0) return true; // the top frame always gets asked
+        try {
+          return CAN_HOST_HIDER.test(new URL(f.url).hostname);
+        } catch {
+          return false; // about:blank, data:, a frame with no usable URL
+        }
+      });
+      if (relevant.length) frames = relevant;
     } catch {
       /* fall back to the top frame */
     }

@@ -103,6 +103,16 @@ foreach ($file in $RuntimeFiles) {
     }
 }
 
+Write-Host "==> Stripping comments from the packaged JavaScript" -ForegroundColor Cyan
+# The source is heavily commented on purpose; the package does not need any of
+# it. This removes comments ONLY - every statement keeps its own line and its
+# indentation, so the shipped code is still readable and is not "minified" in
+# the sense Mozilla's add-on policies mean. Each file is verified against its
+# original (esbuild minifies both; they must match byte for byte) and is copied
+# through untouched if it does not, so this can never ship a broken file.
+& node (Join-Path $SrcDir "build-strip-comments.mjs") $OutDir
+if ($LASTEXITCODE -ne 0) { throw "build-strip-comments.mjs failed" }
+
 Write-Host "==> Verifying required assets" -ForegroundColor Cyan
 foreach ($asset in $RequiredAssets) {
     $assetPath = Join-Path $OutDir $asset

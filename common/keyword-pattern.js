@@ -2,6 +2,32 @@
 // Lets a custom word-list entry be a regular expression instead of a literal
 // phrase, so one line can cover many spellings of the same word.
 //
+// ---------------------------------------------------------------------------
+// LOADED ONCE PER FRAME — DO NOT ADD IT BACK TO THE OTHER MANIFEST ENTRIES
+//
+// Every content script an extension injects into one frame shares a SINGLE
+// isolated world, so `window.KeywordPattern` set by any of them is visible to
+// all of them. This file was listed in four manifest entries and therefore
+// parsed and executed four times per page, re-assigning the same object each
+// time — 22 KB of work repeated for nothing.
+//
+// It is now listed in exactly two places:
+//
+//   * the document_start, <all_urls>, TOP-FRAME entry (with custom-block.js),
+//     which is the earliest thing Sieve runs and always runs. Everything that
+//     needs KeywordPattern in the top frame — bad-language, search-filter,
+//     profanity-filter — is either document_start AFTER it in manifest order,
+//     or document_idle, which is later still. Content scripts sharing a run_at
+//     are injected in manifest order, which is what makes that safe.
+//
+//   * the disqus all_frames entry, which runs inside SUBFRAMES, where the
+//     top-frame entry above never ran and so nothing has defined it.
+//
+// A consumer must therefore tolerate its absence rather than assume it — they
+// all test `typeof KeywordPattern !== "undefined"` (or read window.KeywordPattern
+// and bail) — and a new consumer in a NEW frame context needs its own copy.
+// ---------------------------------------------------------------------------
+//
 // Shared with BlockNSFW (shared/keyword-pattern.js) — keep the two in step. The
 // syntax, the refused flags and the slow-pattern guard are deliberately
 // identical, so a user's list means the same thing in both extensions.
@@ -182,6 +208,18 @@
   function compileEntry(entry) {
     var result = validateEntry(entry);
     if (!result.ok || !result.isRegex) return null;
+    return buildRegex(entry);
+  }
+
+  // The compile step ALONE, with no validation.
+  //
+  // Split out because validateEntry() runs the timing probes, and the two
+  // callers that had already validated were paying for them a second time —
+  // instrumenting RegExp.prototype.test showed 32 calls to compile a single
+  // /regex/ entry, where the probe suite is meant to run once. Private on
+  // purpose: calling this on an unvalidated entry is exactly the mistake the
+  // probes exist to prevent, so nothing outside this file can reach it.
+  function buildRegex(entry) {
     var parts = splitRegexEntry(entry);
     if (!parts) return null;
     var flags = parts.flags || '';
@@ -292,8 +330,13 @@
     'a pattern like /example\\.(net|org)/ or title/Example/, or start the line with # to make it a note';
 
   function validateListEntry(entry) {
-    var parsed = parseListEntry(entry);
+    return validateParsed(parseListEntry(entry));
+  }
 
+  // The same checks, on an entry that has ALREADY been parsed. compileList()
+  // parses every entry anyway, and calling validateListEntry() from there meant
+  // parsing each one a second time just to hand it straight back.
+  function validateParsed(parsed) {
     if (parsed.kind === 'empty') return { ok: false, kind: parsed.kind, error: 'Empty entry' };
     if (parsed.kind === 'comment') return { ok: true, kind: parsed.kind, error: '' };
 
@@ -379,12 +422,17 @@
   function compileList(entries) {
     var compiled = [];
     var list = Array.isArray(entries) ? entries : [];
+    // ONE parse and ONE validation per entry. This used to parse each entry
+    // three times and run the catastrophic-backtracking probes twice, and it
+    // runs on every page load in every tab (content/custom-block.js) and again
+    // on every search page (content/search-filter.js).
     for (var i = 0; i < list.length; i++) {
       var parsed = parseListEntry(list[i]);
       if (parsed.kind === 'comment' || parsed.kind === 'empty') continue;
-      if (!validateListEntry(list[i]).ok) continue;
+      if (!validateParsed(parsed).ok) continue;
       if (parsed.kind === 'url' || parsed.kind === 'title') {
-        var regex = compileEntry(parsed.source);
+        // Already validated just above, probes included, so compile directly.
+        var regex = buildRegex(parsed.source);
         if (!regex) continue;
         compiled.push({ kind: parsed.kind, source: parsed.raw, regex: regex });
       } else if (parsed.kind === 'tld') {

@@ -61,14 +61,34 @@
 
   // An empty path, "/" or "/*" means "anywhere on the site". Otherwise the rule
   // is a prefix glob, so "/docs/*" matches /docs/a but not /blog.
-  function pathMatches(rulePath, path) {
-    if (!rulePath || rulePath === "/" || rulePath === "/*") return true;
+  //
+  // Compiling the glob is memoised on the rule (see compile() below), because
+  // this is asked once per rule per RESULT: a page of twenty results against a
+  // list of a few hundred path-scoped rules used to build several thousand
+  // RegExp objects, on every pass. The uncached path is kept for direct callers
+  // — the settings page validates a single pattern at a time — and for anything
+  // that reaches this without a compiled rule.
+  const pathRegexCache = new Map();
+
+  function pathRegex(rulePath) {
+    let re = pathRegexCache.get(rulePath);
+    if (re !== undefined) return re;
     const source = "^" + rulePath.replace(REGEX_SPECIALS, "\\$&").replace(/\*/g, ".*");
     try {
-      return new RegExp(source).test(path);
+      re = new RegExp(source);
     } catch (_) {
-      return false;
+      re = null;
     }
+    // Bounded: a stored list is finite, and this only ever holds one entry per
+    // distinct path glob the user has written.
+    if (pathRegexCache.size < 2000) pathRegexCache.set(rulePath, re);
+    return re;
+  }
+
+  function pathMatches(rulePath, path) {
+    if (!rulePath || rulePath === "/" || rulePath === "/*") return true;
+    const re = pathRegex(rulePath);
+    return re ? re.test(path) : false;
   }
 
   // --- rules --------------------------------------------------------------

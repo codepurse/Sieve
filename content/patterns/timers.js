@@ -112,13 +112,17 @@
 
     // Walk up until we find a block-like container that still contains only
     // the timer and closely related text (heuristic: <= 80 chars).
+    // Reading textContent is O(subtree), and getComputedStyle forces a style
+    // recalculation, so climbing all the way to <body> made this O(depth x
+    // subtree) on a deep DOM. It does not need to: text only GROWS on the way
+    // up, so once a level is over the 80-character ceiling every level above it
+    // is too, and the answer cannot change. Stop there.
     let candidate = el;
     let node = el;
     while (node && node !== document.body) {
       const text = (node.textContent || "").trim();
-      if (text.length <= 80 && isBlockLike(node)) {
-        candidate = node;
-      }
+      if (text.length > 80) break;
+      if (isBlockLike(node)) candidate = node;
       node = node.parentElement;
     }
     return candidate;
@@ -185,27 +189,40 @@
   // Public scan
   // ---------------------------------------------------------------------------
 
+  // The walk lives in content/dark-patterns.js now: this detector and the
+  // scarcity one both wanted every text node under the root, and were each
+  // building their own TreeWalker to get it. We declare the pattern instead and
+  // are handed the parent of anything that matches. See the note beside
+  // registerTextVisitor there.
+  function onTimeText(el, context) {
+    ctx = context;
+    // el.textContent contains the node that just matched, so this is all but
+    // guaranteed — kept because evaluateCandidate reads the element's whole
+    // text, and this is the check that says the element (not just one of its
+    // text nodes) reads as a clock.
+    if (hasTimeText(el)) evaluateCandidate(el);
+  }
+
+  // Kept for direct/console use and for anything that still calls scan(root)
+  // with a root of its own. The coordinator no longer uses it.
   function scan(root) {
     ctx = window.SieveDarkPatterns;
     if (!ctx) return 0;
-
-    const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, {
-      acceptNode(node) {
-        return TIME_TEXT_RE.test(node.textContent || "")
-          ? NodeFilter.FILTER_ACCEPT
-          : NodeFilter.FILTER_REJECT;
-      },
-    });
-
+    const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, null);
     let node;
     while ((node = walker.nextNode())) {
+      const value = node.nodeValue;
+      if (!value || !TIME_TEXT_RE.test(value)) continue;
       const el = node.parentElement;
       if (!el || ctx.isMarked(el)) continue;
       if (hasTimeText(el)) evaluateCandidate(el);
     }
-
     return 0; // actual removals are reported asynchronously via ctx.report
   }
 
-  window.SieveDarkPatterns.register(TYPE, { scan });
+  window.SieveDarkPatterns.registerText(TYPE, TIME_TEXT_RE, onTimeText);
+  // Registered with no scan of its own: the coordinator drives this detector
+  // entirely through the shared text pass.
+  window.SieveDarkPatterns.register(TYPE, { scanText: true });
+  window.__sieveTimersScan = scan; // console / test hook
 })();

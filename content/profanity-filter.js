@@ -382,9 +382,24 @@
   const queued = new WeakSet();
   let flushScheduled = false;
 
+  // Drained with a CURSOR rather than shift(). On a mega-thread this queue holds
+  // thousands of comment elements, and V8 drops its cheap left-trim for shift()
+  // once an array grows past roughly sixteen thousand entries — after which each
+  // call memmoves the whole remainder. Same fix, same reason, as the text-node
+  // queue in content/bad-language.js.
+  let queueHead = 0;
+
+  function clearQueue() {
+    queue.length = 0;
+    queueHead = 0;
+  }
+
   function enqueue(el) {
     if (queued.has(el) || el.getAttribute("data-sieve-l1")) return;
     queued.add(el);
+    // Compact the drained prefix before growing again, so an infinite-scroll
+    // thread does not retain every comment it has ever shown.
+    if (queueHead > 0 && queueHead === queue.length) clearQueue();
     queue.push(el);
     scheduleFlush();
   }
@@ -396,12 +411,13 @@
       flushScheduled = false;
       let processed = 0;
       // Work until we run low on idle time, then yield and reschedule.
-      while (queue.length && (deadline.timeRemaining() > 4 || processed < 15)) {
-        processComment(queue.shift());
+      while (queueHead < queue.length && (deadline.timeRemaining() > 4 || processed < 15)) {
+        processComment(queue[queueHead++]);
         processed++;
         if (processed >= 60) break; // hard cap per slice
       }
-      if (queue.length) scheduleFlush();
+      if (queueHead < queue.length) scheduleFlush();
+      else clearQueue(); // drained — drop the element references
     });
   }
 
@@ -435,7 +451,7 @@
       observer.disconnect();
       observer = null;
     }
-    queue.length = 0;
+    clearQueue();
     // Undo fallback markers (the real collapse UI manages its own restore).
     for (const el of flaggedEls) {
       const badge = el.querySelector(":scope > .sieve-l1-badge");

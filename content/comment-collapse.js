@@ -30,6 +30,51 @@
   const managed = new Map();
   let collapsedCount = 0;
 
+  // --- Batched reporting ----------------------------------------------------
+  //
+  // Collapsing arrives in bursts: a thread renders, the filter sweeps it, and a
+  // few hundred comments are collapsed inside a second. One message each meant
+  // one service-worker wake, one storage read, one storage write and one
+  // storage.onChanged broadcast to every frame of every open tab — per comment.
+  //
+  // The message shape already carries a count, so a burst becomes one message.
+  // A short timer, not a debounce: a trailing debounce on a page that keeps
+  // collapsing would never fire at all.
+  const REPORT_INTERVAL_MS = 1000;
+  let unreportedCollapses = 0;
+  let reportTimer = null;
+
+  function flushCollapseReport() {
+    reportTimer = null;
+    const count = unreportedCollapses;
+    unreportedCollapses = 0;
+    if (count <= 0) return;
+    try {
+      chrome.runtime
+        .sendMessage({ type: "SIEVE_RECORD_BLOCK", category: "toxicComments", count })
+        ?.catch(() => {});
+    } catch (err) {
+      // Extension context may be unavailable in unusual conditions.
+    }
+  }
+
+  function reportCollapsed() {
+    unreportedCollapses++;
+    if (reportTimer !== null) return;
+    try {
+      reportTimer = setTimeout(flushCollapseReport, REPORT_INTERVAL_MS);
+    } catch {
+      flushCollapseReport(); // no timers here — send it now rather than lose it
+    }
+  }
+
+  // A page being torn down still owes its last partial batch.
+  try {
+    window.addEventListener("pagehide", flushCollapseReport);
+  } catch {
+    /* nothing to do */
+  }
+
   // --- Inject our stylesheet once per frame --------------------------------
   let stylesReady = false;
   function ensureStyles() {
@@ -142,14 +187,8 @@
     managed.set(el, entry);
     collapsedCount++;
 
-    // Feed the shared Protection Dashboard stats store.
-    try {
-      chrome.runtime
-        .sendMessage({ type: "SIEVE_RECORD_BLOCK", category: "toxicComments", count: 1 })
-        .catch(() => {});
-    } catch (err) {
-      // Extension context may be unavailable in unusual conditions.
-    }
+    // Feed the shared Protection Dashboard stats store — batched, see below.
+    reportCollapsed();
 
     render(entry);
   }

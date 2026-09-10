@@ -37,7 +37,14 @@
   let whitelisted = false;
 
   // Captured native implementations (grabbed before we replace anything).
-  const nativeOpen = typeof window.open === "function" ? window.open.bind(window) : null;
+  //
+  // TWO handles on window.open, and the difference matters. `nativeOpen` is
+  // BOUND, because we call it as a bare function from inside the replacement.
+  // `nativeOpenRaw` is the original object, because uninstalling has to put
+  // back what was actually there — assigning the bound copy would leave the
+  // page with a wrapper of ours forever, which is not what "restored" means.
+  const nativeOpenRaw = typeof window.open === "function" ? window.open : null;
+  const nativeOpen = nativeOpenRaw ? nativeOpenRaw.bind(window) : null;
   const AProto = window.HTMLAnchorElement && HTMLAnchorElement.prototype;
   const FProto = window.HTMLFormElement && HTMLFormElement.prototype;
   const nativeAnchorClick = AProto && AProto.click;
@@ -61,6 +68,8 @@
       if (d.kind === "config") {
         enabled = !!d.enabled;
         whitelisted = !!d.whitelisted;
+        // The patches go on here, not at load — see installPatches().
+        applyPatches();
       }
     },
     false
@@ -293,17 +302,13 @@
   } catch {
     /* cosmetic */
   }
-  try {
-    window.open = sieveOpen;
-  } catch {
-    /* locked */
-  }
 
   // ---------------------------------------------------------------------------
   // 2) Programmatic anchor.click()
   // ---------------------------------------------------------------------------
-  if (AProto && nativeAnchorClick) {
-    AProto.click = function () {
+  const sieveAnchorClick =
+    AProto && nativeAnchorClick
+      ? function () {
       try {
         if (enabled && !whitelisted && this && opensNewWindow(this.getAttribute("target"))) {
           const dest = resolveUrl(this.getAttribute("href"));
@@ -322,9 +327,11 @@
         /* fall through to native */
       }
       return nativeAnchorClick.apply(this, arguments);
-    };
+        }
+      : null;
+  if (sieveAnchorClick) {
     try {
-      AProto.click.toString = () => "function click() { [native code] }";
+      sieveAnchorClick.toString = () => "function click() { [native code] }";
     } catch {
       /* cosmetic */
     }
@@ -333,8 +340,9 @@
   // ---------------------------------------------------------------------------
   // 3) Programmatic form.submit() to a new window
   // ---------------------------------------------------------------------------
-  if (FProto && nativeFormSubmit) {
-    FProto.submit = function () {
+  const sieveFormSubmit =
+    FProto && nativeFormSubmit
+      ? function () {
       try {
         if (enabled && !whitelisted && this && opensNewWindow(this.getAttribute("target"))) {
           const dest = resolveUrl(this.getAttribute("action") || location.href);
@@ -351,13 +359,13 @@
         /* fall through */
       }
       return nativeFormSubmit.apply(this, arguments);
-    };
-  }
+        }
+      : null;
 
   // ---------------------------------------------------------------------------
   // 4) Synthetic events: el.dispatchEvent(new MouseEvent('click')) etc.
   // ---------------------------------------------------------------------------
-  EventTarget.prototype.dispatchEvent = function (evt) {
+  const sieveDispatch = function (evt) {
     try {
       if (
         enabled &&
@@ -394,8 +402,60 @@
     } catch {
       /* fall through */
     }
-    return nativeDispatch.apply(this, arguments);
+    // .call(this, evt), not .apply(this, arguments): dispatchEvent takes exactly
+    // one argument, and `arguments` forces an arguments object to be
+    // materialised on a function that a busy page calls thousands of times a
+    // second.
+    return nativeDispatch.call(this, evt);
   };
+
+  // ---------------------------------------------------------------------------
+  // INSTALLING THE PATCHES — only while the module is actually on.
+  //
+  // All four used to be installed unconditionally at document_start, in the MAIN
+  // world, in every frame, with the `enabled` flag checked INSIDE each
+  // replacement. Popup Hijack is off by default, so every user was paying for a
+  // feature they had not turned on — and dispatchEvent in particular is on the
+  // hot path of every React app and every custom event bus (+16% per call,
+  // measured). Now nothing is touched until the bridge says the module is on
+  // for this host, and turning it off puts the natives back.
+  // ---------------------------------------------------------------------------
+  let patched = false;
+
+  function installPatches() {
+    if (patched) return;
+    patched = true;
+    try {
+      window.open = sieveOpen;
+    } catch {
+      /* locked */
+    }
+    if (sieveAnchorClick) AProto.click = sieveAnchorClick;
+    if (sieveFormSubmit) FProto.submit = sieveFormSubmit;
+    EventTarget.prototype.dispatchEvent = sieveDispatch;
+  }
+
+  function uninstallPatches() {
+    if (!patched) return;
+    patched = false;
+    try {
+      if (nativeOpenRaw && window.open === sieveOpen) window.open = nativeOpenRaw;
+    } catch {
+      /* locked */
+    }
+    // Only restore what is still OURS. Another extension may have patched over
+    // us in the meantime, and clobbering its wrapper would break it.
+    if (sieveAnchorClick && AProto.click === sieveAnchorClick) AProto.click = nativeAnchorClick;
+    if (sieveFormSubmit && FProto.submit === sieveFormSubmit) FProto.submit = nativeFormSubmit;
+    if (EventTarget.prototype.dispatchEvent === sieveDispatch) {
+      EventTarget.prototype.dispatchEvent = nativeDispatch;
+    }
+  }
+
+  function applyPatches() {
+    if (enabled && !whitelisted) installPatches();
+    else uninstallPatches();
+  }
 
   // ---------------------------------------------------------------------------
   // 5) Real user click on a big, see-through covering link (overlay-link the
