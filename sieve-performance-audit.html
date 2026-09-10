@@ -525,9 +525,9 @@ footer {
   <div class="tbl-scroll"><table>
     <thead><tr><th>Metric</th><th class="m">Before</th><th class="m">After</th><th class="m">Delta</th></tr></thead>
     <tbody>
-      <tr><td><b>JS injected into every top frame</b></td><td class="m">284,649 B</td><td class="m">116,389 B</td><td class="m"><b>&minus;59%</b></td></tr>
-      <tr><td><b>JS injected into every subframe</b></td><td class="m">47,318 B</td><td class="m">35,428 B</td><td class="m"><b>&minus;25%</b></td></tr>
-      <tr><td><b>Total parsed on a 30-iframe page</b></td><td class="m">1.70 MB</td><td class="m">1.18 MB</td><td class="m"><b>&minus;31%</b></td></tr>
+      <tr><td><b>JS injected into every top frame</b></td><td class="m">289,133 B</td><td class="m">118,528 B</td><td class="m"><b>&minus;59%</b></td></tr>
+      <tr><td><b>JS injected into every subframe</b></td><td class="m">48,700 B</td><td class="m">36,557 B</td><td class="m"><b>&minus;25%</b></td></tr>
+      <tr><td><b>Total parsed on a 30-iframe page</b></td><td class="m">1.75 MB</td><td class="m">1.22 MB</td><td class="m"><b>&minus;31%</b></td></tr>
       <tr><td><b>Chrome package</b></td><td class="m">4.40 MB</td><td class="m">3.97 MB</td><td class="m">&minus;10%</td></tr>
       <tr><td><b>Firefox package</b></td><td class="m">4.40 MB</td><td class="m">3.36 MB</td><td class="m"><b>&minus;24%</b></td></tr>
       <tr><td><b>Worst measured single task</b><br><span class="m">the bad-language queue drain</span></td><td class="m">503 ms</td><td class="m">0.9 ms</td><td class="m"><b>&minus;99.8%</b></td></tr>
@@ -576,10 +576,11 @@ footer {
     <li><b>"Raise the ad-tracker poll to 5 minutes."</b> Five minutes <em>is</em> the matched-rule retention window, so that cadence drops matches and under-reports silently. The code comment said so and the audit did not read it carefully enough. Shipped 2 minutes. <span class="m">(finding 8)</span></li>
     <li><b>"Two one-minute alarms on a default install."</b> Neither alarm exists by default &mdash; both belong to opt-in features. <span class="m">(section 01)</span></li>
     <li><b>"Newline format for the tracker list, ~&minus;1 MB."</b> Measured at 191 KB on disk and 9 KB compressed. Withdrawn. <span class="m">(section 10, P3)</span></li>
+    <li><b>The byte counts on this page were ~2 KB light, and have been corrected.</b> They were measured against a working tree, not a clean checkout. <code>.gitattributes</code> normalises line endings on checkout, so the CRLF files CI and every fresh clone build are slightly larger than the LF copies sitting in a tree that has been edited in place. Caught while setting the CI budget, by building two throwaway worktrees at the before and after commits and measuring both the same way. <b>Every percentage on this page was unaffected</b> &mdash; both endpoints moved together &mdash; and all of them survived re-measurement: &minus;59.0%, &minus;24.9%, &minus;30.6%, &minus;9.6%.</li>
   </ul>
   <p>A fourth thing the audit got wrong in the other direction: it said the 284 KB of injected script cost only 3.5 ms to compile and was therefore a memory problem rather than a CPU one. That was right &mdash; but it undersold the fix, because the same work that halved the bytes also removed two per-page fetches, 68 KB of an opt-in feature, and three redundant executions of a 22 KB file.</p>
 
-  <div class="note"><p><b>One regression, introduced and then resolved.</b> The P0&ndash;P2 work added ~11 KB of explanatory comments to the five scripts that run in every iframe, which briefly pushed the per-subframe payload <em>above</em> its starting point (47,318 &rarr; 58,782 B). P3's build-time strip took it to 35,428 B &mdash; below baseline. Worth recording because it is the failure mode of a comment-heavy house style meeting a byte budget, and the fix is a build step rather than writing less down.</p></div>
+  <div class="note"><p><b>One regression, introduced and then resolved.</b> The P0&ndash;P2 work added ~11 KB of explanatory comments to the five scripts that run in every iframe, which briefly pushed the per-subframe payload <em>above</em> its starting point (48,700 &rarr; 58,782 B). P3's build-time strip took it to 36,557 B &mdash; below baseline. Worth recording because it is the failure mode of a comment-heavy house style meeting a byte budget, and the fix is a build step rather than writing less down.</p></div>
 </section>
 
 <!-- ====================================================== 1 -->
@@ -999,8 +1000,8 @@ debounceTimer = setTimeout(flushMutations, 300);</pre>
       <tr><td class="m">25,455</td><td class="m"><b>all frames</b></td><td class="m">start</td><td class="m">popup-hijack-bridge + overlay-detector + link-hijack-detector</td></tr>
       <tr><td class="m">15,895</td><td class="m"><b>all frames</b></td><td class="m">start</td><td class="m">popup-hijack-blocker (MAIN)</td></tr>
       <tr><td class="m">5,968</td><td class="m"><b>all frames</b></td><td class="m">start</td><td class="m">url-shortener-intercept</td></tr>
-      <tr><td class="m"><b>284,649</b></td><td class="m">&mdash;</td><td class="m">&mdash;</td><td><b>total into every top frame</b></td></tr>
-      <tr><td class="m"><b>47,318</b></td><td class="m">&mdash;</td><td class="m">&mdash;</td><td><b>total into every subframe</b> &rarr; 1.70 MB on a 30-iframe page</td></tr>
+      <tr><td class="m"><b>289,133</b></td><td class="m">&mdash;</td><td class="m">&mdash;</td><td><b>total into every top frame</b></td></tr>
+      <tr><td class="m"><b>48,700</b></td><td class="m">&mdash;</td><td class="m">&mdash;</td><td><b>total into every subframe</b> &rarr; 1.75 MB on a 30-iframe page</td></tr>
     </tbody>
   </table></div>
 </section>
