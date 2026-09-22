@@ -488,6 +488,10 @@ function optionsDefaults() {
     ssGameStoresEnabled: false,
     ssGamePlatformsEnabled: false,
     ssGameStreamingEnabled: false,
+    // AI Blocker — three independent groups, all opt-in
+    ssAiChatbotsEnabled: false,
+    ssAiWritingEnabled: false,
+    ssAiCompanionsEnabled: false,
     // Ad & Tracker Blocker (BETA) — independent opt-in groups behind one switch
     ssAdTrackerEnabled: false,
     ssAdNetworkEnabled: false,
@@ -646,6 +650,7 @@ async function applyStoredSettings(store) {
   setupFinancialProtection(store); // Phase 5 — scam + trading + mlm opt-in toggles
   setupSafetyShield(store);        // piracy + malware/phishing + … opt-in toggles
   setupGameBlocker(store);         // game portals/stores/platforms/streaming toggles
+  setupAiBlocker(store);           // AI chatbots / writing & homework / companions toggles
   setupAdTrackerBlocker(store);    // Ad & Trackers (BETA) — bundled tracker-domain tier
 
   // URL Shortener Resolver — advanced setting, default ON. Turning it OFF
@@ -1200,6 +1205,27 @@ function setupGameBlocker(store) {
   setupCheckbox("ss-game-stores-toggle", "ssGameStoresEnabled", store.ssGameStoresEnabled, "Turn off Game download store blocking");
   setupCheckbox("ss-game-platforms-toggle", "ssGamePlatformsEnabled", store.ssGamePlatformsEnabled, "Turn off Game platform blocking");
   setupCheckbox("ss-game-streaming-toggle", "ssGameStreamingEnabled", store.ssGameStreamingEnabled, "Turn off Game streaming & esports blocking");
+}
+
+// ===========================================================================
+// AI Blocker — three independent, opt-in groups over the curated bundled list
+// in data/ai-sites.json. Same shape as the Game Blocker above: each toggle
+// writes its own ss…Enabled key and background/safety-shield.js watches them,
+// rebuilding only that group's DNR band. Static lists, so there is no "last
+// updated" line to render. Turning a group OFF weakens a block the user set for
+// themselves, so each goes through the Guardian PIN gate like every other
+// protection toggle; turning one ON is free.
+//
+// NB the neighbouring key that is NOT one of these: ssAiSlopEnabled, the Safety
+// Shield's "AI content farms" toggle. That one blocks sites whose pages are
+// AI-generated spam and belongs to a fetched, auto-updating list; these three
+// block the AI tools themselves and are curated. They share nothing but a name.
+// ===========================================================================
+
+function setupAiBlocker(store) {
+  setupCheckbox("ss-ai-chatbots-toggle", "ssAiChatbotsEnabled", store.ssAiChatbotsEnabled, "Turn off AI chatbot & assistant blocking");
+  setupCheckbox("ss-ai-writing-toggle", "ssAiWritingEnabled", store.ssAiWritingEnabled, "Turn off AI writing & homework tool blocking");
+  setupCheckbox("ss-ai-companions-toggle", "ssAiCompanionsEnabled", store.ssAiCompanionsEnabled, "Turn off AI companion & roleplay chat blocking");
 }
 
 // Show "last updated" under each Safety Shield toggle. Piracy has one list; the
@@ -2167,6 +2193,10 @@ const DASHBOARD_GROUPS = [
       // All four Game Blocker groups roll up into one row (blocked.js maps every
       // games-* category to the single "games" stats key).
       { key: "games", label: "Game Sites", combine: ["games"] },
+      // Same roll-up for the three AI Blocker groups (blocked.js maps every
+      // ai-* category to the single "aiSites" stats key). Distinct from the
+      // "AI Slop / Spam" row above, which counts blocked AI content farms.
+      { key: "aiSites", label: "AI Sites", combine: ["aiSites"] },
       { key: "customBlocked", label: "Custom Blocked Sites", combine: ["customBlocked"] },
       { key: "urlShortener", label: "URL Shortener Blocks", combine: ["urlShortener"] },
     ],
@@ -2188,6 +2218,7 @@ const DASHBOARD_ICONS = {
   goreShock: '<path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/>',
   dating: '<path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/>',
   games: '<line x1="6" y1="11" x2="10" y2="11"/><line x1="8" y1="9" x2="8" y2="13"/><line x1="15" y1="12" x2="15.01" y2="12"/><line x1="18" y1="10" x2="18.01" y2="10"/><path d="M17.32 5H6.68a4 4 0 0 0-3.978 3.59c-.006.052-.01.101-.017.152C2.604 9.416 2 14.456 2 16a3 3 0 0 0 3 3c1 0 1.5-.5 2-1l1.414-1.414A2 2 0 0 1 9.828 16h4.344a2 2 0 0 1 1.414.586L17 18c.5.5 1 1 2 1a3 3 0 0 0 3-3c0-1.545-.604-6.584-.685-7.258A4 4 0 0 0 17.32 5z"/>',
+  aiSites: '<rect x="4" y="8" width="16" height="12" rx="2"/><path d="M12 8V4"/><circle cx="12" cy="3" r="1"/><line x1="2" y1="14" x2="4" y2="14"/><line x1="20" y1="14" x2="22" y2="14"/><line x1="9" y1="13" x2="9" y2="15"/><line x1="15" y1="13" x2="15" y2="15"/>',
   customBlocked: '<circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/>',
   urlShortener: '<path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/>',
   badLanguage: '<polyline points="4 7 4 4 20 4 20 7"/><line x1="9" y1="20" x2="15" y2="20"/><line x1="12" y1="4" x2="12" y2="20"/>',

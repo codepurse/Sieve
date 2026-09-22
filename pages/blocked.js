@@ -15,6 +15,9 @@
 //   games-stores    → a game download store or launcher    (Game Blocker, opt-in, static)
 //   games-platforms → a game platform / social game world  (Game Blocker, opt-in, static)
 //   games-streaming → game streaming / cloud gaming / esports (Game Blocker, opt-in, static)
+//   ai-chatbots     → an AI assistant / AI search site        (AI Blocker, opt-in, static)
+//   ai-writing      → an AI writing / homework / humanizer tool (AI Blocker, opt-in, static)
+//   ai-companions   → an AI companion / roleplay chat site    (AI Blocker, opt-in, static)
 //   gambling → the Phase-1 gambling blocker           (original wording)
 //   prediction-markets → a prediction market / betting platform (2nd Gambling
 //                        Blocker toggle; opt-in self-control tone)
@@ -159,6 +162,33 @@
       note:
         "You can turn off “Game streaming, cloud gaming & esports”, or allow this site, under Game Blocker in Sieve's settings.",
     },
+    // AI Blocker. Self-control, not safety — the same neutral opt-in tone the
+    // dating and game groups use. Each note names the exact switch to change,
+    // because three switches sit in that card and only one of them let this
+    // through.
+    "ai-chatbots": {
+      shield: "🛡️",
+      title: "AI assistant blocked by Sieve",
+      message: "You chose to block AI chatbots and assistants. Blocked by Sieve.",
+      note:
+        "You can turn off “AI chatbots & assistants”, or allow this site, under AI Blocker in Sieve's settings.",
+    },
+    "ai-writing": {
+      shield: "🛡️",
+      title: "AI writing tool blocked by Sieve",
+      message:
+        "You chose to block AI writing and homework tools. Blocked by Sieve.",
+      note:
+        "You can turn off “AI writing, homework & humanizer tools”, or allow this site, under AI Blocker in Sieve's settings.",
+    },
+    "ai-companions": {
+      shield: "🛡️",
+      title: "AI companion site blocked by Sieve",
+      message:
+        "You chose to block AI companion and roleplay chat sites. Blocked by Sieve.",
+      note:
+        "You can turn off “AI companions & roleplay chat”, or allow this site, under AI Blocker in Sieve's settings.",
+    },
     gambling: {
       shield: "🛡️",
       title: "Blocked by Sieve",
@@ -209,6 +239,11 @@
     "games-stores": "games",
     "games-platforms": "games",
     "games-streaming": "games",
+    // Same roll-up for the three AI Blocker groups: the per-group wording above
+    // is what tells the user which switch to change; the dashboard needs a total.
+    "ai-chatbots": "aiSites",
+    "ai-writing": "aiSites",
+    "ai-companions": "aiSites",
     "custom-blocked": "customBlocked",
   };
 

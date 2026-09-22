@@ -46,10 +46,11 @@ export const AD_NETWORK_ENABLED_KEY = "ssAdNetworkEnabled"; // boolean, default 
 
 // DNR id band. Bands below 180000 are all allocated (gambling < 10000, custom
 // blocks 10000, allowlist 20000, Financial Protection 30000-59999, Safety Shield
-// 60000-139999, games 140000-179999). 190000-199999 stays FREE: it is reserved
-// for a separate "Ad networks" toggle if EasyList is ever added as a second
-// source. This module only ever removes rules inside its own band, so it can
-// never clobber another tier's.
+// 60000-139999, games 140000-179999), and this module owns 180000-199999:
+// trackers 180000-189999, ad networks 190000-199999 (the second source, EasyList,
+// which the band was reserved for and now holds). Allocation continues above it —
+// the AI Blocker took 200000-229999. This module only ever removes rules inside
+// its own band, so it can never clobber another tier's.
 const AD_TRACKER_ID_START = 180000;
 const AD_TRACKER_ID_END = 190000; // exclusive
 
@@ -69,7 +70,7 @@ export const AD_TRACKER_GROUPS = {
   ads: {
     key: AD_NETWORK_ENABLED_KEY,
     idStart: 190000,
-    idEnd: 200000, // exclusive — the last band; nothing else may take 190000+
+    idEnd: 200000, // exclusive — the last band this module owns; 200000+ is the AI Blocker's
     category: "ads",
   },
 };

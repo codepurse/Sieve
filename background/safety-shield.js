@@ -1039,3 +1039,171 @@ globalThis.sieveSafety = Object.assign(globalThis.sieveSafety || {}, {
   applyGameGroupRules,
   applyAllGameRules,
 });
+
+// ===========================================================================
+// STATIC TIER — AI sites  (AI Blocker)
+//
+// A curated, opt-in blocker for AI TOOLS, split into THREE independent groups
+// so each can be turned on alone:
+//
+//   • chatbots   — general-purpose assistants and AI search (ChatGPT, Claude,
+//                  Gemini, Copilot, Perplexity, DeepSeek, Grok, Poe, …), plus
+//                  the web coding chats (Phind, Blackbox).
+//   • writing    — AI writing, homework and study helpers, and the "humanizer"
+//                  tools sold specifically to get AI text past a detector
+//                  (QuillBot, Jenni, Caktus, Undetectable, StealthGPT, …).
+//   • companions — AI companion / girlfriend / roleplay chat (Character.AI,
+//                  Replika, Janitor AI, Chai, …), the group with by far the
+//                  strongest pull back.
+//
+// NOT the Safety Shield's "AI content farms" tier (ssAiSlopEnabled). That one
+// blocks sites whose PAGES are mass-produced AI slop and is a safety/quality
+// judgement about someone else's site; this one blocks the AI tools themselves
+// and is SELF-CONTROL, so the blocked page uses the neutral opt-in tone the
+// dating and game tiers use ("You chose to block …") — never a warning.
+//
+// SCOPE — the deliberate omissions are listed in data/ai-sites.json's _comment
+// and the settings copy repeats the two a user would otherwise be surprised by:
+// a search engine's own AI answers cannot be reached by a domain blocker, and
+// image/video generators are not covered by any group here.
+//
+// Like the MLM / trading / gore-shock / dating / game tiers this is STATIC — a
+// hand-reviewed bundled list in data/ai-sites.json — so there is NO fetch, NO
+// scheduler and NO chrome.storage domain cache. Editing that file + reloading
+// the extension rebuilds the rules. It REUSES this module's shared rule
+// primitives (buildBlockRules / replaceDynamicRules / enqueueRuleWrite), so no
+// engine is duplicated, and is kept OUT of SAFETY_LISTS / SAFETY_RULES so the
+// daily scheduler never touches it.
+//
+// ID ranges — three groups, one 10000-wide band each, matching the convention
+// every other group here follows. Games own 140000-179999 and the Ad & Tracker
+// tier owns 180000-199999 (trackers 180000, ad networks 190000), so the AI
+// groups take the next three free bands:
+//   chatbots 200000-209999 · writing 210000-219999 · companions 220000-229999
+// Each group's domains pack into 1 chunk => 2 rules (1 redirect + 1 block), a
+// rounding error against Chrome's 30000-rule ceiling. Each band is cleared only
+// by its own group, so the three toggles never clobber one another.
+// ===========================================================================
+
+// One toggle key per group — all opt-in, default OFF (the settings UI flips
+// them). Same "ss…" namespace as the other Safety Shield toggles.
+export const AI_GROUPS = {
+  chatbots: {
+    key: "ssAiChatbotsEnabled",
+    idStart: 200000,
+    idEnd: 210000,
+    category: "ai-chatbots",
+  },
+  writing: {
+    key: "ssAiWritingEnabled",
+    idStart: 210000,
+    idEnd: 220000,
+    category: "ai-writing",
+  },
+  companions: {
+    key: "ssAiCompanionsEnabled",
+    idStart: 220000,
+    idEnd: 230000,
+    category: "ai-companions",
+  },
+};
+
+// Every AI toggle key, for callers that just want the list.
+export const AI_ENABLED_KEYS = Object.values(AI_GROUPS).map((g) => g.key);
+
+// Is ONE AI group currently on? (defaults OFF — opt-in)
+export async function isAiGroupEnabled(name) {
+  const spec = AI_GROUPS[name];
+  if (!spec) throw new Error("Unknown AI group: " + name);
+  const s = await chrome.storage.local.get({ [spec.key]: false });
+  return s[spec.key];
+}
+
+// Read the reviewed, STATIC AI lists shipped inside the extension. One file
+// holds all three groups keyed by group name (plus a "_comment" key the loader
+// ignores), so a single fetch serves every group — the same shape, and the same
+// loader, as data/game-sites.json.
+async function loadAiDomains() {
+  const empty = { chatbots: [], writing: [], companions: [] };
+  try {
+    const res = await fetch(chrome.runtime.getURL("data/ai-sites.json"));
+    const data = await res.json();
+    if (!data || typeof data !== "object") return empty;
+    const out = {};
+    for (const name of Object.keys(AI_GROUPS)) {
+      const list = data[name];
+      out[name] = Array.isArray(list)
+        ? list.map((d) => String(d).trim().toLowerCase()).filter(Boolean)
+        : [];
+    }
+    return out;
+  } catch (err) {
+    console.error("[Sieve] Could not load data/ai-sites.json:", err);
+    return empty;
+  }
+}
+
+// Apply ONE AI group's rules. While its toggle is off we add nothing, which
+// removes any existing rules for that group. While on, we build
+// redirect(full-page) + block(subresource) rules via the shared buildBlockRules,
+// tagging the blocked page with that group's category. requestDomains matches
+// each domain AND all its subdomains. Priority 1, so the shared priority-2
+// allowlist (ID 20000, owned by service-worker.js) overrides them with no extra
+// wiring. Serialized via the module's shared write queue so the three groups
+// can't race each other or the other tiers.
+export async function applyAiGroupRules(name) {
+  const spec = AI_GROUPS[name];
+  if (!spec) throw new Error("Unknown AI group: " + name);
+  return enqueueRuleWrite(`ai:${name}`, async () => {
+    let addRules = [];
+    if (await isAiGroupEnabled(name)) {
+      const domains = (await loadAiDomains())[name];
+      addRules = buildBlockRules(domains, spec.idStart, spec.category);
+    }
+    await replaceDynamicRules(spec.idStart, spec.idEnd, addRules);
+  });
+}
+
+// Reconcile all three groups (install/update, startup).
+export async function applyAllAiRules() {
+  for (const name of Object.keys(AI_GROUPS)) {
+    await applyAiGroupRules(name);
+  }
+}
+
+// Reconcile on install/update and on browser startup so the live rules always
+// match the saved toggles (and pick up any hand edits to the bundled JSON made
+// before the reload). SEPARATE listeners — additive, they don't touch the
+// module's existing onInstalled/onStartup handlers above.
+chrome.runtime.onInstalled.addListener(() => {
+  applyAllAiRules();
+});
+chrome.runtime.onStartup.addListener(() => {
+  applyAllAiRules();
+});
+
+// React to the toggles (the settings UI writes these keys). SEPARATE onChanged
+// listener — additive. Only the group whose key changed is re-applied, so
+// flipping one toggle never rewrites the other two bands. ON or OFF both just
+// re-apply from the bundled list (no fetch — it's static).
+chrome.storage.onChanged.addListener((changes, area) => {
+  if (area !== "local") return;
+  for (const [name, spec] of Object.entries(AI_GROUPS)) {
+    if (changes[spec.key]) applyAiGroupRules(name);
+  }
+});
+
+// Test hooks — additive extension of the existing sieveSafety object, e.g.
+//   await chrome.storage.local.set({ ssAiChatbotsEnabled: true }) // simulate toggle
+//   await sieveSafety.applyAiGroupRules("chatbots")  // apply one group
+//   await sieveSafety.applyAllAiRules()              // apply all three
+//   await sieveSafety.loadAiDomains()                // inspect the bundled domains
+//   (await chrome.declarativeNetRequest.getDynamicRules()).filter(r => r.id >= 200000 && r.id < 230000)
+globalThis.sieveSafety = Object.assign(globalThis.sieveSafety || {}, {
+  AI_GROUPS,
+  AI_ENABLED_KEYS,
+  isAiGroupEnabled,
+  loadAiDomains,
+  applyAiGroupRules,
+  applyAllAiRules,
+});

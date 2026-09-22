@@ -22,6 +22,7 @@ import {
   isSafetyListEnabled,
   isGoreShockEnabled,
   isDatingEnabled,
+  isAiGroupEnabled,
 } from "./safety-shield.js";
 
 const GAMBLING_ENABLED_KEY = "gamblingEnabled";
@@ -183,6 +184,22 @@ function getDatingDomains() {
   return cachedSet("dating", async () => toDomainSet(await fetchJsonArray("data/dating-sites.json")));
 }
 
+// The AI Blocker's bundled list is ONE file holding three named groups, unlike
+// the flat arrays above — so it reads the group out rather than the whole file.
+// Each group is cached under its own name, because each has its own toggle.
+function getAiDomains(group) {
+  return cachedSet("ai:" + group, async () => {
+    try {
+      const res = await fetch(chrome.runtime.getURL("data/ai-sites.json"));
+      const data = await res.json();
+      return toDomainSet(Array.isArray(data?.[group]) ? data[group] : []);
+    } catch (err) {
+      console.warn("[Sieve] Could not load AI blocker list:", group, err);
+      return new Set();
+    }
+  });
+}
+
 function getStoredSafetyDomains(name) {
   return cachedSet("safety:" + name, async () => {
     try {
@@ -254,6 +271,9 @@ export async function checkResolvedUrl(resolvedUrl) {
     { enabled: () => isSafetyListEnabled("fraud"), domains: () => getStoredSafetyDomains("fraud"), category: "fraud" },
     { enabled: isGoreShockEnabled, domains: getGoreShockDomains, category: "goreshock" },
     { enabled: isDatingEnabled, domains: getDatingDomains, category: "dating" },
+    { enabled: () => isAiGroupEnabled("chatbots"), domains: () => getAiDomains("chatbots"), category: "ai-chatbots" },
+    { enabled: () => isAiGroupEnabled("writing"), domains: () => getAiDomains("writing"), category: "ai-writing" },
+    { enabled: () => isAiGroupEnabled("companions"), domains: () => getAiDomains("companions"), category: "ai-companions" },
   ];
 
   for (const check of checks) {
