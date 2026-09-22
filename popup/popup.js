@@ -108,6 +108,10 @@ const MODULE_DEFAULTS = {
   ssGameStoresEnabled: false,
   ssGamePlatformsEnabled: false,
   ssGameStreamingEnabled: false,
+  // AI Blocker (opt-in, default off) — three independent groups
+  ssAiChatbotsEnabled: false,
+  ssAiWritingEnabled: false,
+  ssAiCompanionsEnabled: false,
 };
 const MODULE_KEYS = Object.keys(MODULE_DEFAULTS);
 

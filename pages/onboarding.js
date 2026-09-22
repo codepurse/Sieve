@@ -31,12 +31,16 @@
     ssGameStoresEnabled: "Game Blocker — Game download stores",
     ssGamePlatformsEnabled: "Game Blocker — Game platforms",
     ssGameStreamingEnabled: "Game Blocker — Game streaming & esports",
+    ssAiChatbotsEnabled: "AI Blocker — AI chatbots & assistants",
+    ssAiWritingEnabled: "AI Blocker — AI writing & homework tools",
+    ssAiCompanionsEnabled: "AI Blocker — AI companions & roleplay",
   };
 
-  // Which modules each wizard path enables. NB: the Game Blocker groups are
-  // deliberately absent from "family" — blocking every game site is not an
-  // obvious default for a shared browser, so it stays a deliberate opt-in on the
-  // settings page. "all" picks them up automatically via Object.keys below.
+  // Which modules each wizard path enables. NB: the Game Blocker and AI Blocker
+  // groups are deliberately absent from "family" and "focus" — blocking every
+  // game site, or every AI assistant, is not an obvious default for anyone who
+  // did not ask for it by name, so they stay deliberate opt-ins on the settings
+  // page. "all" picks them up automatically via Object.keys below.
   const PATHS = {
     family: [
       "badLanguageEnabled",

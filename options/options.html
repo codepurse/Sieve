@@ -655,6 +655,68 @@
             </div>
           </section>
 
+          <!-- ===== AI Blocker — three independent, opt-in groups over a
+               curated bundled list (data/ai-sites.json). Its own card rather
+               than three more Safety Shield rows, because it needs to say once,
+               up front, that it is not the same thing as that section's "AI
+               content farms" toggle. ===== -->
+          <section class="card">
+            <div class="card-header">
+              <h2 class="card-title">AI Blocker</h2>
+              <p class="card-description">
+                Three independent, opt-in blockers for AI tools &mdash; all
+                <strong>off by default</strong>. The lists are curated and ship with
+                Sieve. This is not the <em>Block AI content farms</em> switch under
+                Safety Shield: that one blocks sites whose pages are AI-generated
+                spam; these block the AI tools themselves, and they are here for
+                your own focus rather than your safety. Two limits worth knowing:
+                a search engine's own AI answers cannot be blocked without blocking
+                the search engine, and image, video and voice generators are not
+                covered &mdash; add either to <em>Blocked sites</em> below if you
+                want them gone. The shared <em>Allowlist</em> applies here too.
+              </p>
+            </div>
+
+            <div class="field">
+              <div class="switch-row">
+                <div class="switch-label">
+                  <span class="label">Block AI chatbots &amp; assistants</span>
+                  <span class="description">Blocks general-purpose AI chat and AI search (ChatGPT, Claude, Gemini, Copilot, Perplexity, DeepSeek, Grok, Poe, and similar), plus the coding chats you use in a browser tab. It blocks the chat sites themselves, not a vendor's API address &mdash; so a site that quietly uses AI behind the scenes keeps working, and a coding assistant built into your editor is out of reach either way.</span>
+                </div>
+                <label class="switch">
+                  <input type="checkbox" id="ss-ai-chatbots-toggle" />
+                  <span class="slider"></span>
+                </label>
+              </div>
+            </div>
+
+            <div class="field">
+              <div class="switch-row">
+                <div class="switch-label">
+                  <span class="label">Block AI writing, homework &amp; humanizer tools</span>
+                  <span class="description">Blocks AI writing and paraphrasing tools, AI homework and study helpers, and the &ldquo;humanizer&rdquo; sites sold specifically to get AI text past a detector (QuillBot, Jenni, Caktus, Undetectable, StealthGPT, and similar). Grammar checkers and human essay sites are deliberately left alone &mdash; they are not AI writing, and a switch named for it should not quietly take them.</span>
+                </div>
+                <label class="switch">
+                  <input type="checkbox" id="ss-ai-writing-toggle" />
+                  <span class="slider"></span>
+                </label>
+              </div>
+            </div>
+
+            <div class="field">
+              <div class="switch-row">
+                <div class="switch-label">
+                  <span class="label">Block AI companions &amp; roleplay chat</span>
+                  <span class="description">Blocks AI companion, girlfriend and roleplay chat sites (Character.AI, Replika, Janitor AI, Chai, and similar) &mdash; the ones built to be talked to for hours. Explicit sites are outside what this covers, the same way the dating list leaves them alone.</span>
+                </div>
+                <label class="switch">
+                  <input type="checkbox" id="ss-ai-companions-toggle" />
+                  <span class="slider"></span>
+                </label>
+              </div>
+            </div>
+          </section>
+
           <section class="card">
             <div class="card-header">
               <h2 class="card-title">Blocked sites</h2>
