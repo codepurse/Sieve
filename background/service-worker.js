@@ -17,6 +17,7 @@ import "./popup-hijack.js"; // Popup & Click Hijack Blocker — blocked-popup lo
 import "./cookie-autoreject.js"; // Cookie auto-reject — registers the consent engine only while it is on
 import "./url-shortener-resolver.js"; // URL Shortener Resolver — expand shortened links before blocker checks
 import "./usage-tracker.js"; // Usage Insights — opt-in local screen-time tracker
+import "./youtube-suggest.js"; // Site Cleanup — stops YouTube asking for search suggestions
 // A plain script, not an ES module: importing it for its side effect is what
 // puts KeywordPattern on `self`, which is where the blocked-sites entry parser
 // lives. The settings page and the content script load the same file, so all
