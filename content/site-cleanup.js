@@ -14,6 +14,8 @@
 //
 // Settings shape (chrome.storage.local):
 //   siteCleanup: { youtube: { enabled, hideHome, hideShorts, … } }
+// background/youtube-suggest.js reads the same key for the one toggle that also
+// needs a network rule (hideSearchSuggestions); everything else is only here.
 // A missing key means "off": with no settings at all this script does nothing
 // and YouTube looks completely untouched. Failing visible is the safe default —
 // if this file ever throws, the user gets a normal YouTube rather than a blank
@@ -50,6 +52,10 @@
     hideMerch: "sv-yt-hide-merch",
     hideMixes: "sv-yt-hide-mixes",
     hideSearchExtras: "sv-yt-hide-search-extras",
+    // The dropdown under the search box. This class is only the fallback half —
+    // background/youtube-suggest.js reads the same toggle and stops YouTube
+    // asking for the suggestions in the first place.
+    hideSearchSuggestions: "sv-yt-hide-search-suggestions",
     hideNotificationBell: "sv-yt-hide-bell",
   };
 

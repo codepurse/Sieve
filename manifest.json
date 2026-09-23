@@ -189,6 +189,11 @@
         "id": "prediction_market_ruleset",
         "enabled": false,
         "path": "rules/prediction-market-rules.json"
+      },
+      {
+        "id": "youtube_suggest_ruleset",
+        "enabled": false,
+        "path": "rules/youtube-suggest-rules.json"
       }
     ]
   },

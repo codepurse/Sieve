@@ -795,6 +795,7 @@ const SITE_CLEANUP_SITES = [
           { key: "hideExplore", label: "Hide Explore", desc: "Removes Trending, Music, Movies and Gaming from the sidebar" },
           { key: "hideMixes", label: "Hide mixes & radio playlists", desc: "Drops the auto-generated endless playlists from results and recommendations" },
           { key: "hideSearchExtras", label: "Hide search filler", desc: "Removes “People also search for” and “Related to your search” from results" },
+          { key: "hideSearchSuggestions", label: "Hide search suggestions", desc: "Drops the dropdown under the search box, and stops YouTube being asked for it — nothing you type is sent off to have a list built from your history. Typing and searching work as normal" },
         ],
       },
       {

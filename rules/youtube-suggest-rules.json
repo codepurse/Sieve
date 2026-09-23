@@ -1,0 +1,12 @@
+[
+  {
+    "id": 1,
+    "priority": 1,
+    "action": { "type": "block" },
+    "condition": {
+      "requestDomains": ["youtube.com"],
+      "urlFilter": "/complete/search",
+      "resourceTypes": ["xmlhttprequest", "script", "other"]
+    }
+  }
+]

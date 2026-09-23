@@ -15,6 +15,7 @@
  *   nav entries    ytd-guide-entry-renderer / ytd-mini-guide-entry-renderer
  *   watch sidebar  ytd-watch-next-secondary-results-renderer, #related
  *   top bar        #masthead-container (56px, via --ytd-toolbar-height)
+ *   suggest list   .ytSearchboxComponentSuggestionsContainer (desktop + mobile)
  *
  * Note: several rules use :has(), so they need Chrome 105+ / Firefox 121+. On
  * anything older those specific rules are ignored — the page stays usable, the
@@ -152,6 +153,28 @@ html.sv-yt-hide-mixes yt-lockup-view-model:has(a[href*="start_radio=1"]) {
 html.sv-yt-hide-search-extras ytd-shelf-renderer:has(ytd-search-refinement-card-renderer),
 html.sv-yt-hide-search-extras ytd-horizontal-card-list-renderer:has(ytd-search-refinement-card-renderer),
 html.sv-yt-hide-search-extras ytd-search-refinement-card-renderer {
+  display: none !important;
+}
+
+/* ==========================================================================
+   Search suggestions — the dropdown under the search box.
+
+   This is the FALLBACK half of the feature. The rule that does the work is a
+   network one (rules/youtube-suggest-rules.json, driven by
+   background/youtube-suggest.js): YouTube asks for suggestions on focus and on
+   every keystroke, and with those requests blocked this container renders empty
+   and collapses to nothing on its own. The rule below is what catches a list
+   that arrives some other way — the same container is used by both the desktop
+   and the mobile site, verified September 2026.
+
+   Caveat worth knowing if this ever runs alone: display:none hides the list but
+   says nothing about YouTube's own arrow-key handling, so a hidden suggestion
+   could in principle still be selectable. That cannot happen while the network
+   rule is on, because there is no list to select from.
+   ========================================================================== */
+
+html.sv-yt-hide-search-suggestions .ytSearchboxComponentSuggestionsContainer,
+html.sv-yt-hide-search-suggestions .yt-searchbox-suggestions-container {
   display: none !important;
 }
 

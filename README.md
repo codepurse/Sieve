@@ -42,7 +42,7 @@ tracking, nothing leaves your browser.
 - **URL Shortener Resolver** — expands or blocks shortened links before you land on them.
 
 ### Wellbeing & control
-- **Site Cleanup** — hides the distracting parts of sites you still want to use. YouTube first, with 21 switches: feeds and Shorts, comments and recommendations, mixes and search filler, the description/channel/action rows, live chat, merch, end cards and info cards, autoplay, thumbnails, the top bar and its bell, and a black-and-white mode.
+- **Site Cleanup** — hides the distracting parts of sites you still want to use. YouTube first, with 22 switches: feeds and Shorts, comments and recommendations, mixes, search filler and the search suggestions dropdown (which is stopped at the request, so half-typed searches are never sent off to have a list built from your history), the description/channel/action rows, live chat, merch, end cards and info cards, autoplay, thumbnails, the top bar and its bell, and a black-and-white mode.
 - **Doomscroll Stopper** — a daily time limit on endless feeds, with a gentle pause overlay.
 - **Guardian self-lock** — an optional PIN that gates *weakening* your protection (turning things off, allowlisting) while strengthening it stays free.
 - **Protection Dashboard** — a today/this-week breakdown of everything Sieve blocked for you, including an **Ads & trackers** section counting tracking requests, ad-network requests, the YouTube and Facebook ads removed, and the ad-blocker walls cleared. Only running totals are stored — never which site or which tracker. The two request counters read back which of Sieve's own block rules fired, which Chrome allows and Firefox does not, so they stay at zero on Firefox while the blocking itself is unaffected.
