@@ -437,6 +437,39 @@ function setupRadioGroup(name, storageKey, currentValue) {
   });
 }
 
+// Appearance: match the system, or always light or dark. Not a protection, so
+// no Guardian gate. common/theme.js does the work; this keeps the radios and
+// the "now dark" hint beside "Match my system" honest.
+function setupAppearance(store) {
+  const T = window.SieveTheme;
+  const radios = document.querySelectorAll('input[name="uiTheme"]');
+  const systemHint = document.getElementById("ui-theme-system");
+  if (!T || radios.length === 0) return;
+
+  function check(theme) {
+    radios.forEach((radio) => {
+      radio.checked = radio.value === theme;
+    });
+  }
+
+  const dark = window.matchMedia("(prefers-color-scheme: dark)");
+  function showSystem() {
+    if (systemHint) systemHint.textContent = dark.matches ? "now dark" : "now light";
+  }
+  dark.addEventListener("change", showSystem);
+  showSystem();
+
+  radios.forEach((radio) => {
+    radio.addEventListener("change", () => {
+      if (radio.checked) T.save(radio.value);
+    });
+  });
+  // Changed in another settings window: follow it.
+  T.onChange(check);
+
+  check(T.normalize(store.uiTheme));
+}
+
 // `actionName`, when given, marks this as a protection switch: turning it OFF
 // goes through the Guardian gate (asks for the PIN when one is set).
 function setupCheckbox(id, storageKey, currentValue, actionName) {
@@ -533,6 +566,8 @@ function optionsDefaults() {
     guardianPinHash: "",
     // Cool-off — the wait in hours (0 = off); see common/cooloff.js
     cooloffConfig: { hours: 0 },
+    // Appearance — "auto" | "light" | "dark"; see common/theme.js
+    uiTheme: "auto",
     // Search Result Filter — rules carry their own colour; see setupSearchFilter
     searchFilterEnabled: false,
     searchFilterRules: [],
@@ -544,10 +579,10 @@ function optionsDefaults() {
     // Usage Insights — opt-in screen-time tracking, and how long to keep it
     usageEnabled: false,
     usageRetentionDays: 30,
-    // Announcement banner — id of the last message the user dismissed
-    dismissedAnnouncementId: "",
     // What's New — version whose release notes the user has already seen
     seenWhatsNewVersion: "",
+    // Warden band on the Overview — folded to its one-line bar by the ×
+    wardenFolded: false,
   };
   for (const t of DARK_PATTERN_TYPES) {
     d[t.key] = t.default !== undefined ? t.default : true;
@@ -672,6 +707,7 @@ async function applyStoredSettings(store) {
   // weakens protection, so it goes through the Guardian PIN gate like other
   // protection toggles.
   setupCheckbox("url-shortener-resolver-toggle", "urlShortenerResolverEnabled", store.urlShortenerResolverEnabled, "Turn off URL Shortener Resolver");
+  setupAppearance(store);          // light / dark / match the system
 
   setupSearchFilter(store);        // hide / colour-code search results
   setupWhatsNew(store);            // release notes bundled with the extension
@@ -683,6 +719,9 @@ async function applyStoredSettings(store) {
   setupDarkPatterns(store);        // Module 3A — relocated from the popup
   setupToxicSites(store);          // per-site toggles — relocated from the popup
 
+  // Warden — the pine band at the top of the Overview.
+  setupWarden(store);
+
   // Protection Dashboard — today / week stats from the shared stats store.
   await setupDashboard(store);
 
@@ -693,9 +732,9 @@ async function applyStoredSettings(store) {
   // Doomscroll needs the bundled site list (a fast, local fetch).
   await setupDoomscroll(store);
 
-  // Announcement banner — fetched from the repo over the network. Fire-and-forget
-  // so a slow/failed fetch never delays revealing the page.
-  setupAnnouncement(store);
+  // Announcement — the sidebar note, fetched from the repo over the network.
+  // Fire-and-forget so a slow/failed fetch never delays revealing the page.
+  setupAnnouncement();
 }
 
 // ===========================================================================
@@ -2871,6 +2910,61 @@ async function setupDashboard() {
 }
 
 // ===========================================================================
+// Warden — the pine band at the top of the Overview (markup in options.html).
+// ===========================================================================
+
+// The dial illustrates a cool-down; it is not counting anything real. As in the
+// design, it opens at 23:59:41 and runs down while the Overview is on screen.
+// With reduced motion asked for, it stays still.
+const WARDEN_START_SECONDS = 23 * 3600 + 59 * 60 + 41;
+const WARDEN_ARC_LENGTH = 289.03; // the arc's circumference, 2π × 46
+
+function setupWarden(store) {
+  const warden = document.getElementById("warden");
+  const band = document.getElementById("warden-band");
+  const folded = document.getElementById("warden-folded");
+  const hideBtn = document.getElementById("warden-hide");
+  if (!warden || !band || !folded || !hideBtn) return;
+  const clocks = warden.querySelectorAll("[data-warden-clock]");
+  const arc = warden.querySelector(".warden-arc");
+
+  // The × folds the band to its one-line bar rather than removing it, and the
+  // bar's "Show" opens it again. Either way the choice is kept for next time.
+  function setFolded(isFolded) {
+    band.hidden = isFolded;
+    folded.hidden = !isFolded;
+  }
+  hideBtn.addEventListener("click", () => {
+    setFolded(true);
+    folded.focus();
+    chrome.storage.local.set({ wardenFolded: true });
+  });
+  folded.addEventListener("click", () => {
+    setFolded(false);
+    hideBtn.focus();
+    chrome.storage.local.set({ wardenFolded: false });
+  });
+  setFolded(!!store.wardenFolded);
+
+  const started = Date.now();
+  const two = (n) => String(n).padStart(2, "0");
+  function tick() {
+    const left = Math.max(0, WARDEN_START_SECONDS - Math.floor((Date.now() - started) / 1000));
+    const text = `${two(Math.floor(left / 3600))}:${two(Math.floor(left / 60) % 60)}:${two(left % 60)}`;
+    for (const clock of clocks) clock.textContent = text;
+    // The brass arc fills once a minute, as the seconds run down.
+    if (arc) arc.setAttribute("stroke-dashoffset", (WARDEN_ARC_LENGTH * (1 - (left % 60) / 60)).toFixed(2));
+  }
+  const still = window.matchMedia("(prefers-reduced-motion: reduce)");
+  setInterval(() => {
+    // Nothing to redraw while the Overview is not the section on screen
+    // (offsetParent is null under a hidden section) or the tab is in the back.
+    if (still.matches || document.hidden || !warden.offsetParent) return;
+    tick();
+  }, 1000);
+}
+
+// ===========================================================================
 // Announcement banner — a backend-free way to show a message to all users.
 // Host a small JSON file in the repo and edit it to broadcast; the options page
 // fetches it on open. No account, no database. Expected shape (all optional
@@ -2900,7 +2994,7 @@ const ANNOUNCEMENT_URL =
 // needed — this just reads the current page's own URL scheme.
 const IS_FIREFOX = location.protocol === "moz-extension:";
 
-async function setupAnnouncement(store) {
+async function setupAnnouncement() {
   const el = document.getElementById("announcement");
   if (!el) return;
 
@@ -2913,19 +3007,13 @@ async function setupAnnouncement(store) {
     return; // offline / blocked / malformed → fail silently, never nag
   }
 
+  // No dismiss: the note sits in the sidebar's margin, out of the way, and
+  // stays while the file says it is active. `active: false` is the off switch.
   if (!data || data.active === false || !data.message) return;
-
-  // A stable id lets "dismiss" stick until you post a genuinely new message.
-  const id = String(data.id || data.message);
-  const dismissed =
-    (store && store.dismissedAnnouncementId) ||
-    (await chrome.storage.local.get({ dismissedAnnouncementId: "" })).dismissedAnnouncementId;
-  if (dismissed === id) return;
 
   const titleEl = document.getElementById("announcement-title");
   const textEl = document.getElementById("announcement-text");
   const linkEl = document.getElementById("announcement-link");
-  const dismissBtn = document.getElementById("announcement-dismiss");
 
   // Text only (never innerHTML) — the message is trusted content, but rendering
   // it as text keeps the banner XSS-proof regardless of what's in the file.
@@ -2948,11 +3036,4 @@ async function setupAnnouncement(store) {
   }
 
   el.hidden = false;
-
-  if (dismissBtn) {
-    dismissBtn.addEventListener("click", () => {
-      el.hidden = true;
-      chrome.storage.local.set({ dismissedAnnouncementId: id }).catch(() => {});
-    });
-  }
 }

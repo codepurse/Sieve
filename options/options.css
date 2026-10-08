@@ -353,9 +353,14 @@ html.preload .loading-veil {
    The document
    ========================================================================== */
 
+/* Centred in the space beside the index once a wide window outgrows it.
+   width: 100% is needed: with auto margins a grid item shrinks to its
+   content, and an inline-size container has no content width to shrink to. */
 .main {
+  width: 100%;
   min-width: 0;
   max-width: 1120px;
+  margin-inline: auto;
   padding: 64px clamp(24px, 6vw, 88px) 72px;
   container-type: inline-size;
 }
@@ -367,7 +372,48 @@ html.preload .loading-veil {
 /* One section is shown at a time; options.js hides the rest. Arriving at one
    is the only page-level motion: a short rise, no stagger. */
 .section {
+  position: relative;
+  isolation: isolate;
   animation: view-in var(--t-view) var(--ease) both;
+}
+
+/* The perforation field: a sieve plate's holes behind the top-right of each
+   section's title — the page's letterhead, in the same motif as the
+   perforated rules. It sits behind the section's content (isolation above
+   keeps the z-index local) and never catches a click.
+
+   The mask is an oval that fades to nothing INSIDE the box, never at its
+   edge: the box's top and right sides fall mid-page, and a field that ran
+   into them showed as a hard straight cut. The radii (200 x 140) are kept
+   smaller than the distance from the centre to every side. */
+.section::before {
+  content: "";
+  position: absolute;
+  z-index: -1;
+  top: -100px;
+  right: 0;
+  width: 600px;
+  height: 340px;
+  pointer-events: none;
+  background-image:
+    radial-gradient(circle, var(--holes) 1.7px, transparent 2.2px),
+    radial-gradient(circle, var(--holes) 1.7px, transparent 2.2px);
+  background-size: 16px 14px;
+  background-position: 0 0, 8px 7px;
+  -webkit-mask-image: radial-gradient(200px 140px at 66% 42%, #000 15%, transparent 100%);
+  mask-image: radial-gradient(200px 140px at 66% 42%, #000 15%, transparent 100%);
+}
+
+/* On a narrow page the title runs the full width, so the plate shrinks into
+   the corner instead of spreading behind it. */
+@container (max-width: 560px) {
+  .section::before {
+    top: -56px;
+    width: 300px;
+    height: 200px;
+    -webkit-mask-image: radial-gradient(120px 80px at 60% 45%, #000 15%, transparent 100%);
+    mask-image: radial-gradient(120px 80px at 60% 45%, #000 15%, transparent 100%);
+  }
 }
 
 @keyframes view-in {
@@ -757,6 +803,203 @@ html.preload .loading-veil {
   font-size: 12px;
   font-weight: 400;
   color: var(--ink-3);
+}
+
+/* ---- Theme tiles ------------------------------------------------------------ */
+
+/* Appearance is the one choice made by eye, so it is shown rather than named:
+   each tile is this settings page in miniature. Not cards — pictures of the
+   page — so they take the same hairline and 6px corner as anything that
+   stands apart from the page. */
+.theme-tiles {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--s-4);
+  max-width: 520px;
+}
+
+.theme-tile {
+  position: relative;
+  display: block;
+  cursor: pointer;
+}
+
+/* The radio stays in the page for keys and screen readers; the tile is what
+   shows its state. */
+.theme-tile input {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 1px;
+  height: 1px;
+  margin: 0;
+  opacity: 0;
+}
+
+.theme-preview {
+  position: relative;
+  display: block;
+  aspect-ratio: 16 / 11;
+  overflow: hidden;
+  border: 1px solid var(--rule-strong);
+  border-radius: var(--r-2);
+  outline: 2px solid transparent;
+  outline-offset: 3px;
+  transition: outline-color var(--t-press) var(--ease), border-color var(--t-press) var(--ease);
+}
+
+.theme-tile:hover .theme-preview {
+  border-color: var(--ink-3);
+}
+
+.theme-tile input:checked + .theme-preview {
+  outline-color: var(--ink);
+}
+
+.theme-name {
+  display: block;
+  margin-top: 12px;
+  font-size: 13px;
+  line-height: 1.4;
+  color: var(--ink-2);
+}
+
+.theme-tile:has(input:checked) .theme-name {
+  font-weight: 500;
+  color: var(--ink);
+}
+
+/* The selected tile already wears the ink ring, and arrow keys move focus
+   and selection together, so keyboard focus is marked on the name instead. */
+.theme-tile input:focus-visible ~ .theme-name {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.theme-note {
+  display: block;
+  margin-top: 2px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--ink-3);
+}
+
+/* The miniature. Its palettes are fixed — the Light tile stays light on a
+   dark page — and they are the real tokens, redeclared on the tile, so the
+   drawing below uses the same names the page does. test/theme-test.mjs
+   checks these values against common/sieve-ui.css. The switch is green
+   because it is a picture of a switch that is on. */
+.theme-mini.is-light {
+  --paper: #f2efe7;
+  --raised: #f9f7f2;
+  --sunken: #e8e4d9;
+  --ink: #1a1916;
+  --rule-strong: rgba(26, 25, 22, 0.26);
+  --on: #1f5e47;
+  --tm-side: var(--sunken);
+}
+
+.theme-mini.is-dark {
+  --paper: #131311;
+  --raised: #1b1b18;
+  --sunken: #0d0d0b;
+  --ink: #ede9df;
+  --rule-strong: rgba(237, 233, 223, 0.22);
+  --on: #7cc4a0;
+  --tm-side: var(--raised);
+}
+
+.theme-mini {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  background: var(--paper);
+}
+
+/* "Match my system": the dark page laid over the light one, cut corner to
+   corner. */
+.theme-mini.is-half {
+  clip-path: polygon(100% 0, 100% 100%, 0 100%);
+}
+
+.theme-mini i,
+.theme-mini b {
+  display: block;
+}
+
+.tm-side {
+  flex: 0 0 26%;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 16px 6% 0;
+  background: var(--tm-side);
+}
+
+.tm-side i {
+  width: 70%;
+  height: 3px;
+  background: var(--rule-strong);
+}
+
+.tm-main {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 14px 9% 10px 10%;
+}
+
+.tm-main i {
+  width: 85%;
+  height: 3px;
+  background: var(--rule-strong);
+}
+
+.tm-main .tm-head {
+  width: 58%;
+  height: 7px;
+  margin-bottom: 2px;
+  border-radius: 1px;
+  background: var(--ink);
+}
+
+.tm-main .is-short {
+  width: 55%;
+}
+
+.tm-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-top: auto;
+  padding-top: 7px;
+  border-top: 1px solid var(--rule-strong);
+}
+
+.tm-row i {
+  width: 45%;
+}
+
+.tm-switch {
+  position: relative;
+  flex-shrink: 0;
+  width: 17px;
+  height: 10px;
+  border-radius: 2px;
+  background: var(--on);
+}
+
+.tm-switch::after {
+  content: "";
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  width: 6px;
+  height: 6px;
+  border-radius: 1px;
+  background: var(--paper);
 }
 
 /* ---- Add rows and lists ----------------------------------------------------- */
@@ -1566,15 +1809,261 @@ html.preload .loading-veil {
 }
 
 /* ==========================================================================
+   Warden — the pine band at the top of the Overview
+   ========================================================================== */
+
+/* A note about the maker's other product, so it is set apart from Sieve's own
+   paper and ink on purpose: its own pine band and brass signal, in Sieve's
+   type. The pine is Warden's colour, not Sieve's "on" green. Design "B compact
+   · Dial on pine" from the Warden banner canvas. */
+.warden {
+  --band: #0d3b31;
+  --on-band: #fbf9f4;
+  --on-band-2: #9db3aa;
+  --band-signal: #c99a3a;
+  --band-rule: rgba(255, 255, 255, 0.16);
+  margin: 28px 0 8px;
+}
+
+/* Dark: under the system's dark mode unless Sieve is set to Light, and always
+   when it is set to Dark — written twice, as every dark palette is (see
+   sieve-ui.css); test/theme-test.mjs keeps the two identical. */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .warden {
+    --band: #1f3a32;
+    --on-band: #f1ede3;
+    --on-band-2: #9db3aa;
+    --band-signal: #c99a3a;
+    --band-rule: rgba(241, 237, 227, 0.16);
+  }
+}
+
+:root[data-theme="dark"] .warden {
+  --band: #1f3a32;
+  --on-band: #f1ede3;
+  --on-band-2: #9db3aa;
+  --band-signal: #c99a3a;
+  --band-rule: rgba(241, 237, 227, 0.16);
+}
+
+.warden-band {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 36px;
+  padding: 24px 28px;
+  color: var(--on-band);
+  background: var(--band);
+  border-radius: var(--r-1);
+  animation: fade-in var(--t-view) var(--ease) both;
+}
+
+.warden-copy {
+  flex: 1;
+  min-width: 0;
+}
+
+.warden-kicker {
+  padding-right: 32px; /* clear of the × */
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 500;
+  line-height: 1.35;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  color: var(--on-band-2);
+}
+
+.warden-beta {
+  margin-left: 6px;
+  color: var(--band-signal);
+}
+
+.warden-dot {
+  margin: 0 6px;
+}
+
+.warden-title {
+  margin-top: 10px;
+  font-family: var(--font-serif);
+  font-size: 26px;
+  font-weight: 400;
+  line-height: 1.18;
+  letter-spacing: -0.015em;
+  color: var(--on-band);
+  text-wrap: balance;
+}
+
+.warden-title em {
+  font-style: italic;
+}
+
+.warden-text {
+  max-width: 34rem;
+  margin-top: 8px;
+  font-size: 14px;
+  line-height: 1.55;
+  color: var(--on-band-2);
+}
+
+.warden-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px 18px;
+  margin-top: 16px;
+}
+
+.warden-cta {
+  display: inline-flex;
+  align-items: center;
+  height: 36px;
+  padding: 0 16px;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--band);
+  background: var(--on-band);
+  border-radius: var(--r-1);
+  text-decoration: none;
+  transition: background-color var(--t-press) var(--ease);
+}
+
+.warden-cta:hover {
+  background: color-mix(in srgb, var(--on-band) 88%, var(--band-signal));
+}
+
+.warden-more {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 14px;
+  color: var(--on-band);
+  text-decoration-color: var(--band-rule);
+}
+
+.warden-more:hover {
+  color: var(--band-signal);
+  text-decoration-color: currentColor;
+}
+
+.warden-note {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  color: var(--on-band-2);
+}
+
+.warden-band a:focus-visible,
+.warden-band button:focus-visible,
+.warden-folded:focus-visible {
+  outline: 2px solid var(--band-signal);
+  outline-offset: 3px;
+}
+
+.warden-dial {
+  flex: none;
+}
+
+.warden-clock {
+  font-family: var(--font-mono);
+  font-size: 15px;
+  fill: var(--on-band);
+}
+
+.warden-clock-label {
+  font-family: var(--font-mono);
+  font-size: 7px;
+  font-weight: 500;
+  letter-spacing: 0.15em;
+  fill: var(--on-band-2);
+}
+
+.warden-hide {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  display: inline-grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  color: var(--on-band-2);
+  background: none;
+  border: 0;
+  border-radius: var(--r-1);
+  cursor: pointer;
+  transition: color var(--t-press) var(--ease);
+}
+
+.warden-hide:hover {
+  color: var(--on-band);
+}
+
+/* Folded: the band shrinks to one line and stays — the × hides the pitch,
+   not the note. */
+.warden-folded {
+  display: flex;
+  align-items: baseline;
+  gap: 14px;
+  width: 100%;
+  padding: 14px 20px;
+  font: inherit;
+  text-align: left;
+  color: var(--on-band);
+  background: var(--band);
+  border: 0;
+  border-radius: var(--r-1);
+  cursor: pointer;
+}
+
+.warden-folded-name {
+  font-family: var(--font-serif);
+  font-size: 18px;
+  letter-spacing: -0.01em;
+}
+
+.warden-folded-clock {
+  flex: 1;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--on-band-2);
+}
+
+.warden-folded-show {
+  font-size: 13px;
+}
+
+.warden-folded:hover .warden-folded-show {
+  color: var(--band-signal);
+}
+
+/* Narrow: the words need the width more than the dial does. */
+@container (max-width: 600px) {
+  .warden-band {
+    padding: 22px 20px;
+  }
+
+  .warden-dial {
+    display: none;
+  }
+
+  .warden-title {
+    font-size: 23px;
+  }
+}
+
+/* ==========================================================================
    Announcement
    ========================================================================== */
 
+/* A note in the margin: it sits in the sidebar's foot, above What's new,
+   set at the sidebar's size rather than the document's, with the level
+   colour in the rule on its left. It is always open and cannot be closed,
+   so the copy in announcement.json is kept to a line or two. */
 .announcement {
-  display: flex;
-  align-items: flex-start;
-  gap: 16px;
-  margin-bottom: 40px;
-  padding: 2px 0 2px 16px;
+  margin: 0 0 8px;
+  padding: 1px 0 1px 12px;
   border-left: 2px solid var(--ink);
   animation: float-in var(--t-view) var(--ease) both;
 }
@@ -1587,58 +2076,29 @@ html.preload .loading-veil {
   border-left-color: var(--warn);
 }
 
-.announcement-body {
-  flex: 1;
-  min-width: 0;
-  max-width: 68ch;
-}
-
 .announcement-title {
-  font-size: 15px;
-  font-weight: 600;
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 1.4;
   color: var(--ink);
 }
 
 .announcement-title:not([hidden]) + .announcement-text {
-  margin-top: 4px;
+  margin-top: 2px;
 }
 
 .announcement-text {
-  font-size: 14px;
-  line-height: 1.6;
+  font-size: 12px;
+  line-height: 1.55;
   color: var(--ink-2);
   white-space: pre-line;
 }
 
 .announcement-link {
   display: inline-block;
-  margin-top: 8px;
-  font-size: 13px;
+  margin-top: 3px;
+  font-size: 12px;
   font-weight: 500;
-}
-
-.announcement-dismiss {
-  flex-shrink: 0;
-  display: inline-grid;
-  place-items: center;
-  width: 32px;
-  height: 32px;
-  color: var(--ink-3);
-  background: none;
-  border: 0;
-  border-radius: var(--r-1);
-  cursor: pointer;
-  transition: color var(--t-press) var(--ease), background-color var(--t-press) var(--ease);
-}
-
-.announcement-dismiss:hover {
-  color: var(--ink);
-  background: var(--wash);
-}
-
-.announcement-dismiss svg {
-  width: 16px;
-  height: 16px;
 }
 
 /* ==========================================================================

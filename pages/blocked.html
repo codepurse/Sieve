@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="color-scheme" content="light dark" />
     <title>Blocked by Sieve</title>
+    <script src="../common/theme.js"></script>
     <style>
       /* ==========================================================================
          Sieve — block notice
@@ -30,6 +31,8 @@
         --rule-strong: rgba(26, 25, 22, 0.26);
         --wash: rgba(26, 25, 22, 0.045);
         --danger: #a63d24;
+        --holes: rgba(26, 25, 22, 0.16);
+        --grain: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='g'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 .1 0 0 0 0 .1 0 0 0 0 .08 0 0 0 .063 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23g)'/%3E%3C/svg%3E");
         --mark: var(--ink);
         --font-serif: "Iowan Old Style", "Charter", "Sitka Heading", "Sitka Text", "Source Serif 4",
           "Source Serif Pro", "Noto Serif", Cambria, Georgia, serif;
@@ -40,8 +43,11 @@
         --ease: cubic-bezier(0.2, 0, 0, 1);
       }
 
+      /* Dark under the system setting unless Sieve is set to Light, and always
+         when it is set to Dark — written twice, as in sieve-ui.css, and kept
+         identical by test/theme-test.mjs. */
       @media (prefers-color-scheme: dark) {
-        :root {
+        :root:not([data-theme="light"]) {
           color-scheme: dark;
           --paper: #131311;
           --raised: #1b1b18;
@@ -52,7 +58,24 @@
           --rule-strong: rgba(237, 233, 223, 0.22);
           --wash: rgba(237, 233, 223, 0.045);
           --danger: #e5866b;
+          --holes: rgba(237, 233, 223, 0.13);
+          --grain: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='g'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 .95 0 0 0 0 .93 0 0 0 0 .88 0 0 0 .045 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23g)'/%3E%3C/svg%3E");
         }
+      }
+
+      :root[data-theme="dark"] {
+        color-scheme: dark;
+        --paper: #131311;
+        --raised: #1b1b18;
+        --ink: #ede9df;
+        --ink-2: #b8b3a7;
+        --ink-3: #8f8a7f;
+        --rule: rgba(237, 233, 223, 0.11);
+        --rule-strong: rgba(237, 233, 223, 0.22);
+        --wash: rgba(237, 233, 223, 0.045);
+        --danger: #e5866b;
+        --holes: rgba(237, 233, 223, 0.13);
+        --grain: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='g'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 .95 0 0 0 0 .93 0 0 0 0 .88 0 0 0 .045 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23g)'/%3E%3C/svg%3E");
       }
 
       html[data-severity="warn"] {
@@ -75,6 +98,8 @@
         display: flex;
         flex-direction: column;
         background: var(--paper);
+        /* The paper's grain, as on the settings page (see sieve-ui.css). */
+        background-image: var(--grain);
         color: var(--ink);
         font-family: var(--font-sans);
         font-size: 15px;
@@ -154,12 +179,53 @@
         width: min(1080px, 100%);
         margin: 0 auto;
         padding: 48px 32px 64px;
+        /* The perforation field below reaches past the notice's right edge;
+           it must never give the page a sideways scroll. */
+        overflow: clip;
       }
 
       .notice-body {
+        position: relative;
+        isolation: isolate;
         max-width: 600px;
         padding-left: 28px;
         border-left: 2px solid var(--mark);
+      }
+
+      /* A sieve plate's holes beside the headline — the settings page's
+         section letterhead (options.css, .section::before), past the end of
+         the words so they stay plain to read. The oval mask fades to nothing
+         inside the box, so no edge of it ever shows as a straight cut. */
+      .notice-body::before {
+        content: "";
+        position: absolute;
+        z-index: -1;
+        top: -120px;
+        left: min(300px, calc(100vw - 700px));
+        width: 600px;
+        height: 340px;
+        pointer-events: none;
+        background-image:
+          radial-gradient(circle, var(--holes) 1.7px, transparent 2.2px),
+          radial-gradient(circle, var(--holes) 1.7px, transparent 2.2px);
+        background-size: 16px 14px;
+        background-position: 0 0, 8px 7px;
+        -webkit-mask-image: radial-gradient(200px 140px at 66% 42%, #000 15%, transparent 100%);
+        mask-image: radial-gradient(200px 140px at 66% 42%, #000 15%, transparent 100%);
+      }
+
+      /* Too narrow for the plate to sit beside the headline: tuck a small one
+         into the corner above it instead. */
+      @media (max-width: 760px) {
+        .notice-body::before {
+          top: -60px;
+          left: auto;
+          right: -20px;
+          width: 300px;
+          height: 200px;
+          -webkit-mask-image: radial-gradient(120px 80px at 60% 45%, #000 15%, transparent 100%);
+          mask-image: radial-gradient(120px 80px at 60% 45%, #000 15%, transparent 100%);
+        }
       }
 
       .kicker {

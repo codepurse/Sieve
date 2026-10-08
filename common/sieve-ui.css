@@ -58,6 +58,12 @@
   --warn: #855600;
   --warn-wash: rgba(133, 86, 0, 0.08);
 
+  /* Background detail — see "Paper" under Base. The grain is the page's
+     background itself, so it cannot take an opacity: its strength is baked
+     into the image's alpha (the last row of the colour matrix). */
+  --holes: rgba(26, 25, 22, 0.16);
+  --grain: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='g'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 .1 0 0 0 0 .1 0 0 0 0 .08 0 0 0 .063 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23g)'/%3E%3C/svg%3E");
+
   /* Type */
   --font-serif: "Iowan Old Style", "Charter", "Sitka Heading", "Sitka Text", "Source Serif 4",
     "Source Serif Pro", "Noto Serif", Cambria, Georgia, serif;
@@ -90,8 +96,14 @@
   --t-view: 280ms;
 }
 
+/* Dark: when the system asks for it, unless Sieve is set to Light — and
+   always when Sieve is set to Dark. common/theme.js writes data-theme on
+   <html>; with the choice left on "match my system" there is no attribute and
+   the system decides. CSS cannot share one block between a media query and a
+   plain selector, so the palette is written twice: the two blocks must stay
+   identical, and test/theme-test.mjs fails if they drift. */
 @media (prefers-color-scheme: dark) {
-  :root {
+  :root:not([data-theme="light"]) {
     color-scheme: dark;
 
     --paper: #131311;
@@ -115,8 +127,41 @@
     --warn: #d8a84e;
     --warn-wash: rgba(216, 168, 78, 0.1);
 
+    --holes: rgba(237, 233, 223, 0.13);
+    --grain: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='g'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 .95 0 0 0 0 .93 0 0 0 0 .88 0 0 0 .045 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23g)'/%3E%3C/svg%3E");
+
     --lift: 0 0 0 1px var(--rule-strong), 0 18px 40px -16px rgba(0, 0, 0, 0.7);
   }
+}
+
+:root[data-theme="dark"] {
+  color-scheme: dark;
+
+  --paper: #131311;
+  --raised: #1b1b18;
+  --sunken: #0d0d0b;
+  --ink: #ede9df;
+  --ink-2: #b8b3a7;
+  --ink-3: #8f8a7f;
+
+  --rule: rgba(237, 233, 223, 0.11);
+  --rule-strong: rgba(237, 233, 223, 0.22);
+  --wash: rgba(237, 233, 223, 0.045);
+  --wash-strong: rgba(237, 233, 223, 0.08);
+
+  --on: #7cc4a0;
+  --on-ink: #0e1a14;
+  --on-wash: rgba(124, 196, 160, 0.1);
+
+  --danger: #e5866b;
+  --danger-wash: rgba(229, 134, 107, 0.1);
+  --warn: #d8a84e;
+  --warn-wash: rgba(216, 168, 78, 0.1);
+
+  --holes: rgba(237, 233, 223, 0.13);
+  --grain: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='g'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 .95 0 0 0 0 .93 0 0 0 0 .88 0 0 0 .045 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23g)'/%3E%3C/svg%3E");
+
+  --lift: 0 0 0 1px var(--rule-strong), 0 18px 40px -16px rgba(0, 0, 0, 0.7);
 }
 
 /* ==========================================================================
@@ -141,6 +186,15 @@
 html {
   -webkit-text-size-adjust: 100%;
   text-size-adjust: 100%;
+}
+
+/* Paper: a grain you feel more than see, so the paper reads as paper. Opt-in
+   with class="paper" on <body> for the full pages (settings, onboarding,
+   release notes); the popup is too small and too busy for it. Body paints
+   the page, so the grain covers the whole window and sits behind everything
+   on it. */
+body.paper {
+  background-image: var(--grain);
 }
 
 body {

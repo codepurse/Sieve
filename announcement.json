@@ -2,8 +2,8 @@
   "id": "2026-07-blocknsfw-promo",
   "active": true,
   "level": "info",
-  "title": "Also blocking porn & adult content? 👋",
-  "message": "Sieve focuses on scams, gore, gambling, toxic comments, and digital wellbeing — it doesn't touch adult content by design. If you're looking for that specifically, check out BlockNSFW, a separate extension by the same developer.",
+  "title": "Blocking adult content? 👋",
+  "message": "Sieve leaves it out. Our BlockNSFW covers it.",
   "url": "https://chromewebstore.google.com/detail/blocknsfw-%E2%80%93-porn-adult-co/fiecjgpoilkhmoieaboolkfmgbnhlhop",
   "urlFirefox": "https://addons.mozilla.org/en-US/firefox/addon/blocknsfw-porn-adult-content/",
   "linkText": "View BlockNSFW"
