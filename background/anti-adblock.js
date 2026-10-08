@@ -94,6 +94,23 @@ export function allowlistToExcludeMatches(allowlist) {
   return out;
 }
 
+// ---------------------------------------------------------------------------
+// YouTube: the MAIN-world half never runs there
+//
+// YouTube's "ad blockers are not allowed" is handled by content/youtube-ads.js,
+// which knows how YouTube actually decides. This half answers questions YouTube
+// never asks — canRunAds, BlockAdBlock, bait boxes. What it does on the way is
+// pin page globals and swap the page's own layout functions for ours in the
+// first seconds of the page, which is exactly when YouTube's player inspects
+// its surroundings. Found October 2026, while making the YouTube filter work
+// the way uBlock Origin's does (uBlock does none of this on YouTube): all cost,
+// no use. So YouTube is always excluded from it.
+//
+// The DOM half (isolated world) still runs there. It only clears the
+// "not allowed" popup and the grey layer behind it, and needs no globals.
+// ---------------------------------------------------------------------------
+export const MAIN_ALWAYS_EXCLUDED = ["*://*.youtube.com/*", "*://*.youtube-nocookie.com/*"];
+
 // Build the two specs for a given allowlist. A function rather than two
 // constants because excludeMatches depends on stored state — which is also why
 // this module re-registers on an allowlist edit instead of only on a toggle.
@@ -101,8 +118,10 @@ export function buildSpecs(allowlist) {
   const excludeMatches = allowlistToExcludeMatches(allowlist);
   // Omit the key entirely when empty. An empty array is accepted by Chrome but
   // rejected by some builds, and omitting it keeps the registered spec identical
-  // to what it was before this feature learned about the allowlist.
+  // to what it was before this feature learned about the allowlist. The MAIN
+  // half is never empty: it always carries the YouTube exclusion.
   const exclude = excludeMatches.length ? { excludeMatches } : {};
+  const mainExclude = { excludeMatches: [...new Set([...MAIN_ALWAYS_EXCLUDED, ...excludeMatches])] };
 
   return [
     {
@@ -121,7 +140,7 @@ export function buildSpecs(allowlist) {
       world: "MAIN",
       allFrames: ALL_FRAMES,
       persistAcrossSessions: true,
-      ...exclude,
+      ...mainExclude,
     },
     {
       id: DOM_ID,
@@ -243,13 +262,21 @@ async function register(specs) {
   try {
     await chrome.scripting.registerContentScripts(specs);
   } catch (err) {
-    // Only worth a second attempt if there was something to drop. Without this
-    // check a genuine failure — a bad js path, a duplicate id — would be retried
-    // identically and reported as an exclusion problem it is not.
-    if (!specs.some((s) => s.excludeMatches)) throw err;
+    // Only worth a second attempt if there was something to drop — an entry
+    // from the user's allowlist, since the fixed YouTube pair is kept anyway.
+    // Without this check a genuine failure — a bad js path, a duplicate id —
+    // would be retried identically and reported as an exclusion problem it is
+    // not.
+    const fixed = new Set(MAIN_ALWAYS_EXCLUDED);
+    if (!specs.some((s) => (s.excludeMatches || []).some((p) => !fixed.has(p)))) throw err;
     console.warn("[Sieve] Anti-adblock: the allowlist exclusions were refused, registering without them.", err);
+    // Only the user's entries are dropped. The YouTube exclusion is a fixed,
+    // known-good pair of patterns, and losing it would put the MAIN half back
+    // on YouTube — the one site it is known to cost something on.
     await chrome.scripting.registerContentScripts(
-      specs.map(({ excludeMatches, ...rest }) => rest)
+      specs.map(({ excludeMatches, ...rest }) =>
+        rest.world === "MAIN" ? { ...rest, excludeMatches: MAIN_ALWAYS_EXCLUDED.slice() } : rest
+      )
     );
   }
 }

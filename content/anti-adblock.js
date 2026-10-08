@@ -1,7 +1,8 @@
 // content/anti-adblock.js
 // Sieve — anti-adblock defeat, MAIN-world half. Registered dynamically by
 // background/anti-adblock.js only while the toggle is on, and never on a site
-// the user allowlisted (that is done with excludeMatches — see that file).
+// the user allowlisted, nor on YouTube (both done with excludeMatches — see
+// that file for why YouTube is left to content/youtube-ads.js).
 //
 // ---------------------------------------------------------------------------
 // WHAT A SITE ACTUALLY MEASURES

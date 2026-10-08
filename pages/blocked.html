@@ -3,58 +3,68 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="color-scheme" content="light dark" />
     <title>Blocked by Sieve</title>
     <style>
       /* ==========================================================================
-         Sieve — block interstitial
-         Full-screen hero in the extension's house style: deep navy, single indigo
-         accent, glassy cards (matches popup.css / options). The accent GLOW shifts
-         with severity — indigo for opt-in blocks (🛡️), amber/rose for safety
-         warnings (⚠️) — driven by data-severity on <html> from blocked.js.
+         Sieve — block notice
+         Self-contained on purpose: this page is reached by redirect from any
+         site, so it carries its own copy of the tokens in common/sieve-ui.css
+         rather than depending on a second request. Keep the two in step.
+
+         Set as a printed notice, not an alarm: a kicker that says WHY (your
+         own rule, or a known threat), a plain headline, the address you were
+         stopped at, and two ways forward. data-severity on <html>, written by
+         blocked.js, turns the kicker and the margin rule the caution colour for
+         known threats; nothing here is green, because nothing here is "on".
          ========================================================================== */
 
       :root {
-        color-scheme: dark;
+        color-scheme: light;
+        --paper: #f2efe7;
+        --raised: #f9f7f2;
+        --ink: #1a1916;
+        --ink-2: #4b4840;
+        --ink-3: #66625a;
+        --rule: rgba(26, 25, 22, 0.13);
+        --rule-strong: rgba(26, 25, 22, 0.26);
+        --wash: rgba(26, 25, 22, 0.045);
+        --danger: #a63d24;
+        --mark: var(--ink);
+        --font-serif: "Iowan Old Style", "Charter", "Sitka Heading", "Sitka Text", "Source Serif 4",
+          "Source Serif Pro", "Noto Serif", Cambria, Georgia, serif;
+        --font-sans: "Segoe UI Variable Text", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
+          Roboto, "Helvetica Neue", Arial, sans-serif;
+        --font-mono: ui-monospace, "SF Mono", "Cascadia Mono", "Cascadia Code", Menlo, Consolas,
+          "Roboto Mono", "Liberation Mono", monospace;
+        --ease: cubic-bezier(0.2, 0, 0, 1);
+      }
 
-        --fg: #f1f5f9;
-        --muted: #94a3b8;
-        --dim: #64748b;
-
-        --card-border: rgba(255, 255, 255, 0.08);
-        --hover-border: rgba(99, 102, 241, 0.45);
-        --line: rgba(255, 255, 255, 0.06);
-
-        /* Fixed brand accent — the Sieve logo & primary actions never change hue */
-        --brand-1: #6366f1;
-        --brand-2: #2575fc;
-        --accent-soft: rgba(99, 102, 241, 0.12);
-        --accent-glow: rgba(99, 102, 241, 0.3);
-        --accent-text: #a5b4fc;
-
-        --success: #34d399;
-        --danger: #f87171;
-
-        --transition: 0.18s cubic-bezier(0.16, 1, 0.3, 1);
-
-        /* Severity-driven (default = guard / indigo). See [data-severity="warn"]. */
-        --glow: #6366f1;
-        --ring-1: #6366f1;
-        --ring-2: #38bdf8;
-        --aurora-1: rgba(99, 102, 241, 0.3);
-        --aurora-2: rgba(37, 117, 252, 0.2);
+      @media (prefers-color-scheme: dark) {
+        :root {
+          color-scheme: dark;
+          --paper: #131311;
+          --raised: #1b1b18;
+          --ink: #ede9df;
+          --ink-2: #b8b3a7;
+          --ink-3: #8f8a7f;
+          --rule: rgba(237, 233, 223, 0.11);
+          --rule-strong: rgba(237, 233, 223, 0.22);
+          --wash: rgba(237, 233, 223, 0.045);
+          --danger: #e5866b;
+        }
       }
 
       html[data-severity="warn"] {
-        --glow: #f59e0b;
-        --ring-1: #f59e0b;
-        --ring-2: #f43f5e;
-        --aurora-1: rgba(245, 158, 11, 0.24);
-        --aurora-2: rgba(244, 63, 94, 0.18);
+        --mark: var(--danger);
       }
 
-      * {
+      *,
+      *::before,
+      *::after {
         box-sizing: border-box;
       }
+
       [hidden] {
         display: none !important;
       }
@@ -63,416 +73,350 @@
         margin: 0;
         min-height: 100vh;
         display: flex;
-        align-items: center;
-        justify-content: center;
-        padding: 32px;
-        font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
-        color: var(--fg);
-        background: radial-gradient(
-          125% 110% at 50% -20%,
-          #101a33 0%,
-          #0b1120 55%,
-          #090d18 100%
-        );
-        overflow-x: hidden;
+        flex-direction: column;
+        background: var(--paper);
+        color: var(--ink);
+        font-family: var(--font-sans);
+        font-size: 15px;
+        line-height: 1.6;
         -webkit-font-smoothing: antialiased;
       }
 
-      /* Ambient aurora — soft coloured light behind the card */
-      body::before {
-        content: "";
-        position: fixed;
-        inset: 0;
-        z-index: 0;
-        pointer-events: none;
-        background:
-          radial-gradient(38% 42% at 16% 10%, var(--aurora-1), transparent 70%),
-          radial-gradient(44% 48% at 86% 6%, var(--aurora-2), transparent 72%),
-          radial-gradient(55% 55% at 50% 122%, rgba(99, 102, 241, 0.14), transparent 70%);
-        filter: blur(26px);
-        transition: background 0.4s ease;
+      ::selection {
+        background: var(--ink);
+        color: var(--paper);
       }
 
-      /* Fine "sieve" mesh — a dot grid that fades in toward the edges */
-      body::after {
-        content: "";
-        position: fixed;
-        inset: 0;
-        z-index: 0;
-        pointer-events: none;
-        opacity: 0.55;
-        background-image: radial-gradient(
-          rgba(148, 163, 184, 0.1) 1px,
-          transparent 1.4px
-        );
-        background-size: 24px 24px;
-        -webkit-mask: radial-gradient(120% 90% at 50% 38%, transparent 42%, #000 100%);
-        mask: radial-gradient(120% 90% at 50% 38%, transparent 42%, #000 100%);
+      :focus-visible {
+        outline: 2px solid var(--ink);
+        outline-offset: 2px;
       }
 
-      /* ---- Card --------------------------------------------------------------- */
-
-      .card {
-        position: relative;
-        z-index: 1;
-        width: min(480px, 100%);
-        padding: 38px 38px 30px;
-        text-align: center;
-        border-radius: 24px;
-        background: linear-gradient(
-          180deg,
-          rgba(22, 32, 54, 0.82),
-          rgba(15, 22, 40, 0.82)
-        );
-        border: 1px solid var(--card-border);
-        box-shadow:
-          0 40px 80px -32px rgba(0, 0, 0, 0.75),
-          inset 0 1px 0 rgba(255, 255, 255, 0.04);
-        backdrop-filter: blur(14px) saturate(140%);
-        -webkit-backdrop-filter: blur(14px) saturate(140%);
+      .perf {
+        display: block;
+        height: 5px;
+        background-image: radial-gradient(circle, var(--rule-strong) 1.15px, transparent 1.55px);
+        background-size: 7px 5px;
+        background-repeat: repeat-x;
       }
 
-      /* Gradient hairline — a lit top edge fading around the card */
-      .card::before {
-        content: "";
-        position: absolute;
-        inset: 0;
-        border-radius: inherit;
-        padding: 1px;
-        background: linear-gradient(
-          160deg,
-          rgba(255, 255, 255, 0.18),
-          rgba(255, 255, 255, 0.02) 42%,
-          transparent 70%
-        );
-        -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
-        -webkit-mask-composite: xor;
-        mask-composite: exclude;
-        pointer-events: none;
-      }
+      /* ---- Letterhead -------------------------------------------------------- */
 
-      /* ---- Brand lockup (letterhead) ------------------------------------------ */
+      .letterhead {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 16px;
+        width: min(1080px, 100%);
+        margin: 0 auto;
+        padding: 28px 32px 0;
+      }
 
       .lockup {
         display: inline-flex;
         align-items: center;
         gap: 9px;
-        margin-bottom: 26px;
-      }
-      .logo {
-        width: 32px;
-        height: 32px;
-        flex-shrink: 0;
-        display: grid;
-        place-items: center;
-        border-radius: 9px;
-        color: #07131f;
-        background: linear-gradient(135deg, var(--brand-1), var(--brand-2));
-        box-shadow: 0 6px 16px -6px var(--accent-glow);
-      }
-      .logo svg {
-        width: 18px;
-        height: 18px;
-      }
-      .wordmark {
-        font-size: 14px;
-        font-weight: 700;
-        letter-spacing: 0.16em;
-        text-transform: uppercase;
-        color: #e2e8f0;
-      }
-      .tag {
-        font-size: 10px;
-        font-weight: 700;
-        letter-spacing: 0.06em;
-        text-transform: uppercase;
-        padding: 3px 8px;
-        border-radius: 20px;
-        color: var(--accent-text);
-        background: var(--accent-soft);
-        border: 1px solid rgba(99, 102, 241, 0.3);
       }
 
-      /* ---- Hero badge --------------------------------------------------------- */
+      .mark {
+        width: 20px;
+        height: 20px;
+        color: var(--ink);
+      }
 
-      .badge {
-        position: relative;
-        width: 112px;
-        height: 112px;
-        margin: 0 auto;
-        padding: 2px; /* ring thickness */
-        border-radius: 50%;
-        background: conic-gradient(
-          from 140deg,
-          var(--ring-1),
-          var(--ring-2) 55%,
-          var(--ring-1)
-        );
-        display: grid;
-        place-items: center;
-      }
-      /* Blurred halo behind the badge */
-      .badge::after {
-        content: "";
-        position: absolute;
-        inset: -16px;
-        z-index: -1;
-        border-radius: 50%;
-        background: radial-gradient(circle, var(--glow), transparent 62%);
-        opacity: 0.5;
-        filter: blur(10px);
-      }
-      .badge-disc {
+      .mark svg {
+        display: block;
         width: 100%;
         height: 100%;
-        border-radius: 50%;
-        display: grid;
-        place-items: center;
-        background: radial-gradient(circle at 50% 34%, #18233f, #0b1122);
-        box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.07);
       }
-      .badge-emoji {
-        font-size: 50px;
+
+      .wordmark {
+        font-family: var(--font-serif);
+        font-size: 20px;
         line-height: 1;
-        filter: drop-shadow(0 4px 10px rgba(0, 0, 0, 0.4));
+        letter-spacing: -0.01em;
       }
 
-      /* ---- Copy --------------------------------------------------------------- */
-
-      h1 {
-        margin: 22px 0 10px;
-        font-size: 26px;
-        font-weight: 700;
-        letter-spacing: -0.02em;
-        color: var(--fg);
-      }
-      .message {
-        margin: 0 auto;
-        max-width: 40ch;
-        font-size: 15px;
-        line-height: 1.6;
-        color: var(--muted);
-      }
-
-      /* ---- Blocked origin ----------------------------------------------------- */
-
-      .origin {
-        margin-top: 24px;
-        padding: 13px 15px;
-        text-align: left;
-        border-radius: 12px;
-        background: rgba(255, 255, 255, 0.03);
-        border: 1px solid var(--card-border);
-      }
-      .origin-label {
-        display: block;
-        margin-bottom: 6px;
+      .stamp {
+        font-family: var(--font-mono);
         font-size: 11px;
         letter-spacing: 0.08em;
         text-transform: uppercase;
-        color: var(--dim);
+        color: var(--ink-3);
       }
-      .origin-row {
+
+      /* ---- Notice -------------------------------------------------------------- */
+
+      .notice {
+        flex: 1;
         display: flex;
         align-items: center;
-        gap: 9px;
+        width: min(1080px, 100%);
+        margin: 0 auto;
+        padding: 48px 32px 64px;
       }
-      .origin-glyph {
-        width: 15px;
-        height: 15px;
-        flex-shrink: 0;
-        color: var(--muted);
+
+      .notice-body {
+        max-width: 600px;
+        padding-left: 28px;
+        border-left: 2px solid var(--mark);
       }
+
+      .kicker {
+        margin: 0 0 18px;
+        font-family: var(--font-mono);
+        font-size: 11.5px;
+        font-weight: 500;
+        letter-spacing: 0.1em;
+        text-transform: uppercase;
+        color: var(--mark);
+      }
+
+      h1 {
+        margin: 0;
+        font-family: var(--font-serif);
+        font-size: clamp(36px, 6vw, 56px);
+        font-weight: 400;
+        line-height: 1.04;
+        letter-spacing: -0.025em;
+        text-wrap: balance;
+      }
+
+      .message {
+        margin: 20px 0 0;
+        max-width: 46ch;
+        font-size: 17px;
+        line-height: 1.6;
+        color: var(--ink-2);
+        text-wrap: pretty;
+      }
+
+      /* ---- The address you were stopped at ------------------------------------- */
+
+      .origin {
+        margin-top: 32px;
+        padding: 14px 0;
+        border-top: 1px solid var(--rule);
+        border-bottom: 1px solid var(--rule);
+      }
+
+      .origin-label {
+        display: block;
+        margin-bottom: 4px;
+        font-family: var(--font-mono);
+        font-size: 10.5px;
+        letter-spacing: 0.1em;
+        text-transform: uppercase;
+        color: var(--ink-3);
+      }
+
       .origin-url {
-        font-family: ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+        display: block;
+        font-family: var(--font-mono);
         font-size: 13px;
-        line-height: 1.4;
-        color: #cbd5e1;
+        line-height: 1.5;
+        color: var(--ink);
         word-break: break-all;
       }
 
-      /* ---- Allow action ------------------------------------------------------- */
+      /* ---- Ways forward ---------------------------------------------------------- */
 
-      .allow-actions {
-        margin-top: 20px;
+      .actions {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 10px;
+        margin-top: 28px;
       }
-      .allow-btn {
+
+      .btn {
         display: inline-flex;
         align-items: center;
         justify-content: center;
         gap: 8px;
-        padding: 11px 20px;
+        min-height: 40px;
+        padding: 0 16px;
+        font-family: var(--font-sans);
         font-size: 14px;
-        font-weight: 600;
-        color: var(--fg);
-        background: rgba(255, 255, 255, 0.04);
-        border: 1px solid #334155;
-        border-radius: 10px;
+        font-weight: 500;
+        color: var(--ink);
+        background: transparent;
+        border: 1px solid var(--rule-strong);
+        border-radius: 3px;
         cursor: pointer;
-        transition: color var(--transition), border-color var(--transition),
-          background var(--transition), transform var(--transition),
-          box-shadow var(--transition);
+        transition: background-color 120ms var(--ease), border-color 120ms var(--ease),
+          color 120ms var(--ease), transform 80ms var(--ease);
       }
-      .allow-btn:hover {
-        color: var(--accent-text);
-        border-color: var(--hover-border);
-        background: var(--accent-soft);
-        transform: translateY(-1px);
-        box-shadow: 0 10px 24px -14px var(--accent-glow);
+
+      .btn:hover {
+        border-color: var(--ink);
+        background: var(--wash);
       }
-      .allow-btn:focus-visible {
-        outline: none;
-        border-color: var(--hover-border);
-        box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.4);
+
+      .btn:active {
+        transform: translateY(1px);
       }
-      .allow-btn:active {
-        transform: translateY(0);
-      }
-      .allow-btn:disabled {
-        opacity: 0.6;
+
+      .btn:disabled {
+        opacity: 0.5;
         cursor: default;
         transform: none;
-        box-shadow: none;
       }
+
+      .btn-primary {
+        color: var(--paper);
+        background: var(--ink);
+        border-color: var(--ink);
+      }
+
+      .btn-primary:hover {
+        color: var(--paper);
+        background: var(--ink-2);
+        border-color: var(--ink-2);
+      }
+
+      .btn svg {
+        width: 15px;
+        height: 15px;
+      }
+
+      .allow-actions {
+        display: contents;
+      }
+
       .allow-result {
-        margin: 12px 0 0;
-        min-height: 16px;
+        flex-basis: 100%;
+        margin: 4px 0 0;
         font-size: 13px;
-        color: var(--muted);
+        color: var(--ink-2);
       }
-      .allow-result.ok {
-        color: var(--success);
+
+      .allow-result:empty {
+        display: none;
       }
+
       .allow-result.err {
         color: var(--danger);
       }
 
-      /* ---- Footer note -------------------------------------------------------- */
-
       .note {
-        margin: 26px 0 0;
-        padding-top: 18px;
-        border-top: 1px solid var(--line);
-        font-size: 12.5px;
+        margin: 28px 0 0;
+        max-width: 54ch;
+        font-size: 13px;
         line-height: 1.6;
-        color: var(--dim);
+        color: var(--ink-3);
+      }
+
+      /* ---- Foot --------------------------------------------------------------- */
+
+      .foot {
+        width: min(1080px, 100%);
+        margin: 0 auto;
+        padding: 0 32px 28px;
+      }
+
+      .foot p {
+        margin: 12px 0 0;
+        font-family: var(--font-mono);
+        font-size: 11px;
+        letter-spacing: 0.06em;
+        color: var(--ink-3);
       }
 
       /* ---- Motion ------------------------------------------------------------- */
 
       @media (prefers-reduced-motion: no-preference) {
-        .card {
-          animation: rise 0.5s cubic-bezier(0.16, 1, 0.3, 1) both;
+        .notice-body {
+          animation: settle 0.42s var(--ease) both;
         }
-        .badge {
-          animation: pop 0.55s cubic-bezier(0.34, 1.56, 0.64, 1) 0.06s both;
-        }
-        .badge::after {
-          animation: breathe 4s ease-in-out infinite;
-        }
-        @keyframes rise {
+        @keyframes settle {
           from {
             opacity: 0;
-            transform: translateY(14px);
-          }
-          to {
-            opacity: 1;
-            transform: none;
-          }
-        }
-        @keyframes pop {
-          from {
-            opacity: 0;
-            transform: scale(0.82);
-          }
-          to {
-            opacity: 1;
-            transform: none;
-          }
-        }
-        @keyframes breathe {
-          0%,
-          100% {
-            opacity: 0.42;
-            transform: scale(1);
-          }
-          50% {
-            opacity: 0.8;
-            transform: scale(1.08);
+            transform: translateY(8px);
           }
         }
       }
 
       /* ---- Small screens ------------------------------------------------------ */
 
-      @media (max-width: 480px) {
+      @media (max-width: 560px) {
         body {
-          padding: 18px;
+          font-size: 14px;
         }
-        .card {
-          padding: 30px 22px 24px;
+        .letterhead,
+        .notice,
+        .foot {
+          padding-left: 20px;
+          padding-right: 20px;
         }
-        .lockup {
-          margin-bottom: 22px;
+        .notice {
+          align-items: flex-start;
+          padding-top: 40px;
         }
-        h1 {
-          font-size: 22px;
+        .notice-body {
+          padding-left: 18px;
         }
-        .badge {
-          width: 96px;
-          height: 96px;
+        .message {
+          font-size: 16px;
         }
-        .badge-emoji {
-          font-size: 44px;
+        .actions .btn {
+          flex: 1 1 100%;
+          min-height: 44px;
         }
       }
     </style>
   </head>
   <body>
-    <main class="card">
-      <div class="lockup">
-        <span class="logo" aria-hidden="true">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3" />
-          </svg>
+    <header class="letterhead">
+      <span class="lockup">
+        <span class="mark" aria-hidden="true">
+          <svg viewBox="0 0 24 24"><defs><mask id="mark-cut"><rect width="24" height="24" fill="#fff"/><path d="M16.3 0.5 7.7 23.5" stroke="#000" stroke-width="1.9"/></mask></defs><path mask="url(#mark-cut)" fill="currentColor" d="M12 2.2 20 5v6.6c0 4.7-3.3 8.5-8 10.2-4.7-1.7-8-5.5-8-10.2V5z"/></svg>
         </span>
         <span class="wordmark">Sieve</span>
-        <span class="tag">Protection</span>
-      </div>
+      </span>
+      <span class="stamp">Block notice</span>
+    </header>
 
-      <div class="badge">
-        <span class="badge-disc">
-          <span class="badge-emoji" id="block-shield" aria-hidden="true">🛡️</span>
-        </span>
-      </div>
+    <main class="notice">
+      <div class="notice-body">
+        <!-- Kept for blocked.js, which writes the category's symbol here; the
+             page reads its tone from data-severity instead of an emoji. -->
+        <span id="block-shield" hidden></span>
+        <p class="kicker" id="block-kicker">Blocked by your settings</p>
 
-      <h1>This page is blocked</h1>
-      <p class="message" id="block-message">
-        This is a gambling site, and Sieve blocked it to keep your browsing clean.
-      </p>
+        <h1 id="block-title">This page is blocked</h1>
+        <p class="message" id="block-message">
+          This is a gambling site, and Sieve blocked it to keep your browsing clean.
+        </p>
 
-      <div class="origin" id="origin-wrap" hidden>
-        <span class="origin-label">You tried to visit</span>
-        <div class="origin-row">
-          <svg class="origin-glyph" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-            <circle cx="12" cy="12" r="9" />
-            <path d="M3 12h18" />
-            <path d="M12 3a14 14 0 0 1 0 18 14 14 0 0 1 0-18" />
-          </svg>
+        <div class="origin" id="origin-wrap" hidden>
+          <span class="origin-label">You tried to visit</span>
           <span class="origin-url" id="origin-url"></span>
         </div>
-      </div>
 
-      <div class="allow-actions" id="allow-actions" hidden>
-        <button class="allow-btn" id="allow-btn" type="button">Allow this site</button>
-        <p class="allow-result" id="allow-result" role="status" aria-live="polite"></p>
-      </div>
+        <div class="actions">
+          <button class="btn btn-primary" id="back-btn" type="button" hidden>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19 12H5M11 18l-6-6 6-6"/></svg>
+            <span>Go back</span>
+          </button>
+          <div class="allow-actions" id="allow-actions" hidden>
+            <button class="btn" id="allow-btn" type="button">Allow this site</button>
+            <p class="allow-result" id="allow-result" role="status" aria-live="polite"></p>
+          </div>
+        </div>
 
-      <p class="note" id="block-note">
-        You can manage blocked sites and turn the Gambling Blocker on or off from
-        the Sieve icon in your browser toolbar.
-      </p>
+        <p class="note" id="block-note">
+          You can manage blocked sites and turn the Gambling Blocker on or off from
+          the Sieve icon in your browser toolbar.
+        </p>
+      </div>
     </main>
+
+    <footer class="foot">
+      <span class="perf" aria-hidden="true"></span>
+      <p>Sieve runs on this device. Nothing about this visit was sent anywhere.</p>
+    </footer>
+
     <script src="../common/guardian.js"></script>
     <script src="../common/access-code.js"></script>
     <script src="../common/guardian-prompt.js"></script>

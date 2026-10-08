@@ -56,7 +56,9 @@ function runScriptlet({ fetchImpl, xhrClass, preset, extras } = {}) {
     // JSON left patched after the run.
     JSON: { parse: JSON.parse.bind(JSON), stringify: JSON.stringify.bind(JSON) },
     Object,
-    Promise,
+    // No Promise, for the same reason: the scriptlet patches
+    // Promise.prototype.then (COUNTER-MEASURES), so it gets the vm realm's own
+    // rather than Node's.
     RegExp,
     String,
     // A stub rather than Node's real Response: the real one exposes `body` as a
@@ -133,13 +135,14 @@ test("everything playback needs survives untouched", () => {
   assert.equal(got.playerConfig.audioConfig.loudnessDb, 1.5, "playerConfig drives the player");
 });
 
-test("only the ad flag is cleared from playerConfig, not playerConfig itself", () => {
+test("playerConfig is left exactly as YouTube sent it, ad config included", () => {
+  // It used to have adConfig emptied. uBlock — which plays on an account this
+  // was refused on — leaves it alone, so this does too.
   const w = runScriptlet();
   w.ytInitialPlayerResponse = playerResponse();
   const got = w.ytInitialPlayerResponse;
   assert.ok(got.playerConfig, "playerConfig must still exist");
-  // Object.keys rather than deepEqual({}): the object comes from the vm realm.
-  assert.equal(Object.keys(got.playerConfig.adConfig).length, 0, "the ad flag is emptied");
+  assert.equal(got.playerConfig.adConfig.showCompanion, true, "adConfig is untouched");
   assert.ok(got.playerConfig.audioConfig, "the rest of playerConfig is untouched");
 });
 
@@ -166,22 +169,17 @@ test("null and undefined assignments do not throw", () => {
   });
 });
 
-// --- not announcing that the ads are missing --------------------------------
+// --- the DAI config ----------------------------------------------------------
 
-test("the missing-ad-break report is switched off", () => {
-  // This flag is what turns "the ads stopped" into "an ad blocker was detected",
-  // and then into the enforcement message and ads coming back by another route.
+test("the DAI flags are left as YouTube sent them", () => {
+  // An earlier build switched both off. uBlock touches neither and plays
+  // anyway, and the player reads the same config to recognise a
+  // server-stitched ad — which the SSAP skip now depends on.
   const w = runScriptlet();
   w.ytInitialPlayerResponse = playerResponse();
   const dai = w.ytInitialPlayerResponse.playerConfig.daiConfig;
-  assert.equal(dai.sendSsdaiMissingAdBreakReasons, false);
-  assert.equal(dai.enableServerStitchedDai, false);
-});
-
-test("daiConfig itself survives — only its flags are flipped", () => {
-  const w = runScriptlet();
-  w.ytInitialPlayerResponse = playerResponse();
-  assert.ok(w.ytInitialPlayerResponse.playerConfig.daiConfig, "the config object must remain");
+  assert.equal(dai.sendSsdaiMissingAdBreakReasons, true);
+  assert.equal(dai.enableServerStitchedDai, true);
 });
 
 // --- the enforcement message ------------------------------------------------
@@ -887,4 +885,88 @@ test("a flushed batch is not reported a second time", () => {
   flushReports(w);
   assert.equal(w.__posted.length, 2);
   assert.equal(w.__posted[1].count, 1);
+});
+
+// --- the playback block: recorded, never rewritten ---------------------------
+//
+// "Ad blockers violate YouTube's Terms of Service ... Video playback is blocked".
+// Two builds flipped that refusal back to "OK"; it worked against a simulation
+// and did nothing on the account that was really flagged, because there the
+// block came from the video server (a SABR session: no format addresses, one
+// request answered, nothing more) and through none of these routes at all. So
+// the file only writes it down. These pin that it never acts on it, that it
+// stops emptying YouTube's error screens, and that the record is worth reading.
+
+function blockedResponse() {
+  const pr = playerResponse();
+  for (const k of ["adPlacements", "adSlots", "playerAds", "adBreakHeartbeatParams"]) delete pr[k];
+  pr.playabilityStatus = {
+    status: "ERROR",
+    errorScreen: { enforcementMessageViewModel: { title: { content: "Ad blockers violate YouTube's Terms of Service" } } },
+  };
+  return pr;
+}
+
+test("the playback block is left exactly as YouTube sent it, and recorded", () => {
+  const w = runScriptlet();
+  w.ytInitialPlayerResponse = blockedResponse();
+  const ps = w.ytInitialPlayerResponse.playabilityStatus;
+  assert.equal(ps.status, "ERROR", "never flipped to OK — that only swaps the message for a stalled player");
+  assert.ok(ps.errorScreen.enforcementMessageViewModel, "and the explanation is not emptied out of the screen");
+  assert.deepEqual(JSON.parse(JSON.stringify(w.__sieveYouTubeAdFilter.stats.refusals)), [
+    { route: "inline ytInitialPlayerResponse", status: "ERROR", screen: ["enforcementMessageViewModel"], media: "addressable" },
+  ]);
+});
+
+test("the record says how the video was to arrive — SABR is the case nothing can climb", () => {
+  const w = runScriptlet();
+  const pr = blockedResponse();
+  pr.streamingData = { serverAbrStreamingUrl: "https://rr1.googlevideo.com/videoplayback?sabr=1", adaptiveFormats: [{ itag: 137 }, { itag: 140 }] };
+  w.ytInitialPlayerResponse = pr;
+  assert.equal(w.__sieveYouTubeAdFilter.stats.refusals[0].media, "server-streamed (SABR)");
+
+  const withheld = blockedResponse();
+  delete withheld.streamingData;
+  w.ytInitialPlayerResponse = withheld;
+  assert.equal(w.__sieveYouTubeAdFilter.stats.refusals[1].media, "withheld");
+});
+
+test("a real error screen is never emptied either", () => {
+  const w = runScriptlet();
+  const pr = blockedResponse();
+  pr.playabilityStatus = {
+    status: "UNPLAYABLE",
+    reason: "Video unavailable",
+    errorScreen: { playerErrorMessageRenderer: { reason: { simpleText: "Video unavailable" } } },
+  };
+  w.ytInitialPlayerResponse = pr;
+  const ps = w.ytInitialPlayerResponse.playabilityStatus;
+  assert.equal(ps.status, "UNPLAYABLE");
+  assert.ok(ps.errorScreen.playerErrorMessageRenderer);
+});
+
+test("the record keeps only refusals that show something", () => {
+  // A live stream's player responses carry odd non-OK statuses with no error
+  // screen. Recorded, they pushed the one entry that mattered out of an
+  // eight-slot record.
+  const w = runScriptlet();
+  for (let i = 0; i < 12; i++) {
+    const pr = playerResponse();
+    pr.playabilityStatus = { status: "by" };
+    w.ytInitialPlayerResponse = pr;
+  }
+  w.ytInitialPlayerResponse = blockedResponse();
+  assert.equal(w.__sieveYouTubeAdFilter.stats.refusals.length, 1);
+});
+
+test("an ad-blocker popup that only JSON.parse sees is still removed", () => {
+  // The popup can arrive in a payload with no ads in it, which the JSON.parse
+  // net used to skip without looking.
+  const w = runScriptlet();
+  const payload = {
+    responseContext: { serviceTrackingParams: [{ service: "GFEEDBACK", params: [{ key: "e", value: "x".repeat(200) }] }] },
+    auxiliaryUi: { messageRenderers: { enforcementMessageViewModel: { displayType: "MODAL" } } },
+  };
+  const out = w.JSON.parse(JSON.stringify(payload));
+  assert.equal("enforcementMessageViewModel" in out.auxiliaryUi.messageRenderers, false);
 });

@@ -273,18 +273,47 @@
   }
   recordBlockView();
 
-  // Tint the page's accent glow by severity: ⚠️ warnings run warm (amber/rose),
-  // everything else keeps the indigo brand accent. Read by blocked.html's CSS.
+  // Severity sets the tone: ⚠️ categories are known threats and take the
+  // caution colour on the kicker and margin rule; everything else is ink.
+  // Read by blocked.html's CSS.
   document.documentElement.dataset.severity =
     msg.shield === "⚠️" ? "warn" : "guard";
 
   const shieldEl = document.getElementById("block-shield");
+  const kickerEl = document.getElementById("block-kicker");
+  const titleEl = document.getElementById("block-title");
   const messageEl = document.getElementById("block-message");
   const noteEl = document.getElementById("block-note");
   if (shieldEl) shieldEl.textContent = msg.shield;
   if (messageEl) messageEl.textContent = msg.message;
   if (noteEl) noteEl.textContent = msg.note;
   document.title = msg.title;
+
+  // The kicker says WHY, which is the first thing worth knowing: a list of
+  // known threats, the reader's own block list, or a setting they chose.
+  if (kickerEl) {
+    kickerEl.textContent =
+      msg.shield === "⚠️"
+        ? "Safety block · known threat"
+        : category === "custom-blocked"
+          ? "On your block list"
+          : "Blocked by your settings";
+  }
+  // The headline names the kind of site ("Scam site blocked"); the brand is
+  // already in the letterhead, so "by Sieve" is dropped here.
+  if (titleEl) {
+    const headline = msg.title.replace(/\s+by Sieve$/, "");
+    titleEl.textContent = headline === "Blocked" ? "This page is blocked" : headline;
+  }
+
+  // The commonest thing to do on a blocked page is leave it. Offered only when
+  // there is somewhere to go back to — a tab opened straight onto a blocked
+  // address has no history, and a button that does nothing is worse than none.
+  const backBtn = document.getElementById("back-btn");
+  if (backBtn && history.length > 1) {
+    backBtn.hidden = false;
+    backBtn.addEventListener("click", () => history.back());
+  }
 
   // --- Show the blocked URL + offer a one-click "Allow this site" -----------
   const originWrap = document.getElementById("origin-wrap");

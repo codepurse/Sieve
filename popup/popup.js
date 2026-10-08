@@ -123,17 +123,29 @@ function fillVersion() {
 async function updateStatusBanner() {
   const el = document.getElementById("status");
   if (!el) return;
+  const title = document.getElementById("status-title");
+  const meta = document.getElementById("status-meta");
   const stored = await chrome.storage.local.get({ ...MODULE_DEFAULTS });
   const active = MODULE_KEYS.filter((k) => stored[k]).length;
   if (active === 0) {
-    el.textContent = "All protection is off";
+    title.textContent = "Protection is off";
+    meta.textContent = "Every filter is switched off";
     el.className = "status disabled";
   } else {
     // No "of N" denominator: most protections are opt-in by design, so a
     // fraction would misread deliberate opt-outs as gaps. Show just the count.
-    el.textContent = `Protection active · ${active} module${active === 1 ? "" : "s"} on`;
+    title.textContent = "Protection is on";
+    meta.textContent = `${active} filter${active === 1 ? "" : "s"} running`;
     el.className = "status enabled";
   }
+}
+
+// Name the site the bottom block acts on, so "this page" means something.
+function showSiteHost(host) {
+  const el = document.getElementById("site-host");
+  if (!el) return;
+  el.textContent = host ? host.replace(/^www\./, "") : "";
+  el.hidden = !host;
 }
 
 // ===========================================================================
@@ -492,10 +504,12 @@ async function refreshPopupHijack() {
     }
     phTabId = tab.id;
     try {
-      phHost = tab.url ? new URL(tab.url).hostname : null;
+      const url = tab.url ? new URL(tab.url) : null;
+      phHost = url && /^https?:$/.test(url.protocol) ? url.hostname : null;
     } catch {
       phHost = null;
     }
+    showSiteHost(phHost);
     const resp = await chrome.runtime.sendMessage({
       type: "GET_POPUP_HIJACK_LOG",
       tabId: tab.id,

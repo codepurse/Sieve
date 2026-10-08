@@ -58,10 +58,12 @@ const TICK_LADDER = [
   3 * 3600e3, 4 * 3600e3, 6 * 3600e3, 8 * 3600e3, 12 * 3600e3, 24 * 3600e3,
 ];
 
-// In-family hues, not a rainbow: indigo, sky, violet, teal, amber, then slate
-// for the tail. Ordered so the two busiest sites carry the brand colours.
-const SITE_COLORS = ["#818cf8", "#38bdf8", "#a78bfa", "#2dd4bf", "#fbbf24"];
-const REST_COLOR = "#64748b";
+// Printer's inks, not a rainbow: steel, ochre, brick, plum, slate, then warm
+// grey for the tail. Mid-tones on purpose, so each clears 3:1 against both the
+// paper and the ink theme without a second palette. None of them is green —
+// in Sieve, green only ever means a switch is on (see common/sieve-ui.css).
+const SITE_COLORS = ["#4f6d8a", "#b07d1f", "#b4553a", "#7a5a7e", "#5f7d84"];
+const REST_COLOR = "#8c877c";
 
 const TOP_SITES = 5;
 const MS_PER_MIN = 60000;
@@ -418,81 +420,32 @@ export async function setupUsageInsights(store) {
       preserveAspectRatio: "xMidYMid meet",
     });
 
-    const defs = svg("defs", {});
+    // No gradients, glow or filters: usage-insights.css paints every part of
+    // the chart from the theme tokens (ink line, a faint wash beneath it,
+    // dotted rules), so it follows light and dark with nothing to swap here.
 
-    // The line: indigo into sky, left to right.
-    const stroke = svg("linearGradient", {
-      id: "usageRidgeStroke", x1: "0", y1: "0", x2: "1", y2: "0",
-    });
-    stroke.append(
-      svg("stop", { offset: "0%", "stop-color": "#6366f1" }),
-      svg("stop", { offset: "52%", "stop-color": "#2575fc" }),
-      svg("stop", { offset: "100%", "stop-color": "#38bdf8" })
-    );
-
-    // The fill: the aurora under the card, fading out before the baseline.
-    const fill = svg("linearGradient", {
-      id: "usageRidgeFill", x1: "0", y1: "0", x2: "0", y2: "1",
-    });
-    fill.append(
-      svg("stop", { offset: "0%", "stop-color": "#6366f1", "stop-opacity": "0.42" }),
-      svg("stop", { offset: "55%", "stop-color": "#3b82f6", "stop-opacity": "0.14" }),
-      svg("stop", { offset: "100%", "stop-color": "#38bdf8", "stop-opacity": "0" })
-    );
-
-    // The cursor beam — a soft column of light under the reading, instead of
-    // the usual hard dashed crosshair.
-    const beam = svg("linearGradient", {
-      id: "usageBeam", x1: "0", y1: "0", x2: "1", y2: "0",
-    });
-    beam.append(
-      svg("stop", { offset: "0%", "stop-color": "#a5b4fc", "stop-opacity": "0" }),
-      svg("stop", { offset: "50%", "stop-color": "#a5b4fc", "stop-opacity": "0.16" }),
-      svg("stop", { offset: "100%", "stop-color": "#a5b4fc", "stop-opacity": "0" })
-    );
-
-    // The baseline fades out at both ends rather than stopping dead.
-    const base = svg("linearGradient", {
-      id: "usageBaseline", x1: "0", y1: "0", x2: "1", y2: "0",
-    });
-    base.append(
-      svg("stop", { offset: "0%", "stop-color": "#ffffff", "stop-opacity": "0" }),
-      svg("stop", { offset: "18%", "stop-color": "#ffffff", "stop-opacity": "0.12" }),
-      svg("stop", { offset: "82%", "stop-color": "#ffffff", "stop-opacity": "0.12" }),
-      svg("stop", { offset: "100%", "stop-color": "#ffffff", "stop-opacity": "0" })
-    );
-
-    const glow = svg("filter", {
-      id: "usageGlow", x: "-12%", y: "-40%", width: "124%", height: "200%",
-    });
-    glow.append(svg("feGaussianBlur", { stdDeviation: "7", result: "blur" }));
-
-    defs.append(stroke, fill, beam, base, glow);
-    root.append(defs);
 
     const grid = svg("g", { class: "usage-grid" });
     const gridLabels = svg("g", { class: "usage-grid-labels" });
     const baseline = svg("line", {
       class: "usage-baseline",
       x1: PLOT.x0, y1: PLOT.y1, x2: PLOT.x1, y2: PLOT.y1,
-      stroke: "url(#usageBaseline)",
     });
 
     const beamRect = svg("rect", {
       class: "usage-beam",
       x: 0, y: PLOT.y0 - 12, width: 46, height: PLOT.y1 - PLOT.y0 + 12,
-      fill: "url(#usageBeam)", opacity: "0",
+      fill: "none", opacity: "0",
     });
 
-    const area = svg("path", { class: "usage-area", fill: "url(#usageRidgeFill)", d: "" });
+    const area = svg("path", { class: "usage-area", d: "" });
     const ridgeGlow = svg("path", {
       class: "usage-ridge-glow", d: "", fill: "none",
-      stroke: "url(#usageRidgeStroke)", "stroke-width": "3",
-      "stroke-linecap": "round", filter: "url(#usageGlow)", opacity: "0.55",
+      "stroke-width": "3", "stroke-linecap": "round",
     });
     const ridge = svg("path", {
       class: "usage-ridge", d: "", fill: "none",
-      stroke: "url(#usageRidgeStroke)", "stroke-width": "2.6",
+      stroke: "currentColor", "stroke-width": "2.6",
       "stroke-linecap": "round", "stroke-linejoin": "round", pathLength: "1",
     });
 

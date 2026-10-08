@@ -3,43 +3,47 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="color-scheme" content="light dark" />
     <title>Sieve — Release notes</title>
+    <link rel="stylesheet" href="../common/sieve-ui.css" />
     <link rel="stylesheet" href="release-notes.css" />
   </head>
   <body>
     <!-- Release notes ship with the extension: the list is rendered from the
          SIEVE_CHANGELOG array in common/changelog.js, so there is no network
-         request and nothing to keep in sync outside the package. This used to
-         be a section inside Settings; it grew long enough to crowd everything
-         else out, so it now has a page of its own. -->
+         request and nothing to keep in sync outside the package. -->
     <main class="rn">
-      <a class="rn-back" href="../options/options.html">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m15 18-6-6 6-6"/></svg>
-        <span>Back to settings</span>
-      </a>
-
-      <header class="rn-head">
-        <span class="rn-mark" aria-hidden="true">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg>
+      <header class="rn-letterhead">
+        <a class="rn-back" href="../options/options.html">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19 12H5M11 18l-6-6 6-6"/></svg>
+          <span>Settings</span>
+        </a>
+        <span class="brand">
+          <span class="mark" aria-hidden="true">
+            <svg viewBox="0 0 24 24"><defs><mask id="mark-cut"><rect width="24" height="24" fill="#fff"/><path d="M16.3 0.5 7.7 23.5" stroke="#000" stroke-width="1.9"/></mask></defs><path mask="url(#mark-cut)" fill="currentColor" d="M12 2.2 20 5v6.6c0 4.7-3.3 8.5-8 10.2-4.7-1.7-8-5.5-8-10.2V5z"/></svg>
+          </span>
+          <span class="wordmark">Sieve</span>
         </span>
-        <div>
-          <h1 class="rn-title">Release notes</h1>
-          <p class="rn-sub">Everything that changed in Sieve, newest first.</p>
-        </div>
-        <span class="rn-version" id="rn-version"></span>
       </header>
 
-      <p class="rn-note">
-        Sieve updates itself through your browser&rsquo;s extension store — you
-        don&rsquo;t need to do anything. Here&rsquo;s what each version brought.
-        Older releases start folded up; open one to read it.
-      </p>
+      <header class="rn-head">
+        <p class="kicker">Changelog</p>
+        <h1 class="rn-title">Release notes</h1>
+        <p class="rn-sub">
+          Everything that changed, newest first. Sieve updates itself through your
+          browser&rsquo;s extension store; older releases start folded.
+        </p>
+        <p class="rn-version" id="rn-version"></p>
+      </header>
 
       <ol class="rn-list" id="rn-list"></ol>
 
       <footer class="rn-foot">
-        <span>Sieve — Clean Internet Suite</span>
-        <a href="https://github.com/codepurse/Sieve" target="_blank" rel="noopener noreferrer">Source on GitHub</a>
+        <span class="perf" aria-hidden="true"></span>
+        <div class="rn-foot-row">
+          <span class="kicker">Sieve &middot; Clean Internet Suite</span>
+          <a href="https://github.com/codepurse/Sieve" target="_blank" rel="noopener noreferrer">Source on GitHub</a>
+        </div>
       </footer>
     </main>
 

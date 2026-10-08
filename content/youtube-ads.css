@@ -103,6 +103,31 @@ ad-slot-renderer,
 }
 
 /* ==========================================================================
+   YouTube's own promo bubbles — "Join this channel and unlock members-only
+   perks" and the like.
+
+   This one is a bug fix, not tidying. A bubble takes focus when it opens, and
+   the browser scrolls whatever takes focus into view — so a bubble opening
+   while the page is scrolled down drags the page back up to it. Measured on
+   youtube.com in October 2026: scrolled to 2,400px, the Join bubble opening put
+   the page back at 0. Reported as a YouTube page that "keeps going back up"
+   while you scroll.
+
+   And it is THIS switch that brings them out. On the same video, with the ad
+   filter off YouTube showed no bubble at all; with it on, the Join bubble every
+   time — standing in for the promotion the filter had just removed.
+
+   An element that is not rendered cannot take focus, so display:none is all it
+   takes: YouTube still "opens" the bubble, and it moves nothing. The ordinary
+   hover tooltips are different elements (tp-yt-paper-tooltip, and the player's
+   .ytp-tooltip) and are left alone.
+   ========================================================================== */
+
+yt-tooltip-renderer {
+  display: none !important;
+}
+
+/* ==========================================================================
    Collapse the CONTAINER an ad sat in.
    Hiding the ad alone leaves its wrapper holding an empty grid cell, and a hole
    in the feed reads as breakage rather than as an ad removed.

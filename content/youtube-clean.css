@@ -16,6 +16,9 @@
  *   watch sidebar  ytd-watch-next-secondary-results-renderer, #related
  *   top bar        #masthead-container (56px, via --ytd-toolbar-height)
  *   suggest list   .ytSearchboxComponentSuggestionsContainer (desktop + mobile)
+ * and in October 2026:
+ *   sidebar        ytd-guide-signin-promo-renderer, ytd-guide-renderer #footer
+ *   end-of-video   .ytp-fullscreen-grid under .ended-mode (the new player)
  *
  * Note: several rules use :has(), so they need Chrome 105+ / Firefox 121+. On
  * anything older those specific rules are ignored — the page stays usable, the
@@ -234,6 +237,35 @@ html.sv-yt-hide-explore ytd-browse[page-subtype="trending"] #contents {
 }
 
 /* ==========================================================================
+   Sidebar clutter — the parts of the guide that aren't a place to go. Verified
+   on the signed-out guide in October 2026, which renders, top to bottom: the
+   main links, the sign-in box, Explore, "More from YouTube", a Report history
+   (Settings / Help when signed in) section, then the footer.
+   ========================================================================== */
+
+/* "Sign in to like videos, comment, and subscribe." Signed-out only, and a
+   second copy of the Sign in button already in the top bar — that one is left
+   alone, so signing in is never more than a click away. */
+html.sv-yt-hide-signin ytd-guide-signin-promo-renderer {
+  display: none !important;
+}
+
+/* "More from YouTube": Premium, Music, Kids, and Studio when signed in. Matched
+   by its off-site links, the one thing no other guide section carries — the
+   Explore section's "Music" is a /channel/ link, not music.youtube.com. Any one
+   of the three is enough, so a region without one of them is still caught. */
+html.sv-yt-hide-more-yt ytd-guide-section-renderer:has(a[href^="https://music.youtube.com"]),
+html.sv-yt-hide-more-yt ytd-guide-section-renderer:has(a[href*="youtubekids.com"]),
+html.sv-yt-hide-more-yt ytd-guide-section-renderer:has(a[href^="https://studio.youtube.com"]) {
+  display: none !important;
+}
+
+/* About, Press, Copyright, Terms, Privacy … and the © line under them. */
+html.sv-yt-hide-guide-footer ytd-guide-renderer #footer {
+  display: none !important;
+}
+
+/* ==========================================================================
    Top bar — hiding the masthead also has to reclaim the 56px it reserved
    ========================================================================== */
 
@@ -259,12 +291,29 @@ html.sv-yt-hide-bell ytd-notification-topbar-button-renderer {
 /* ==========================================================================
    End cards — the recommendations laid over the player as a video finishes.
    These elements only exist while they're showing, so this stays dormant until
-   then.
+   then. Two kinds:
+
+   - the creator's own tiles (.ytp-ce-*) in the last 5–20 seconds, plus the
+     small "Hide" pill YouTube floats above them, which would otherwise be left
+     hanging over the video on its own
+   - the wall of suggestions once the video has ENDED. The current player
+     ("ytp-delhi-modern", verified October 2026) draws that as
+     .ytp-fullscreen-grid; .ytp-endscreen-content is the older player's wall and
+     is kept for anywhere that one still runs. The new grid is scoped to
+     .ended-mode on purpose: the same element is the "more videos" panel you can
+     scroll up in fullscreen while a video is still PLAYING, and that is not an
+     end card.
+
+   Not here: the "Up next" countdown. That belongs to autoplay — hiding it would
+   leave autoplay running with no warning before it changes the video — so it
+   goes away with "Turn off autoplay", which stops it starting at all.
    ========================================================================== */
 
 html.sv-yt-no-endcards .ytp-ce-element,
 html.sv-yt-no-endcards .ytp-ce-covering-overlay,
-html.sv-yt-no-endcards .ytp-endscreen-content {
+html.sv-yt-no-endcards .ytp-ce-hide-button-container,
+html.sv-yt-no-endcards .ytp-endscreen-content,
+html.sv-yt-no-endcards .html5-video-player.ended-mode .ytp-fullscreen-grid {
   display: none !important;
 }
 

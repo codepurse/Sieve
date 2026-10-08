@@ -49,6 +49,11 @@
 // The un-locking is the half people forget. A wall that is merely hidden leaves
 // a page that cannot be scrolled and an article that is still blurred, which
 // looks more broken than the wall did.
+//
+// So is the dimmer. Many modal systems draw the grey layer behind a dialog as a
+// SEPARATE element, nowhere near the dialog in the tree, and hiding the wall
+// leaves it up — the page goes dark and every click lands on it. See
+// clearBackdrops() below.
 
 (() => {
   "use strict";
@@ -285,9 +290,11 @@
     } catch {
       return false;
     }
+    if (walls.length < MAX_CLEARED) walls.push(el);
 
     unlockElement(document.documentElement);
     unlockElement(document.body);
+    clearBackdrops();
 
     // The blur is usually not on body but on the content wrapper the wall sits
     // beside, so walk the wall's own ancestors too. Bounded — this is a walk up,
@@ -326,6 +333,142 @@
     }
 
     return true;
+  }
+
+  // ==========================================================================
+  // The dimmer that came with the wall
+  // ==========================================================================
+  //
+  // YouTube's "Ad blockers are not allowed" dialog lives deep inside the app,
+  // while the grey layer behind it — Polymer's tp-yt-iron-overlay-backdrop — is
+  // a direct child of <body>. Bootstrap appends .modal-backdrop to <body> the
+  // same way. Hiding the dialog left that layer up: reported October 2026, a
+  // YouTube page gone dark with nothing on it clickable, the search box
+  // included. Reproduced on the live site, and with the layer hidden as well the
+  // page worked again — clicks, typing, searching.
+  //
+  // A backdrop has no name worth matching, so it is recognised by what it is:
+  //   - fixed, and covering nearly the whole viewport in both directions,
+  //   - stacked above the page (the same z-index bar isCovering() uses),
+  //   - catching clicks — a layer with pointer-events:none blocks nothing,
+  //   - EMPTY: no rendered text and no picture of any kind. A tint, nothing else.
+  // And it is only looked for once a wall has been cleared on this page, so a
+  // site that never showed one never has this run at all.
+  //
+  // The YouTube layer is a single element reused by every dialog on the site, so
+  // once hidden, a later dialog (Share, say) opens without the page dimming
+  // behind it. It still opens, works and closes; that is the price, and it is a
+  // small one next to a page you cannot use.
+  const BACKDROP_COVER = 0.9; // of the viewport, in each direction
+  const MAX_BACKDROP_CHECKS = 200;
+  const MAX_BACKDROPS = 16; // a site re-creating its dimmer must not loop forever
+  const MEDIA = "img,picture,video,canvas,svg,iframe,object,embed";
+  const walls = []; // the walls cleared on this page
+  let backdropsCleared = 0;
+
+  // Is `inner` the same element as `outer`, or somewhere inside it? A walk up
+  // rather than Node.contains, so it asks the same question of every DOM.
+  function within(inner, outer) {
+    let n = inner;
+    for (let hops = 0; n && hops < 64; hops++) {
+      if (n === outer) return true;
+      n = n.parentElement;
+    }
+    return false;
+  }
+
+  // A shadow tree can hold anything, and none of it shows up in innerText or a
+  // querySelector from out here — so "no text, no picture" proves nothing about
+  // an element hosting one. Sieve's own take-a-break screen is exactly that: a
+  // fixed, full-screen, top-of-the-stack <div> whose words all live in its shadow
+  // root. Taken for a dimmer it would be hidden while its scroll lock stayed on.
+  // So a shadow host is never a dimmer. Real ones do not need one: YouTube's runs
+  // on Shady DOM and has no children at all (checked October 2026), and
+  // Bootstrap's is a plain <div>. A closed root is invisible to el.shadowRoot,
+  // hence the extension-only lookups.
+  function hostsShadow(el) {
+    try {
+      if (el.shadowRoot) return true;
+      const dom = typeof chrome !== "undefined" && chrome && chrome.dom;
+      if (dom && typeof dom.openOrClosedShadowRoot === "function" && dom.openOrClosedShadowRoot(el)) return true;
+      if (typeof el.openOrClosedShadowRoot === "function" && el.openOrClosedShadowRoot()) return true; // Firefox
+    } catch {
+      return true; // cannot tell, so do not risk it
+    }
+    return false;
+  }
+
+  function isBackdrop(el, getStyle) {
+    if (!el || el.nodeType !== 1 || alreadyCleared(el)) return false;
+    if (/^(HTML|BODY|HEAD|SCRIPT|STYLE|LINK|META|TEMPLATE)$/.test(el.tagName)) return false;
+
+    // Cheapest questions first: a style read, then geometry, then text (which
+    // forces layout) only for the handful of elements that got that far.
+    const cs = getStyle(el);
+    if (!cs || cs.position !== "fixed") return false;
+    if (cs.display === "none" || cs.visibility === "hidden" || cs.pointerEvents === "none") return false;
+    const z = parseInt(cs.zIndex, 10);
+    if (!Number.isFinite(z) || z < 100) return false;
+
+    let rect;
+    try {
+      rect = el.getBoundingClientRect();
+    } catch {
+      return false;
+    }
+    const w = window.innerWidth || 1;
+    const h = window.innerHeight || 1;
+    if (rect.width < w * BACKDROP_COVER || rect.height < h * BACKDROP_COVER) return false;
+
+    if (hostsShadow(el)) return false;
+    try {
+      if ((el.innerText || "").trim()) return false;
+      if (typeof el.querySelector === "function" && el.querySelector(MEDIA)) return false;
+    } catch {
+      return false;
+    }
+    return true;
+  }
+
+  // Where a dimmer can be: <body>'s own children, where both YouTube and
+  // Bootstrap put it, and the siblings of each wall and of each of its
+  // ancestors, for the libraries that render the pair into a shared portal.
+  function clearBackdrops() {
+    if (!walls.length || backdropsCleared >= MAX_BACKDROPS) return 0;
+
+    const scope = new Set();
+    const add = (el) => {
+      if (el && el.nodeType === 1 && scope.size < MAX_BACKDROP_CHECKS) scope.add(el);
+    };
+    try {
+      for (const child of (document.body && document.body.children) || []) add(child);
+      for (const wall of walls) {
+        let node = wall;
+        for (let hops = 0; node && node.parentElement && hops < 12; hops++) {
+          for (const sib of node.parentElement.children) add(sib);
+          node = node.parentElement;
+        }
+      }
+    } catch {
+      /* a tree we cannot walk — whatever is already in scope is still checked */
+    }
+
+    let n = 0;
+    for (const el of scope) {
+      if (backdropsCleared >= MAX_BACKDROPS) break;
+      // Never the wall itself, anything inside it, or the app it lives in.
+      if (walls.some((wall) => within(el, wall) || within(wall, el))) continue;
+      if (!isBackdrop(el, (node) => window.getComputedStyle(node))) continue;
+      try {
+        el.style.setProperty("display", "none", "important");
+        el.setAttribute(CLEARED_ATTR, "adblock-backdrop");
+      } catch {
+        continue;
+      }
+      backdropsCleared++;
+      n++;
+    }
+    return n;
   }
 
   // ==========================================================================
@@ -447,10 +590,10 @@
   // passes false.
   function sweep(wide = true) {
     scheduled = false;
-    if (cleared >= MAX_CLEARED || !document.body) return;
+    if (!document.body) return;
 
     let hit = 0;
-    for (const el of candidates(wide)) {
+    for (const el of cleared < MAX_CLEARED ? candidates(wide) : []) {
       if (cleared >= MAX_CLEARED) break;
 
       // TWO STAGES on the text, and the order is what lets the candidate list
@@ -494,13 +637,20 @@
       }
     }
 
+    // A dimmer often switches on a moment AFTER its dialog — YouTube's fades in
+    // by gaining a class — so it may not have qualified yet when clearWall()
+    // looked. That class change is a mutation, which brings the observer back
+    // here, and this is where the late one is caught. (When a wall was hit on
+    // this sweep, clearWall() has only just looked, so there is no need to.)
+    const dimmed = !hit && walls.length ? clearBackdrops() : 0;
+
     // Throw away the records our OWN writes just generated. Unlocking the page
     // touches the style and class attributes of <html>, <body> and the wall's
     // ancestors, every one of which the observer is watching — so without this
     // a single wall schedules another sweep, which schedules another. Draining
     // here is cheaper and more certain than trying to recognise our own
     // mutations after the fact.
-    if (hit && observer) {
+    if ((hit || dimmed) && observer) {
       try {
         observer.takeRecords();
       } catch {
@@ -582,9 +732,11 @@
     looksLikeWallText,
     isCovering,
     clearWall,
+    clearBackdrops,
+    isBackdrop,
     unlockElement,
     sweep,
-    state: () => ({ cleared, pending: pending.size }),
+    state: () => ({ cleared, pending: pending.size, backdrops: backdropsCleared }),
     WALL_TEXT_CAP,
   };
 })();

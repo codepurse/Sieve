@@ -106,11 +106,11 @@
 
     if (path === "skip") {
       const p = document.createElement("p");
-      p.textContent = "All protection is off. You can turn modules on anytime in Settings.";
+      p.textContent = "Nothing extra was switched on. Turn on whatever you want from Settings.";
       body.appendChild(p);
     } else {
       const intro = document.createElement("p");
-      intro.textContent = `Enabled ${keys.length} protection${keys.length === 1 ? "" : "s"}:`;
+      intro.textContent = `Switched on ${keys.length} protection${keys.length === 1 ? "" : "s"}:`;
       body.appendChild(intro);
 
       const ul = document.createElement("ul");
@@ -122,10 +122,8 @@
       body.appendChild(ul);
     }
 
-    const reminder = document.createElement("p");
-    reminder.textContent = "You can change any of this anytime in Settings.";
-    body.appendChild(reminder);
-
+    // (The "you can change this in Settings" line lives once, under the
+    // finish button, rather than repeated here.)
     document.getElementById("confirmation").hidden = false;
     document.getElementById("confirmation").scrollIntoView({ behavior: "smooth", block: "nearest" });
   }

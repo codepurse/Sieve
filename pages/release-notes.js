@@ -26,17 +26,21 @@
     const details = el("details", "rn-details");
     if (index === 0) details.open = true;
 
+    // version in the margin · date, count and a CURRENT stamp beside it ·
+    // a +/− at the end that the stylesheet draws.
     const summary = el("summary", "rn-summary");
-    summary.innerHTML =
-      '<svg class="rn-chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" ' +
-      'stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' +
-      '<path d="m9 18 6-6-6-6"/></svg>';
     summary.append(el("span", "rn-ver", `v${release.version}`));
-    if (release.version === current) summary.append(el("span", "rn-badge", "Current"));
-    summary.append(el("span", "rn-date", release.date));
 
+    const meta = el("span", "rn-meta");
+    meta.append(el("span", "rn-date", release.date));
     const count = release.items.length;
-    summary.append(el("span", "rn-count", `${count} ${count === 1 ? "change" : "changes"}`));
+    meta.append(el("span", "rn-count", `${count} ${count === 1 ? "change" : "changes"}`));
+    if (release.version === current) meta.append(el("span", "rn-badge", "Current"));
+    summary.append(meta);
+
+    const toggle = el("span", "rn-toggle");
+    toggle.setAttribute("aria-hidden", "true");
+    summary.append(toggle);
     details.append(summary);
 
     const items = el("ul", "rn-items");
