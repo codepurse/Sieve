@@ -9,6 +9,9 @@
 //   SieveGuardian.confirmUnlock(actionName) -> Promise<boolean>
 //     Resolves true when the correct PIN is entered, false on cancel/Escape.
 //     Resolves true immediately when no PIN is set (nothing to confirm).
+//     With a cool-off set (common/cooloff.js) the change must first wait it
+//     out: until then the dialog only offers to start or call off the wait, and
+//     resolves false. Once the wait is over, the PIN is asked for as before.
 //
 //   SieveGuardian.gateToggleOff(checkbox, actionName) -> Promise<boolean>
 //     Helper for on/off switches. Returns true if the change may proceed.
@@ -28,7 +31,10 @@
   let input = null;
   let errorEl = null;
   let subEl = null;
-  let pending = null; // { resolve } for the dialog currently open
+  let coolEl = null;
+  let confirmBtn = null;
+  let cancelBtn = null;
+  let pending = null; // { resolve, actionName, critical, cooloffKey } for the dialog currently open
 
   function build() {
     if (overlay) return;
@@ -122,6 +128,11 @@
         user-select: none; -webkit-user-select: none;
       }
       .sg-input.code-input { letter-spacing: 0.04em; font: 13px/1.4 var(--sg-mono); }
+
+      /* Cool-off stage: words in place of the PIN box. */
+      .sg-card [hidden] { display: none; }
+      .sg-cool { margin: 0 0 4px; padding: 0; font: 14px/1.55 var(--sg-sans); color: var(--sg-ink); }
+      .sg-cool strong { font-weight: 600; }
     `;
 
     overlay = document.createElement("div");
@@ -132,6 +143,7 @@
         <p class="sg-title" id="sg-title">Enter your PIN</p>
         <p class="sg-sub" id="sg-sub"></p>
         <div id="sg-code-wrap" hidden><p class="sg-code" id="sg-code"></p></div>
+        <p class="sg-cool" id="sg-cool" hidden></p>
         <input class="sg-input" id="sg-input" type="password"
                placeholder="PIN" autocomplete="off" autocorrect="off"
                autocapitalize="off" spellcheck="false" />
@@ -148,12 +160,19 @@
     input = overlay.querySelector("#sg-input");
     errorEl = overlay.querySelector("#sg-error");
     subEl = overlay.querySelector("#sg-sub");
+    coolEl = overlay.querySelector("#sg-cool");
+    confirmBtn = overlay.querySelector("#sg-confirm");
+    cancelBtn = overlay.querySelector("#sg-cancel");
 
-    overlay.querySelector("#sg-confirm").addEventListener("click", submit);
-    overlay.querySelector("#sg-cancel").addEventListener("click", () => finish(false));
+    confirmBtn.addEventListener("click", submit);
+    cancelBtn.addEventListener("click", dismiss);
     input.addEventListener("keydown", (e) => {
       if (e.key === "Enter") submit();
       else if (e.key === "Escape") finish(false);
+    });
+    // The cool-off stage has no text box to catch Escape, so the card does.
+    overlay.addEventListener("keydown", (e) => {
+      if (e.key === "Escape") finish(false);
     });
     // Click outside the card = cancel.
     overlay.addEventListener("mousedown", (e) => {
@@ -238,13 +257,118 @@
     input.classList.remove("code-input");
     input.type = "password";
     input.placeholder = "PIN";
+    input.hidden = false;
+    errorEl.hidden = false;
+    coolEl.hidden = true;
+    coolEl.textContent = "";
+    confirmBtn.textContent = "Unlock";
+    cancelBtn.textContent = "Cancel";
     codeExpected = "";
+    cool = null;
     stage = "pin";
   }
 
   let stage = "pin";
 
+  // --- cool-off stage -----------------------------------------------------
+  //
+  // Shown INSTEAD of the PIN while a protected change has not yet waited out
+  // its cool-off. From here the change can only be asked for, or the request
+  // called off, so this stage always resolves false; the person comes back
+  // once the wait is over, and then the gate goes on to the PIN as usual.
+  let cool = null; // { actionName, info, justStarted } while it is showing
+
+  // A sentence with a few words in bold, built from text nodes — the action
+  // name can carry a domain from the address bar and never goes near innerHTML.
+  function setCoolText(parts) {
+    coolEl.textContent = "";
+    for (const part of parts) {
+      if (typeof part === "string") {
+        coolEl.appendChild(document.createTextNode(part));
+      } else {
+        const strong = document.createElement("strong");
+        strong.textContent = part.strong;
+        coolEl.appendChild(strong);
+      }
+    }
+  }
+
+  function renderCooloff() {
+    const CO = window.SieveCooloff;
+    const { title } = codeElements();
+    const { info, justStarted } = cool;
+    const now = Date.now();
+
+    if (info.state === "none") {
+      const readyAt = now + info.hours * 3600000;
+      title.textContent = `This takes a ${CO.delayLabel(info.hours)} wait`;
+      setCoolText([
+        "Ask now and it unlocks on ",
+        { strong: CO.formatWhen(readyAt) },
+        ". Come back then and make the change yourself — it stays unlocked for a day, then lapses. Nothing changes on its own, and you can call it off at any time.",
+      ]);
+      cancelBtn.textContent = "Never mind";
+      confirmBtn.textContent = "Start the wait";
+    } else {
+      const { readyAt } = info.request;
+      title.textContent = justStarted ? "The wait has started" : "Still waiting";
+      setCoolText([
+        "This unlocks in ",
+        { strong: CO.formatDuration(readyAt - now) },
+        `, on ${CO.formatWhen(readyAt)}. Come back after that to make the change.`,
+      ]);
+      cancelBtn.textContent = "Cancel request";
+      confirmBtn.textContent = "Close";
+    }
+    confirmBtn.focus();
+  }
+
+  function showCooloff(actionName, info) {
+    stage = "cooloff";
+    cool = { actionName, info, justStarted: false };
+    subEl.textContent = actionName || "This change is protected.";
+    input.hidden = true;
+    errorEl.hidden = true;
+    coolEl.hidden = false;
+    renderCooloff();
+  }
+
+  async function cooloffSubmit() {
+    const CO = window.SieveCooloff;
+    if (cool.info.state !== "none") {
+      finish(false);
+      return;
+    }
+    try {
+      const request = await CO.request(cool.actionName);
+      cool.info = { ...cool.info, state: "waiting", request };
+      cool.justStarted = true;
+      renderCooloff();
+    } catch (err) {
+      console.warn("[Sieve] could not start the cool-off:", err);
+      finish(false);
+    }
+  }
+
+  // The left-hand button: Cancel / Never mind, or — while a request is
+  // waiting — Cancel request, which calls the change off. Always free, since
+  // it can only keep protection where it is.
+  async function dismiss() {
+    if (stage === "cooloff" && cool && cool.info.state !== "none") {
+      try {
+        await window.SieveCooloff.cancel(cool.info.key);
+      } catch (err) {
+        console.warn("[Sieve] could not cancel the cool-off request:", err);
+      }
+    }
+    finish(false);
+  }
+
   async function submit() {
+    if (stage === "cooloff") {
+      await cooloffSubmit();
+      return;
+    }
     if (stage === "code") {
       if (input.value === codeExpected) {
         finish(true);
@@ -284,13 +408,18 @@
 
   function finish(result) {
     if (!pending) return;
-    const { resolve } = pending;
+    const { resolve, cooloffKey } = pending;
     pending = null;
     overlay.hidden = true;
     input.value = "";
     errorEl.textContent = "";
     resetToPinStage();
-    resolve(result);
+    // An unlocked cool-off request is good for one change; this was it.
+    if (result && cooloffKey) {
+      consumeCooloff(cooloffKey).then(() => resolve(result));
+    } else {
+      resolve(result);
+    }
   }
 
   // This dialog and the doomscroll pause screen both sit at the maximum
@@ -305,21 +434,68 @@
     }
   }
 
+  // The cool-off for this action, or null when none applies (none is set, or
+  // this page did not load common/cooloff.js). A failed read lets the change
+  // through rather than locking someone out of their own settings, the same
+  // call the access code makes.
+  async function cooloffFor(actionName) {
+    const CO = window.SieveCooloff;
+    if (!CO) return null;
+    try {
+      const info = await CO.check(actionName);
+      return info.required ? info : null;
+    } catch (err) {
+      console.warn("[Sieve] cool-off check failed, going on without it:", err);
+      return null;
+    }
+  }
+
+  async function consumeCooloff(key) {
+    try {
+      await window.SieveCooloff.consume(key);
+    } catch (err) {
+      console.warn("[Sieve] could not close the cool-off request:", err);
+    }
+  }
+
+  function askToWait(actionName, info, critical) {
+    build();
+    if (pending) finish(false);
+    return new Promise((resolve) => {
+      pending = { resolve, actionName, critical, cooloffKey: null };
+      resetToPinStage();
+      raise();
+      overlay.hidden = false;
+      showCooloff(actionName, info);
+    });
+  }
+
   // `opts.critical` marks the decisive actions — turning a protection off,
   // getting past the pause screen, weakening the lock itself. With the access
   // code set to its default scope, only those face the code; everything else
   // still needs the PIN alone.
   async function confirmUnlock(actionName, opts) {
-    // No PIN set = Personal mode, nothing to confirm. The access code is a
+    const critical = !!(opts && opts.critical);
+
+    // The cool-off comes first and does not depend on a PIN: it is the lock
+    // that still works for someone on their own.
+    const cooloff = await cooloffFor(actionName);
+    if (cooloff && cooloff.state !== "ready") return askToWait(actionName, cooloff, critical);
+    const cooloffKey = cooloff ? cooloff.key : null;
+
+    // No PIN set = Personal mode, nothing more to confirm. The access code is a
     // second layer over the PIN, so it does not apply on its own here.
-    if (!(await G.isEnabled())) return true;
+    if (!(await G.isEnabled())) {
+      if (cooloffKey) await consumeCooloff(cooloffKey);
+      return true;
+    }
 
     build();
     // If a prompt is somehow already open, cancel it before opening the new one.
     if (pending) finish(false);
 
     return new Promise((resolve) => {
-      pending = { resolve, actionName, critical: !!(opts && opts.critical) };
+      pending = { resolve, actionName, critical, cooloffKey };
       resetToPinStage();
       subEl.textContent = actionName || "This change is protected.";
       errorEl.textContent = "";
@@ -343,10 +519,30 @@
     return ok;
   }
 
+  // Cool-off-only gate, for callers that verify the PIN themselves. Removing
+  // the PIN is one: its own form takes the current PIN, but removing it still
+  // weakens protection and so still waits.
+  //
+  // Resolves true when no cool-off applies or the wait is over (using up the
+  // request), false otherwise — so a caller can await it after its PIN check.
+  async function requireCooloff(actionName) {
+    const cooloff = await cooloffFor(actionName);
+    if (!cooloff) return true;
+    if (cooloff.state === "ready") {
+      await consumeCooloff(cooloff.key);
+      return true;
+    }
+    return askToWait(actionName, cooloff, true);
+  }
+
   // Code-only challenge, for callers that verify the PIN themselves and cannot
   // route through confirmUnlock. The pause overlay is one: it has its own PIN row
   // inside a shadow root, so without this the access code would silently not
   // apply at the exact moment it matters most for doomscrolling.
+  //
+  // The cool-off deliberately does not apply here. The pause screen's "15 more
+  // minutes" is a daily limit, and a wait measured in hours or days would
+  // simply outlast it; turning the limit itself off still waits.
   //
   // Resolves true when the code is typed correctly, false on cancel, and true
   // immediately when no code is required — so a caller can await it
@@ -377,6 +573,7 @@
   }
 
   G.confirmUnlock = confirmUnlock;
+  G.requireCooloff = requireCooloff;
   G.requireAccessCode = requireAccessCode;
   G.gateToggleOff = gateToggleOff;
 })();

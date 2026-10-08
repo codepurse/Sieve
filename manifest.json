@@ -91,6 +91,7 @@
         "common/guardian.js",
         "common/doomscroll-sites.js",
         "common/access-code.js",
+        "common/cooloff.js",
         "common/guardian-prompt.js",
         "content/pause-overlay.js",
         "content/doomscroll.js"

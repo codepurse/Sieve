@@ -850,6 +850,46 @@ html.preload .loading-veil {
   background: var(--danger-wash);
 }
 
+/* Cool-off requests: the change asked for, and when it unlocks. A request
+   whose wait is over is a door left open, so its line takes the warning
+   colour — never green, which only ever means a protection is on. */
+.cooloff-list {
+  list-style: none;
+  border-top: 1px solid var(--rule);
+}
+
+.cooloff-list li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: 48px;
+  padding: 6px 0;
+  border-bottom: 1px solid var(--rule);
+}
+
+.cooloff-text {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.cooloff-action {
+  font-size: 13.5px;
+  color: var(--ink);
+  overflow-wrap: anywhere;
+}
+
+.cooloff-when {
+  font-family: var(--font-mono);
+  font-size: 11.5px;
+  color: var(--ink-3);
+}
+
+.cooloff-list li.is-ready .cooloff-when {
+  color: var(--warn);
+}
+
 /* The blocked-sites syntax reference: term in the margin, example beside it. */
 .syntax-list {
   display: grid;
