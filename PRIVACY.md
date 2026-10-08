@@ -31,6 +31,7 @@ third party.
 | Per-site time limits and daily counters | Enforce doomscroll limits and show stats | Yes |
 | Custom blocked-sites and allowlist entries | Block/allow the sites you choose | Yes |
 | Guardian PIN | Lock your own settings; stored as a **hash**, never in plain text | Yes |
+| Cool-off requests, **only if you set a cool-off** | The changes you have asked for and when each unlocks — the change's name, which includes the site when you asked to allow one; each is deleted once used, called off, or lapsed | Yes |
 | Cached blocklists | Match sites quickly and offline | Yes |
 | Screen-time tally, **only if you turn Usage Insights on** | Show you where your time goes | Yes |
 

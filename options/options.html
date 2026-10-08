@@ -1260,8 +1260,8 @@
               <h2 class="group-title">Guardian Lock <span class="badge" id="guardian-status">Off</span></h2>
               <p class="group-desc">
                 With a PIN set, turning anything off — or getting past the pause screen — asks for
-                it. Strengthening your protection never does. With no PIN, Sieve is entirely under
-                your own control.
+                it. Strengthening your protection never does. With no PIN, Sieve is under your own
+                control, apart from any cool-off you set below.
               </p>
             </div>
             <div class="group-body">
@@ -1335,6 +1335,42 @@
                   </select>
                 </div>
                 <p id="access-code-status" class="meta"></p>
+              </div>
+            </div>
+          </section>
+
+          <section class="group" id="cooloff-card">
+            <div class="group-head">
+              <h2 class="group-title">Cool-off <span class="badge" id="cooloff-badge">Off</span></h2>
+              <p class="group-desc">
+                A PIN you know is no lock in a weak moment. A wait is. With a cool-off set, anything
+                that weakens your protection — switching a blocker off, allowing a site, removing
+                your PIN — is asked for first, and unlocks only once the wait is over. Strengthening
+                is still instant. Works with or without a PIN.
+              </p>
+            </div>
+            <div class="group-body">
+              <div class="field">
+                <label class="sub-label" for="cooloff-delay">Wait before a change unlocks</label>
+                <select class="input input-auto" id="cooloff-delay">
+                  <option value="0">No wait</option>
+                  <option value="1">1 hour</option>
+                  <option value="24">24 hours — recommended</option>
+                  <option value="72">3 days</option>
+                  <option value="168">7 days</option>
+                </select>
+                <p class="hint">
+                  Nothing turns off on its own. Once the wait is over, that one change stays unlocked
+                  for a day: come back and make it yourself, or let it lapse. Shortening the wait or
+                  turning it off has to wait it out too. The pause screen&rsquo;s &ldquo;15 more
+                  minutes&rdquo; isn&rsquo;t covered — it is a daily limit, and a wait would outlast it.
+                </p>
+                <p id="cooloff-status" class="meta"></p>
+              </div>
+
+              <div class="field" id="cooloff-requests-field" hidden>
+                <h3 class="field-title">Asked for</h3>
+                <ul id="cooloff-requests" class="cooloff-list"></ul>
               </div>
             </div>
           </section>
@@ -1456,6 +1492,7 @@
     <script src="../common/guardian.js"></script>
     <script src="../common/doomscroll-sites.js"></script>
     <script src="../common/access-code.js"></script>
+    <script src="../common/cooloff.js"></script>
     <script src="../common/guardian-prompt.js"></script>
     <script src="../common/keyword-pattern.js"></script>
     <script src="../common/search-filter.js"></script>

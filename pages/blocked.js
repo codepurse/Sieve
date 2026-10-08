@@ -361,17 +361,47 @@
     allowBtn.textContent = `Allow ${domain}`;
     actionsEl.hidden = false;
 
+    const allowAction = `Allow ${domain} and stop blocking it`;
+
+    // With a cool-off set, say where this site's request stands. Whoever is
+    // looking at this page is the one who asked, so the answer belongs here
+    // rather than only in the settings.
+    async function showCooloffStatus() {
+      const CO = window.SieveCooloff;
+      if (!CO) return;
+      let info;
+      try {
+        info = await CO.check(allowAction);
+      } catch {
+        return;
+      }
+      resultEl.className = "allow-result";
+      if (!info.required || info.state === "none") {
+        resultEl.textContent = "";
+      } else if (info.state === "waiting") {
+        const { readyAt } = info.request;
+        resultEl.textContent =
+          `You asked to allow this site. It unlocks in ${CO.formatDuration(readyAt - Date.now())}, ` +
+          `on ${CO.formatWhen(readyAt)}.`;
+      } else {
+        resultEl.textContent = `The wait is over. Allow works until ${CO.formatWhen(info.request.expiresAt)}.`;
+      }
+    }
+    showCooloffStatus();
+
     allowBtn.addEventListener("click", async () => {
-      // Allowlisting WEAKENS protection, so gate it behind the Guardian PIN when
-      // one is set. In Personal mode (no PIN) confirmUnlock resolves immediately.
+      // Allowlisting WEAKENS protection, so it goes through the Guardian gate:
+      // the cool-off wait if one is set, then the PIN if one is set. With
+      // neither, confirmUnlock resolves immediately.
       if (window.SieveGuardian && SieveGuardian.confirmUnlock) {
         // Critical: this is the moment someone stands in front of a blocked site
         // and decides to let themselves in, which is exactly what the access
         // code exists for.
-        const ok = await SieveGuardian.confirmUnlock(`Allow ${domain} and stop blocking it`, {
-          critical: true,
-        });
-        if (!ok) return;
+        const ok = await SieveGuardian.confirmUnlock(allowAction, { critical: true });
+        if (!ok) {
+          showCooloffStatus(); // a wait may have just been started or called off
+          return;
+        }
       }
 
       allowBtn.disabled = true;

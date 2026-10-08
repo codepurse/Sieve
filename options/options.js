@@ -531,6 +531,8 @@ function optionsDefaults() {
     siteCleanup: {},
     // Guardian — presence of a hash means a PIN is set
     guardianPinHash: "",
+    // Cool-off — the wait in hours (0 = off); see common/cooloff.js
+    cooloffConfig: { hours: 0 },
     // Search Result Filter — rules carry their own colour; see setupSearchFilter
     searchFilterEnabled: false,
     searchFilterRules: [],
@@ -677,6 +679,7 @@ async function applyStoredSettings(store) {
   setupToxicHider(store);          // Module 4A
   setupGuardian(store);            // self-lock PIN status panel
   setupAccessCode();               // optional second layer over that PIN
+  setupCooloff(store);             // a wait before any weakening change unlocks
   setupDarkPatterns(store);        // Module 3A — relocated from the popup
   setupToxicSites(store);          // per-site toggles — relocated from the popup
 
@@ -1950,6 +1953,12 @@ async function setupGuardian(store) {
   });
 
   disableBtn.addEventListener("click", async () => {
+    // PIN first, then the cool-off: a wrong PIN should not start a wait.
+    if (!(await SieveGuardian.verify(currentPin.value))) {
+      manageError.textContent = "Current PIN is incorrect.";
+      return;
+    }
+    if (!(await SieveGuardian.requireCooloff("Remove your PIN"))) return;
     if (!(await SieveGuardian.clearPin(currentPin.value))) {
       manageError.textContent = "Current PIN is incorrect.";
       return;
@@ -1958,6 +1967,100 @@ async function setupGuardian(store) {
   });
 
   await render(store);
+}
+
+// Cool-off settings: the wait itself, and the changes currently asked for.
+// Unlike the access code this is shown in Personal mode too — the wait is the
+// lock that still works for someone with nobody to hold a PIN for them.
+function setupCooloff(store) {
+  const CO = window.SieveCooloff;
+  const badge = document.getElementById("cooloff-badge");
+  const delayEl = document.getElementById("cooloff-delay");
+  const statusEl = document.getElementById("cooloff-status");
+  const requestsField = document.getElementById("cooloff-requests-field");
+  const listEl = document.getElementById("cooloff-requests");
+  if (!CO || !delayEl) return;
+
+  function renderConfig(config) {
+    const on = config.hours > 0;
+    badge.textContent = on ? "On" : "Off";
+    badge.classList.toggle("on", on);
+    delayEl.value = String(config.hours);
+    statusEl.textContent = on
+      ? `On — a ${CO.delayLabel(config.hours)} wait before anything that weakens your protection.`
+      : "Off — changes apply as soon as they are confirmed.";
+  }
+
+  function requestRow(request, now) {
+    const li = document.createElement("li");
+    const text = document.createElement("div");
+    text.className = "cooloff-text";
+    const action = document.createElement("span");
+    action.className = "cooloff-action";
+    action.textContent = request.action || request.key;
+    const when = document.createElement("span");
+    when.className = "cooloff-when";
+    if (CO.stateOf(request, now) === "ready") {
+      li.classList.add("is-ready");
+      when.textContent = `Unlocked — until ${CO.formatWhen(request.expiresAt)}`;
+    } else {
+      when.textContent = `Unlocks in ${CO.formatDuration(request.readyAt - now)} · ${CO.formatWhen(request.readyAt)}`;
+    }
+    text.append(action, when);
+
+    // Calling a request off keeps protection where it is, so no gate.
+    const cancel = document.createElement("button");
+    cancel.type = "button";
+    cancel.className = "btn btn-quiet";
+    cancel.textContent = "Cancel";
+    cancel.setAttribute("aria-label", `Cancel: ${request.action || request.key}`);
+    cancel.addEventListener("click", async () => {
+      await CO.cancel(request.key);
+      await renderRequests();
+    });
+
+    li.append(text, cancel);
+    return li;
+  }
+
+  async function renderRequests() {
+    const now = Date.now();
+    const requests = await CO.listRequests(now);
+    requestsField.hidden = requests.length === 0;
+    listEl.textContent = "";
+    for (const request of requests) listEl.appendChild(requestRow(request, now));
+  }
+
+  delayEl.addEventListener("change", async () => {
+    const config = await CO.getConfig();
+    const next = CO.normalizeConfig({ hours: Number(delayEl.value) }).hours;
+    // A longer wait is free. A shorter one, or none, weakens the lock, so it
+    // goes through the gate — and so has to wait out the current cool-off.
+    if (next < config.hours) {
+      // Put the select back first: the gate may show the wait dialog, and the
+      // page should not claim a change that has not happened.
+      delayEl.value = String(config.hours);
+      const action = next === 0 ? "Turn off the cool-off" : "Shorten the cool-off";
+      if (!(await SieveGuardian.confirmUnlock(action, { critical: true }))) return;
+    }
+    await CO.setConfig({ hours: next });
+    // With no wait, open requests mean nothing; left in place, a stale one
+    // could pre-unlock a change if a cool-off were set again tomorrow.
+    if (next === 0) await CO.clearRequests();
+  });
+
+  chrome.storage.onChanged.addListener((changes, area) => {
+    if (area !== "local") return;
+    if (changes[CO.CONFIG_KEY]) renderConfig(CO.normalizeConfig(changes[CO.CONFIG_KEY].newValue));
+    if (changes[CO.REQUESTS_KEY]) renderRequests();
+  });
+
+  // The countdowns are coarse (minutes), so once a minute keeps them honest
+  // and moves a request to "Unlocked" when its wait ends.
+  setInterval(renderRequests, 60 * 1000);
+
+  renderConfig(CO.normalizeConfig(store.cooloffConfig));
+  renderRequests();
 }
 
 // ===========================================================================
