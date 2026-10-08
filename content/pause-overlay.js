@@ -47,81 +47,109 @@
             <button class="btn ghost" data-act="dismiss">Dismiss</button>
           </div>`;
 
+    // The breathing guide is the sieve itself: a ring of small holes that
+    // slowly widens and settles, about six breaths a minute. Built from
+    // constants here, so the markup has nothing from the page in it.
+    const holes = Array.from({ length: 28 }, (_, i) => {
+      const a = (i / 28) * Math.PI * 2;
+      return `<circle cx="${(50 + Math.cos(a) * 40).toFixed(2)}" cy="${(50 + Math.sin(a) * 40).toFixed(2)}" r="2.1"/>`;
+    }).join("");
+
     return `
       <style>
         :host { all: initial; }
+        /* Without this, .pin-row's display:flex beat its own [hidden] and the
+           PIN field showed before "Enter PIN to continue" was pressed. */
+        [hidden] { display: none !important; }
         .backdrop {
+          --paper: #f2efe7; --ink: #1a1916; --ink-2: #4b4840; --ink-3: #66625a;
+          --rule-strong: rgba(26, 25, 22, 0.26); --wash: rgba(26, 25, 22, 0.05);
+          --sunken: #e8e4d9; --danger: #a63d24;
+          --serif: "Iowan Old Style", "Charter", "Sitka Heading", "Sitka Text", Cambria, Georgia, serif;
+          --sans: "Segoe UI Variable Text", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+          --mono: ui-monospace, "SF Mono", "Cascadia Mono", Menlo, Consolas, monospace;
           position: fixed; inset: 0;
           display: flex; align-items: center; justify-content: center;
+          padding: 24px; box-sizing: border-box;
           /* Opaque enough that what is behind cannot be followed, and a heavy
              blur on top. A user could still watch a partially blurred video
              through the old 0.82/8px, which defeats a pause screen. */
-          background: rgba(8, 12, 24, 0.96);
-          backdrop-filter: blur(28px) saturate(0.6);
-          font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
-          color: #f1f5f9;
-          animation: fade 0.35s ease;
+          background: color-mix(in srgb, var(--paper) 96%, transparent);
+          backdrop-filter: blur(28px) saturate(0.4);
+          font: 15px/1.55 var(--sans);
+          color: var(--ink);
+          -webkit-font-smoothing: antialiased;
+          animation: fade 0.4s cubic-bezier(0.2, 0, 0, 1);
+        }
+        @media (prefers-color-scheme: dark) {
+          .backdrop {
+            --paper: #131311; --ink: #ede9df; --ink-2: #b8b3a7; --ink-3: #8f8a7f;
+            --rule-strong: rgba(237, 233, 223, 0.22); --wash: rgba(237, 233, 223, 0.06);
+            --sunken: #0d0d0b; --danger: #e5866b;
+          }
         }
         .card {
-          max-width: 420px; width: calc(100% - 48px);
-          padding: 36px 32px 28px;
+          width: min(400px, 100%);
           text-align: center;
-          background: #0f172a;
-          border: 1px solid #334155;
-          border-radius: 18px;
-          box-shadow: 0 24px 60px rgba(0, 0, 0, 0.5);
         }
         .breath {
-          width: 64px; height: 64px; margin: 0 auto 22px;
-          border-radius: 50%;
-          background: radial-gradient(circle at 50% 45%, #7dd3fc, #38bdf8 70%);
-          box-shadow: 0 0 40px rgba(56, 189, 248, 0.45);
-          animation: breathe 5s ease-in-out infinite;
+          display: block; width: 96px; height: 96px; margin: 0 auto 32px;
+          fill: var(--ink);
+          animation: breathe 10s cubic-bezier(0.45, 0, 0.55, 1) infinite;
         }
-        h1 { margin: 0 0 10px; font-size: 22px; font-weight: 700; }
-        .msg { margin: 0 0 6px; font-size: 15px; color: #cbd5e1; line-height: 1.5; }
-        .msg strong { color: #f1f5f9; }
-        .sub { margin: 0 0 24px; font-size: 14px; color: #94a3b8; line-height: 1.5; }
-        .actions { display: flex; flex-direction: column; gap: 10px; }
+        .kicker {
+          margin: 0 0 14px;
+          font: 500 11px/1.3 var(--mono); letter-spacing: 0.1em; text-transform: uppercase;
+          color: var(--ink-3);
+        }
+        h1 {
+          margin: 0 0 14px;
+          font: 400 40px/1.05 var(--serif); letter-spacing: -0.02em;
+          color: var(--ink);
+        }
+        .msg { margin: 0 0 6px; font-size: 16px; color: var(--ink-2); }
+        .msg strong { color: var(--ink); font-weight: 600; }
+        .sub { margin: 0 0 28px; font-size: 15px; color: var(--ink-2); }
+        .actions { display: flex; flex-direction: column; gap: 8px; }
         .btn {
-          appearance: none; border: 1px solid #334155;
-          padding: 12px 16px; border-radius: 10px;
-          font-size: 14px; font-weight: 600; cursor: pointer;
-          background: #1e293b; color: #f1f5f9;
-          transition: background 0.15s, border-color 0.15s, transform 0.05s;
+          appearance: none; min-height: 44px; padding: 0 18px;
+          border: 1px solid var(--rule-strong); border-radius: 3px;
+          font: 500 14px/1 var(--sans); cursor: pointer;
+          background: transparent; color: var(--ink);
+          transition: background-color 120ms, border-color 120ms, transform 80ms;
         }
-        .btn:hover { background: #243349; }
+        .btn:hover { border-color: var(--ink); background: var(--wash); }
         .btn:active { transform: translateY(1px); }
-        .btn.primary { background: #38bdf8; border-color: #38bdf8; color: #06283d; }
-        .btn.primary:hover { background: #59c8fb; }
-        .btn.ghost { background: transparent; border-color: transparent; color: #94a3b8; }
-        .btn.ghost:hover { color: #f1f5f9; background: rgba(148, 163, 184, 0.12); }
+        .btn:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
+        .btn.primary { background: var(--ink); border-color: var(--ink); color: var(--paper); }
+        .btn.primary:hover { background: var(--ink-2); border-color: var(--ink-2); }
+        .btn.ghost { border-color: transparent; color: var(--ink-2); }
+        .btn.ghost:hover { color: var(--ink); background: var(--wash); border-color: transparent; }
         .pin-row { display: flex; gap: 8px; }
         .pin-input {
-          flex: 1; min-width: 0; padding: 12px; border-radius: 10px;
-          border: 1px solid #334155; background: #0b1220; color: #f1f5f9;
-          font-size: 15px; text-align: center; letter-spacing: 0.3em;
+          flex: 1; min-width: 0; min-height: 44px; padding: 0 12px; border-radius: 3px;
+          border: 1px solid var(--rule-strong); background: var(--sunken); color: var(--ink);
+          font: 16px/1 var(--sans); text-align: center; letter-spacing: 0.3em;
         }
-        .pin-error { margin: 8px 0 0; font-size: 13px; color: #f87171; min-height: 1em; }
-        .brand { margin: 22px 0 0; font-size: 11px; letter-spacing: 0.04em;
-                 text-transform: uppercase; color: #475569; }
-        @keyframes fade { from { opacity: 0; } to { opacity: 1; } }
+        .pin-input:focus { outline: none; border-color: var(--ink); box-shadow: 0 0 0 1px var(--ink); }
+        .pin-error { margin: 8px 0 0; font-size: 13px; color: var(--danger); min-height: 1em; }
+        @keyframes fade { from { opacity: 0; } }
         @keyframes breathe {
-          0%, 100% { transform: scale(0.78); opacity: 0.7; }
-          50% { transform: scale(1.12); opacity: 1; }
+          0%, 100% { transform: scale(0.8) rotate(0deg); opacity: 0.45; }
+          50% { transform: scale(1) rotate(12deg); opacity: 1; }
         }
         @media (prefers-reduced-motion: reduce) {
           .backdrop, .breath { animation: none; }
         }
       </style>
       <div class="backdrop">
-        <div class="card" role="dialog" aria-modal="true" aria-label="Take a break">
-          <div class="breath" aria-hidden="true"></div>
-          <h1>Time for a breath</h1>
+        <div class="card" role="dialog" aria-modal="true" aria-labelledby="sieve-pause-title">
+          <svg class="breath" viewBox="0 0 100 100" aria-hidden="true">${holes}</svg>
+          <p class="kicker">Sieve &middot; Doomscroll Stopper</p>
+          <h1 id="sieve-pause-title">Time for a breath</h1>
           <p class="msg" id="sieve-msg"></p>
           ${sub}
           ${actions}
-          <p class="brand">Sieve · Doomscroll Stopper</p>
         </div>
       </div>`;
   }
@@ -250,6 +278,9 @@
     });
 
     async function submit() {
+      // A wrong attempt's message should not linger while the right one is
+      // checked (and, with an access code, while the code is being typed).
+      pinError.textContent = "";
       const ok =
         typeof handlers.verifyPin === "function" ? await handlers.verifyPin(pinInput.value) : false;
       if (ok) {

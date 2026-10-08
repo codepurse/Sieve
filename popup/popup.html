@@ -3,120 +3,136 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="color-scheme" content="light dark" />
     <title>Sieve</title>
+    <link rel="stylesheet" href="../common/sieve-ui.css" />
     <link rel="stylesheet" href="popup.css" />
   </head>
   <body>
-    <!-- Header: brand + version -->
     <header class="topbar">
-      <div class="brand">
-        <span class="brand-icon">
-          <img src="../icons/icon-128.png" alt="Sieve" />
+      <span class="brand">
+        <span class="mark" aria-hidden="true">
+          <svg viewBox="0 0 24 24"><defs><mask id="mark-cut"><rect width="24" height="24" fill="#fff"/><path d="M16.3 0.5 7.7 23.5" stroke="#000" stroke-width="1.9"/></mask></defs><path mask="url(#mark-cut)" fill="currentColor" d="M12 2.2 20 5v6.6c0 4.7-3.3 8.5-8 10.2-4.7-1.7-8-5.5-8-10.2V5z"/></svg>
         </span>
-        <span class="brand-name">Sieve</span>
-      </div>
-      <span class="version-badge" id="version">v—</span>
+        <span class="wordmark">Sieve</span>
+      </span>
+      <span class="version" id="version">v—</span>
     </header>
 
-    <!-- Protection summary -->
-    <div class="status" id="status">Loading…</div>
+    <!-- Protection summary: a status light, then the count. Filled in by
+         popup.js → updateStatusBanner(). -->
+    <div class="status" id="status" role="status">
+      <span class="status-light" aria-hidden="true"></span>
+      <span class="status-text">
+        <span class="status-title" id="status-title">Checking…</span>
+        <span class="status-meta" id="status-meta"></span>
+      </span>
+    </div>
 
     <!-- Core modules — quick on/off; detailed settings live on the options page -->
-    <section class="toggle-card" id="modules">
+    <section class="block" id="modules" aria-labelledby="modules-title">
+      <h2 class="block-title kicker" id="modules-title">Filters</h2>
+
       <div class="toggle-row">
         <div class="toggle-info">
-          <span class="toggle-name">Bad Language Filter</span>
-          <span class="toggle-desc">Mask profanity on pages</span>
+          <label class="toggle-name" for="bad-language-toggle">Bad Language Filter</label>
+          <span class="toggle-desc" id="bad-language-desc">Masks profanity on pages</span>
           <span id="bad-language-state" hidden></span>
         </div>
         <label class="switch">
-          <input type="checkbox" id="bad-language-toggle" />
+          <input type="checkbox" id="bad-language-toggle" role="switch" aria-describedby="bad-language-desc" />
           <span class="slider"></span>
         </label>
       </div>
 
       <div class="toggle-row">
         <div class="toggle-info">
-          <span class="toggle-name">Gambling Blocker</span>
-          <span class="toggle-desc">Block gambling &amp; betting sites</span>
+          <label class="toggle-name" for="gambling-toggle">Gambling Blocker</label>
+          <span class="toggle-desc" id="gambling-desc">Blocks gambling &amp; betting sites</span>
           <span id="gambling-state" hidden></span>
         </div>
         <label class="switch">
-          <input type="checkbox" id="gambling-toggle" />
+          <input type="checkbox" id="gambling-toggle" role="switch" aria-describedby="gambling-desc" />
           <span class="slider"></span>
         </label>
       </div>
 
       <div class="toggle-row">
         <div class="toggle-info">
-          <span class="toggle-name">Doomscroll Stopper</span>
-          <span class="toggle-desc">Daily limits on endless feeds</span>
+          <label class="toggle-name" for="doomscroll-toggle">Doomscroll Stopper</label>
+          <span class="toggle-desc" id="doomscroll-desc">Daily limits on endless feeds</span>
           <span id="doomscroll-state" hidden></span>
         </div>
         <label class="switch">
-          <input type="checkbox" id="doomscroll-toggle" />
+          <input type="checkbox" id="doomscroll-toggle" role="switch" aria-describedby="doomscroll-desc" />
           <span class="slider"></span>
         </label>
       </div>
 
       <div class="toggle-row">
         <div class="toggle-info">
-          <span class="toggle-name">Dark Pattern Blocker</span>
+          <label class="toggle-name" for="dark-patterns-toggle">Dark Pattern Blocker</label>
           <span class="toggle-desc" id="dark-patterns-count">No dark patterns on this page</span>
           <span id="dark-patterns-state" hidden></span>
         </div>
         <label class="switch">
-          <input type="checkbox" id="dark-patterns-toggle" />
+          <input type="checkbox" id="dark-patterns-toggle" role="switch" aria-describedby="dark-patterns-count" />
           <span class="slider"></span>
         </label>
       </div>
 
       <div class="toggle-row">
         <div class="toggle-info">
-          <span class="toggle-name">Toxic Comment Hider</span>
+          <label class="toggle-name" for="toxic-hider-toggle">Toxic Comment Hider</label>
           <span class="toggle-desc" id="toxic-hider-count">No comments hidden on this page</span>
           <span id="toxic-hider-state" hidden></span>
         </div>
         <label class="switch">
-          <input type="checkbox" id="toxic-hider-toggle" />
+          <input type="checkbox" id="toxic-hider-toggle" role="switch" aria-describedby="toxic-hider-count" />
           <span class="slider"></span>
         </label>
       </div>
-
     </section>
 
-    <!-- Popup & Click Hijack Blocker — kept here for per-page recovery -->
-    <section class="toggle-card" id="popup-hijack-section">
+    <!-- Popup & Click Hijack Blocker — kept here for per-page recovery, under
+         the name of the site you are on, because that is what it acts on. -->
+    <section class="block" id="popup-hijack-section" aria-labelledby="site-title">
+      <h2 class="block-title kicker" id="site-title">
+        <span>This site</span>
+        <span class="site-host" id="site-host" hidden></span>
+      </h2>
+
       <div class="toggle-row">
         <div class="toggle-info">
-          <span class="toggle-name">Popup &amp; Click Hijack Blocker</span>
+          <label class="toggle-name" for="popup-hijack-toggle">Popup &amp; Click Hijack Blocker</label>
           <span class="toggle-desc" id="popup-hijack-count">No popups blocked on this page</span>
           <span id="popup-hijack-state" hidden></span>
         </div>
         <label class="switch">
-          <input type="checkbox" id="popup-hijack-toggle" />
+          <input type="checkbox" id="popup-hijack-toggle" role="switch" aria-describedby="popup-hijack-count" />
           <span class="slider"></span>
         </label>
       </div>
 
       <label class="ph-allow-site" id="popup-hijack-allow-row">
-        <input type="checkbox" id="popup-hijack-allow-site" />
+        <input type="checkbox" class="check" id="popup-hijack-allow-site" />
         <span id="popup-hijack-allow-label">Allow popups on this site</span>
       </label>
 
       <div class="ph-actions">
-        <button id="popup-hijack-wl-view" class="link-btn">Whitelisted sites</button>
-        <button id="popup-hijack-view" class="link-btn" hidden>View blocked popups</button>
+        <button id="popup-hijack-view" class="link-btn" type="button" hidden>View blocked popups</button>
+        <button id="popup-hijack-wl-view" class="link-btn" type="button">Whitelisted sites</button>
       </div>
-      <div id="popup-hijack-wl-list" class="ph-list" hidden></div>
       <div id="popup-hijack-list" class="ph-list" hidden></div>
+      <div id="popup-hijack-wl-list" class="ph-list" hidden></div>
     </section>
 
-    <!-- Settings -->
-    <button id="open-settings" class="btn btn-primary btn-block">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
-      Open Settings
-    </button>
+    <footer class="foot">
+      <button id="open-settings" class="settings-link" type="button">
+        <span>All settings</span>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+      </button>
+    </footer>
 
     <script src="../common/guardian.js"></script>
     <script src="../common/access-code.js"></script>

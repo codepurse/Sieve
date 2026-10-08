@@ -57,6 +57,10 @@
     // asking for the suggestions in the first place.
     hideSearchSuggestions: "sv-yt-hide-search-suggestions",
     hideNotificationBell: "sv-yt-hide-bell",
+    // The sidebar's own clutter, beside hideExplore above
+    hideSigninPromo: "sv-yt-hide-signin",
+    hideMoreFromYouTube: "sv-yt-hide-more-yt",
+    hideSidebarFooter: "sv-yt-hide-guide-footer",
   };
 
   // broad toggle -> the narrower toggle it makes redundant
@@ -67,7 +71,6 @@
 
   let settings = {};
   let autoplayTimer = null;
-  let autoplayTries = 0;
 
   // --- Classes --------------------------------------------------------------
 
@@ -108,22 +111,34 @@
 
   // --- Autoplay -------------------------------------------------------------
   // This flips YouTube's own autoplay switch — the same click the user would
-  // make, so it also sticks in YouTube's settings. The player arrives well after
-  // document_start, so we retry briefly and then give up rather than polling
-  // forever. Fragile by nature: if YouTube renames the control this quietly
-  // does nothing, which is why it's the one toggle that isn't pure CSS.
+  // make, so it also sticks in YouTube's settings. Fragile by nature: if YouTube
+  // renames the control this quietly does nothing, which is why it's the one
+  // toggle that isn't pure CSS.
+  //
+  // Finding the control is NOT the same as being able to use it. The toggle is
+  // in the DOM a second or two before the player starts listening to it, and a
+  // click in that gap is dropped without a trace; YouTube then redraws the
+  // control from its own state, which is still "on". The first version clicked
+  // once as soon as the control appeared and stopped, so it lost that race every
+  // time — measured October 2026, both of its clicks landed at 1.5–2.2s, neither
+  // was recorded, and every video still ended on the "Up next" countdown.
+  //
+  // So for the first stretch of each video this keeps looking instead of
+  // stopping at the first click: whenever the toggle reads "on", click it. Never
+  // twice within AUTOPLAY_CLICK_GAP_MS, though — the startup read and the
+  // navigation event both start a watch, and two clicks close together would
+  // switch autoplay off and straight back on. Once a click lands YouTube keeps
+  // it (the PREF cookie when signed out, the account setting when signed in), so
+  // later videos usually open with autoplay already off and nothing is clicked.
+
+  const AUTOPLAY_WINDOW_MS = 20000;
+  const AUTOPLAY_TICK_MS = 500;
+  const AUTOPLAY_CLICK_GAP_MS = 1500;
+  let lastAutoplayClick = 0;
 
   function stopAutoplayWatch() {
     if (autoplayTimer) clearTimeout(autoplayTimer);
     autoplayTimer = null;
-    autoplayTries = 0;
-  }
-
-  function flipAutoplayOff() {
-    const btn = document.querySelector(".ytp-autonav-toggle-button");
-    if (!btn) return false;
-    if (btn.getAttribute("aria-checked") === "true") btn.click();
-    return true; // control found — nothing left to wait for
   }
 
   function applyAutoplay() {
@@ -131,14 +146,35 @@
     if (!settings.enabled || !settings.disableAutoplay) return;
     if (!/^\/(watch|shorts)/.test(location.pathname)) return;
 
+    let deadline = Date.now() + AUTOPLAY_WINDOW_MS;
     const tick = () => {
       autoplayTimer = null;
-      if (flipAutoplayOff()) return;
-      if (++autoplayTries > 15) return; // ~15s, then stop looking
-      autoplayTimer = setTimeout(tick, 1000);
+      const now = Date.now();
+      const btn = document.querySelector(".ytp-autonav-toggle-button");
+      if (btn && btn.getAttribute("aria-checked") === "true" && now - lastAutoplayClick >= AUTOPLAY_CLICK_GAP_MS) {
+        lastAutoplayClick = now;
+        btn.click();
+      }
+      // A pre-roll ad holds the video back, so the window starts over once it's
+      // gone rather than running out while the ad plays.
+      if (document.querySelector(".html5-video-player.ad-showing")) deadline = now + AUTOPLAY_WINDOW_MS;
+      if (now < deadline) autoplayTimer = setTimeout(tick, AUTOPLAY_TICK_MS);
     };
     tick();
   }
+
+  // Someone switching autoplay back on by hand gets their way: a real click on
+  // the toggle ends the watch, so the next tick doesn't switch it straight off
+  // again. The next video starts a fresh watch, as the setting says it should.
+  document.addEventListener(
+    "click",
+    (e) => {
+      if (e.isTrusted && typeof e.target.closest === "function" && e.target.closest(".ytp-autonav-toggle")) {
+        stopAutoplayWatch();
+      }
+    },
+    true
+  );
 
   // --- Settings -------------------------------------------------------------
 

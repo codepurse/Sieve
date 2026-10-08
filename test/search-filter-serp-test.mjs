@@ -370,7 +370,7 @@ server.listen(0, "127.0.0.1", async () => {
       eq(r.popUrl, "junk.cyou/spam", `${kase.id}: the panel shows the URL that was matched`);
       eq(r.popPill, "Hidden", `${kase.id}: the verdict is stated as a pill`);
       eq(r.popCount, "1 of 5", `${kase.id}: it says how many of your rules matched`);
-      eq(r.popAccent, "#e05252", `${kase.id}: a hidden result is accented in the hide colour`);
+      eq(r.popAccent, "#c0563b", `${kase.id}: a hidden result is accented in the hide colour`);
       eq(r.closedOnEscape, true, `${kase.id}: Escape closes the popover`);
       eq(r.afterShowMark, "seen", `${kase.id}: "Show on this page" un-hides the result`);
       eq(r.afterShowDisplay !== "none", true, `${kase.id}: the un-hidden result is actually visible`);

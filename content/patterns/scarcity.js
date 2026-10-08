@@ -129,15 +129,18 @@
     const tag = document.createElement("span");
     tag.className = "sieve-unverified-tag";
     tag.textContent = "unverified";
+    // Sieve's neutral stamp: its own colours, so it reads on any page.
     tag.style.cssText = `
       display: inline-block;
       margin-left: 6px;
-      padding: 1px 5px;
-      font-size: 11px;
-      line-height: 1.3;
-      color: #57534e;
-      background: #e7e5e4;
-      border-radius: 4px;
+      padding: 2px 5px;
+      font: 600 10px/1.2 ui-monospace, "SF Mono", "Cascadia Mono", Consolas, monospace;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      color: #4b4840;
+      background: #ece8df;
+      border: 1px solid #8c877c;
+      border-radius: 2px;
       vertical-align: middle;
       white-space: nowrap;
     `;

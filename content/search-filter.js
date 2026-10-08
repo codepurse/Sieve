@@ -34,17 +34,23 @@
   const REVEAL_CLASS = "sv-sf-reveal"; // on <html> while hidden results are shown
   const MARKER_CLASS = "sv-sf-why";    // the per-result "why?" button
   const POPOVER_ID = "sv-sf-pop";      // the panel it opens
-  const BRAND = "#6366f1";             // Sieve indigo, matching --primary
-  const HIDE_COLOR = "#e05252";        // the accent for "this was hidden"
-  // Sieve's shield, kept angular with the brand's diagonal cut. A plain rounded
-  // shield collapses into an unreadable blob at this size; the diagonal is what
-  // still reads at 16px, and it is the distinctive half of the mark anyway.
-  // The cut is painted in the badge colour, so it reads as a gap.
+  // Sieve's ink and paper (common/sieve-ui.css). The marker is the toolbar
+  // icon in miniature — the paper shield on an ink tile — so it is plainly
+  // Sieve's on a light results page and a dark one alike.
+  const INK = "#1a1916";
+  const PAPER = "#f2efe7";
+  const HIDE_COLOR = "#c0563b";        // "this was hidden": Sieve's brick, mid-tone for light and dark pages
+  const NO_COLOR = "#8c877c";          // a rule whose palette colour has since been removed
+  // The shield kept angular, with the mark's diagonal cut, as the 16px toolbar
+  // icon is: a rounded shield collapses into a blob at this size, and the
+  // diagonal is what still reads. The cut is painted in the tile's ink, so it
+  // reads as a gap.
   const SHIELD_SVG =
     '<svg viewBox="0 0 24 24" aria-hidden="true">' +
-    '<path d="M12 1.8l8.2 3.6V12L12 22.2 3.8 12V5.4z" fill="#fff"/>' +
-    '<path d="M15.4 0h2.5L9.1 24H6.6z" fill="' + BRAND + '"/>' +
+    '<path d="M12 1.8l8.2 3.6V12L12 22.2 3.8 12V5.4z" fill="' + PAPER + '"/>' +
+    '<path d="M15.4 0h2.5L9.1 24H6.6z" fill="' + INK + '"/>' +
     "</svg>";
+  const MONO = 'ui-monospace,"SF Mono","Cascadia Mono",Consolas,monospace';
 
   // --- engines ------------------------------------------------------------
   //
@@ -191,9 +197,10 @@
       // results sneaking back in.
       `.${REVEAL_CLASS} [${MARK}="hidden"]{display:block !important;opacity:.45;` +
         `outline:1px dashed rgba(128,128,128,.6);outline-offset:2px}`,
-      `#${NOTICE_ID}{font:14.5px/1.5 system-ui,sans-serif;opacity:.8;padding:9px 0;display:flex;gap:10px;align-items:center}`,
+      `#${NOTICE_ID}{font:14px/1.5 system-ui,sans-serif;opacity:.8;padding:9px 0;display:flex;gap:8px;align-items:center;list-style:none}`,
       `#${NOTICE_ID} button{font:inherit;cursor:pointer;background:none;border:0;padding:0;` +
-        `color:currentColor;text-decoration:underline}`,
+        `color:currentColor;text-decoration:underline;text-underline-offset:3px}`,
+      `#${NOTICE_ID} button::before{content:"·";display:inline-block;margin-right:8px}`,
 
       // The "why?" button. Inline, so it cannot disturb the result's layout,
       // and quiet until hovered — it is an answer waiting to be asked for, not
@@ -206,79 +213,84 @@
       // Google result contains a `position:relative` div covering the whole
       // block, and positioned elements paint — and hit-test — above floats, so
       // a plain float ends up underneath it and swallows every click.
+      //
+      // The light ring keeps the ink tile's edge visible on a dark results page.
       `.${MARKER_CLASS}{float:right;position:relative;z-index:2;` +
         `display:inline-flex;align-items:center;justify-content:center;` +
         `width:24px;height:24px;margin:7px 9px 4px 12px;padding:0;overflow:hidden;` +
-        `cursor:pointer;border-radius:50%;border:0;` +
-        `background:${BRAND};box-shadow:0 0 0 1px rgba(255,255,255,.55),0 1px 3px rgba(0,0,0,.3);` +
-        `transition:transform .12s,box-shadow .12s}`,
-      `.${MARKER_CLASS}:hover,.${MARKER_CLASS}:focus{transform:scale(1.12);` +
-        `box-shadow:0 0 0 1px rgba(255,255,255,.7),0 2px 6px rgba(0,0,0,.42);outline:none}`,
+        `cursor:pointer;border-radius:5px;border:0;` +
+        `background:${INK};box-shadow:0 0 0 1px rgba(255,255,255,.45),0 1px 2px rgba(0,0,0,.25);` +
+        `transition:box-shadow .12s}`,
+      `.${MARKER_CLASS}:hover{box-shadow:0 0 0 1px rgba(255,255,255,.7),0 2px 6px rgba(0,0,0,.35)}`,
+      `.${MARKER_CLASS}:focus-visible{outline:2px solid currentColor;outline-offset:2px}`,
       `.${MARKER_CLASS} svg{width:16px;height:16px;display:block;pointer-events:none}`,
 
-      // Panel colours are stated for both schemes: the results page may be
-      // light or dark, and inheriting would make the text vanish on one of them.
-      // --sv-accent is set per-panel to the colour being explained.
-      `#${POPOVER_ID}{position:absolute;z-index:2147483647;width:382px;` +
-        `max-width:calc(100vw - 16px);border-radius:14px;overflow:hidden;` +
-        `font:14.5px/1.5 system-ui,-apple-system,Segoe UI,Roboto,sans-serif;` +
-        `background:#fff;color:#1f2328;border:1px solid rgba(0,0,0,.14);` +
-        `box-shadow:0 12px 34px rgba(0,0,0,.24);text-align:left;` +
-        `--sv-line:rgba(0,0,0,.09);--sv-soft:rgba(0,0,0,.045);--sv-dim:rgba(31,35,40,.62)}`,
-      `@media (prefers-color-scheme:dark){#${POPOVER_ID}{background:#1f2023;color:#e8eaed;` +
-        `border-color:rgba(255,255,255,.14);box-shadow:0 12px 34px rgba(0,0,0,.6);` +
-        `--sv-line:rgba(255,255,255,.12);--sv-soft:rgba(255,255,255,.06);--sv-dim:rgba(232,234,237,.62)}}`,
+      // Sieve's paper-and-ink panel, stated for both schemes: the results page
+      // may be light or dark, and inheriting would make the text vanish on one
+      // of them. --sv-accent is set per panel to the colour being explained.
+      `#${POPOVER_ID}{position:absolute;z-index:2147483647;width:372px;` +
+        `max-width:calc(100vw - 16px);border-radius:6px;overflow:hidden;text-align:left;` +
+        `font:14px/1.5 "Segoe UI Variable Text",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;` +
+        `--sv-bg:#f9f7f2;--sv-ink:${INK};--sv-dim:#66625a;--sv-line:rgba(26,25,22,.13);--sv-edge:rgba(26,25,22,.26);` +
+        `background:var(--sv-bg);color:var(--sv-ink);` +
+        `box-shadow:0 0 0 1px var(--sv-edge),0 18px 40px -16px rgba(0,0,0,.4)}`,
+      `@media (prefers-color-scheme:dark){#${POPOVER_ID}{--sv-bg:#1b1b18;--sv-ink:#ede9df;--sv-dim:#8f8a7f;` +
+        `--sv-line:rgba(237,233,223,.12);--sv-edge:rgba(237,233,223,.24);` +
+        `box-shadow:0 0 0 1px var(--sv-edge),0 18px 40px -16px rgba(0,0,0,.75)}}`,
+      `#${POPOVER_ID} *{box-sizing:border-box}`,
 
-      // Header, washed in the accent so the verdict registers before reading.
-      `#${POPOVER_ID} .sv-sf-head{display:flex;align-items:center;gap:10px;padding:13px 14px;` +
-        `border-bottom:1px solid var(--sv-line);` +
-        `background:linear-gradient(180deg,color-mix(in srgb,var(--sv-accent) 14%,transparent),transparent)}`,
+      // Header: who is talking (the mark), about what (site in serif, address
+      // in mono), and the verdict as a stamp. The result's own colour runs down
+      // the left edge, the same edge the result itself carries on the page.
+      `#${POPOVER_ID} .sv-sf-head{display:flex;align-items:center;gap:12px;padding:14px 16px;` +
+        `border-bottom:1px solid var(--sv-line);box-shadow:inset 3px 0 0 var(--sv-accent)}`,
       `#${POPOVER_ID} .sv-sf-brand{flex:0 0 auto;display:inline-flex;align-items:center;` +
-        `justify-content:center;width:31px;height:31px;border-radius:50%;background:${BRAND}}`,
-      `#${POPOVER_ID} .sv-sf-brand svg{width:20px;height:20px;display:block}`,
+        `justify-content:center;width:28px;height:28px;border-radius:5px;background:${INK}}`,
+      `#${POPOVER_ID} .sv-sf-brand svg{width:19px;height:19px;display:block}`,
       `#${POPOVER_ID} .sv-sf-titles{flex:1 1 auto;min-width:0}`,
-      `#${POPOVER_ID} .sv-sf-host{font-weight:650;font-size:16px;line-height:1.3;` +
+      `#${POPOVER_ID} .sv-sf-host{font:400 18px/1.25 "Iowan Old Style",Charter,"Sitka Heading",Cambria,Georgia,serif;` +
+        `letter-spacing:-.01em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}`,
+      `#${POPOVER_ID} .sv-sf-url{font:12px/1.45 ${MONO};color:var(--sv-dim);` +
         `white-space:nowrap;overflow:hidden;text-overflow:ellipsis}`,
-      `#${POPOVER_ID} .sv-sf-url{font-size:13px;color:var(--sv-dim);` +
-        `white-space:nowrap;overflow:hidden;text-overflow:ellipsis}`,
-      `#${POPOVER_ID} .sv-sf-pill{flex:0 0 auto;font-size:12.5px;font-weight:650;` +
-        `letter-spacing:.02em;padding:5px 11px;border-radius:999px;color:#fff;` +
-        `background:var(--sv-accent);white-space:nowrap}`,
+      `#${POPOVER_ID} .sv-sf-pill{flex:0 0 auto;display:inline-flex;align-items:center;gap:6px;height:22px;` +
+        `padding:0 7px;font:600 10.5px/1 ${MONO};letter-spacing:.08em;text-transform:uppercase;` +
+        `border:1px solid var(--sv-edge);border-radius:2px;white-space:nowrap}`,
+      `#${POPOVER_ID} .sv-sf-pill::before{content:"";width:8px;height:8px;border-radius:1px;background:var(--sv-accent)}`,
 
       `#${POPOVER_ID} .sv-sf-heading{display:flex;justify-content:space-between;align-items:baseline;` +
-        `padding:12px 15px 7px;font-weight:650;font-size:12px;text-transform:uppercase;` +
-        `letter-spacing:.06em;color:var(--sv-dim)}`,
-      `#${POPOVER_ID} .sv-sf-count{font-weight:500;letter-spacing:0;text-transform:none;font-size:12.5px}`,
+        `padding:14px 16px 8px;font:500 10.5px/1.3 ${MONO};text-transform:uppercase;` +
+        `letter-spacing:.08em;color:var(--sv-dim)}`,
+      `#${POPOVER_ID} .sv-sf-count{letter-spacing:0;text-transform:none;font-size:11.5px}`,
 
-      // One card per rule; the deciding one is marked down its left edge.
-      `#${POPOVER_ID} .sv-sf-rules{list-style:none;margin:0;padding:0 15px;display:flex;` +
-        `flex-direction:column;gap:7px}`,
-      `#${POPOVER_ID} .sv-sf-rules li{padding:9px 11px;border-radius:10px;background:var(--sv-soft);` +
-        `border:1px solid var(--sv-line)}`,
-      `#${POPOVER_ID} .sv-sf-rules li.is-winner{border-color:color-mix(in srgb,var(--sv-accent) 55%,transparent);` +
-        `box-shadow:inset 3px 0 0 var(--sv-accent)}`,
-      `#${POPOVER_ID} .sv-sf-rule-top{display:flex;align-items:center;gap:7px}`,
-      `#${POPOVER_ID} .sv-sf-dot{flex:0 0 auto;width:11px;height:11px;border-radius:3px;` +
+      // One line per rule, between hairlines; the deciding one is marked down
+      // its left edge.
+      `#${POPOVER_ID} .sv-sf-rules{list-style:none;margin:0 16px;padding:0;border-top:1px solid var(--sv-line)}`,
+      `#${POPOVER_ID} .sv-sf-rules li{margin:0;padding:10px 0;border-bottom:1px solid var(--sv-line)}`,
+      `#${POPOVER_ID} .sv-sf-rules li.is-winner{padding-left:10px;box-shadow:inset 2px 0 0 var(--sv-accent)}`,
+      `#${POPOVER_ID} .sv-sf-rule-top{display:flex;align-items:center;gap:8px}`,
+      `#${POPOVER_ID} .sv-sf-dot{flex:0 0 auto;width:10px;height:10px;border-radius:2px;` +
         `box-shadow:0 0 0 1px var(--sv-line)}`,
       // A hide has no palette colour of its own, so it gets a struck-through
       // swatch rather than an empty square that reads as a missing value.
       `#${POPOVER_ID} .sv-sf-dot.is-hide{background:transparent;position:relative}`,
       `#${POPOVER_ID} .sv-sf-dot.is-hide::after{content:"";position:absolute;inset:0;` +
         `background:linear-gradient(to bottom right,transparent 42%,${HIDE_COLOR} 42%,${HIDE_COLOR} 58%,transparent 58%)}`,
-      `#${POPOVER_ID} code{flex:1 1 auto;min-width:0;font:13.5px/1.45 ui-monospace,Menlo,Consolas,monospace;` +
-        `word-break:break-all}`,
-      `#${POPOVER_ID} .sv-sf-won{flex:0 0 auto;font-size:11px;font-weight:700;text-transform:uppercase;` +
-        `letter-spacing:.05em;padding:3px 8px;border-radius:999px;color:#fff;background:var(--sv-accent)}`,
-      `#${POPOVER_ID} .sv-sf-effect{margin-top:4px;padding-left:18px;font-size:13px;color:var(--sv-dim)}`,
+      `#${POPOVER_ID} code{flex:1 1 auto;min-width:0;font:13px/1.45 ${MONO};` +
+        `background:none;padding:0;color:inherit;word-break:break-all}`,
+      `#${POPOVER_ID} .sv-sf-won{flex:0 0 auto;font:600 10px/1 ${MONO};letter-spacing:.08em;text-transform:uppercase;` +
+        `padding:4px 6px;border:1px solid var(--sv-accent);border-radius:2px}`,
+      `#${POPOVER_ID} .sv-sf-effect{margin-top:3px;padding-left:18px;font-size:12.5px;color:var(--sv-dim)}`,
 
-      `#${POPOVER_ID} .sv-sf-actions{display:flex;gap:9px;padding:14px 15px;margin-top:13px;` +
-        `border-top:1px solid var(--sv-line);background:var(--sv-soft)}`,
-      `#${POPOVER_ID} button{font:inherit;font-size:14px;cursor:pointer;padding:8px 14px;` +
-        `border-radius:8px;border:1px solid var(--sv-line);background:transparent;color:inherit;` +
-        `transition:background .12s,border-color .12s}`,
-      `#${POPOVER_ID} button:hover{background:rgba(128,128,128,.16)}`,
-      `#${POPOVER_ID} .sv-sf-primary{border-color:transparent;background:${BRAND};color:#fff;font-weight:600}`,
-      `#${POPOVER_ID} .sv-sf-primary:hover{background:#5457e0}`,
+      `#${POPOVER_ID} .sv-sf-actions{display:flex;gap:8px;padding:14px 16px;margin-top:14px;` +
+        `border-top:1px solid var(--sv-line)}`,
+      `#${POPOVER_ID} button{font:inherit;font-size:13px;font-weight:500;cursor:pointer;min-height:34px;padding:0 14px;` +
+        `border-radius:3px;border:1px solid var(--sv-edge);background:transparent;color:inherit;` +
+        `transition:border-color .12s,opacity .12s}`,
+      `#${POPOVER_ID} button:hover{border-color:var(--sv-ink)}`,
+      `#${POPOVER_ID} button:focus-visible{outline:2px solid var(--sv-ink);outline-offset:2px}`,
+      // Primary is ink on paper (paper on ink in dark) — never a colour.
+      `#${POPOVER_ID} .sv-sf-primary{border-color:var(--sv-ink);background:var(--sv-ink);color:var(--sv-bg)}`,
+      `#${POPOVER_ID} .sv-sf-primary:hover{opacity:.86}`,
     ];
     palette.forEach((color, i) => {
       // Each colour is used twice: a faint wash behind the result, and the full
@@ -289,7 +301,7 @@
       const wash = tint(color, 0.16) || color;
       rules.push(
         `[${MARK}="c${i + 1}"]{background-color:${wash} !important;` +
-          `box-shadow:inset 3px 0 0 ${color};border-radius:8px;` +
+          `box-shadow:inset 3px 0 0 ${color};border-radius:3px;` +
           `padding-left:10px;margin-left:-10px}`
       );
     });
@@ -455,7 +467,7 @@
     const dot = document.createElement("span");
     dot.className = "sv-sf-dot";
     if (rule.color === window.SieveSearchFilter.HIDE) dot.classList.add("is-hide");
-    else dot.style.background = palette[rule.color - 1] || BRAND;
+    else dot.style.background = palette[rule.color - 1] || NO_COLOR;
     return dot;
   }
 
@@ -496,7 +508,7 @@
     popover.setAttribute("aria-label", "Why Sieve changed this result");
     // The panel is tinted by the very colour it is explaining, so the answer is
     // legible before a word of it is read.
-    const accentColor = hidden ? HIDE_COLOR : palette[verdict.color - 1] || BRAND;
+    const accentColor = hidden ? HIDE_COLOR : palette[verdict.color - 1] || NO_COLOR;
     popover.style.setProperty("--sv-accent", accentColor);
 
     // --- header: who is talking, about what, and what happened --------------

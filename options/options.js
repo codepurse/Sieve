@@ -458,6 +458,13 @@ function setupCheckbox(id, storageKey, currentValue, actionName) {
 // because it references DARK_PATTERN_TYPES, which is declared further down.
 function optionsDefaults() {
   const d = {
+    // Module master switches — the same keys and defaults the toolbar popup
+    // uses (popup/popup.js), so the two surfaces always agree.
+    badLanguageEnabled: true,
+    gamblingEnabled: true,
+    toxicHiderEnabled: true,
+    doomscrollEnabled: false,
+    popupHijackEnabled: false,
     // Bad Language Filter
     replacementStyle: "blanks",
     familySafe: false,
@@ -496,6 +503,9 @@ function optionsDefaults() {
     ssAdTrackerEnabled: false,
     ssAdNetworkEnabled: false,
     ssYouTubeAdsEnabled: false,
+    // Set by content/youtube-ads-bridge.js while YouTube's video ads are being
+    // fast-forwarded instead of removed: { since, until, reason }.
+    ssYouTubeAdsFallback: null,
     ssFacebookAdsEnabled: false,
     ssAntiAdblockEnabled: false,
     ssAdSlotCollapseEnabled: false,
@@ -529,8 +539,6 @@ function optionsDefaults() {
     // Dark Pattern Blocker — master + cookie-autoreject tally (per-type keys added below)
     darkPatternsEnabled: true,
     cookieAutoRejectStats: null,
-    // Protection Dashboard — remember whether the breakdown is expanded
-    dashboardExpanded: false,
     // Usage Insights — opt-in screen-time tracking, and how long to keep it
     usageEnabled: false,
     usageRetentionDays: 30,
@@ -569,7 +577,9 @@ document.addEventListener("DOMContentLoaded", async () => {
     // Reveal the page no matter what — never leave the veil stuck. State above was
     // applied with transitions disabled (preload), so nothing visibly flips on.
     requestAnimationFrame(() => document.documentElement.classList.remove("preload"));
-    setupNav(); // sidebar smooth-scroll + scroll-spy highlight
+    enhanceSwitchRows(); // name every switch by its row, and make the row clickable
+    const nav = setupNav(); // one section per view, routed by the URL hash
+    setupFinder(nav); // "Find a setting" across every section
     // How long the load actually took — if it's still slow, the `read` figure
     // tells us whether chrome.storage.local is the bottleneck.
     console.debug(`[Sieve] options ready in ${Math.round(performance.now() - startedAt)}ms (settings read ${readMs}ms).`);
@@ -581,6 +591,9 @@ document.addEventListener("DOMContentLoaded", async () => {
 // storage round-trips — so this runs synchronously except for the Doomscroll
 // site list, which comes from a small bundled JSON file.
 async function applyStoredSettings(store) {
+  // Each module's own on/off switch — until now only in the toolbar popup.
+  setupModuleMasters(store);
+
   // Bad Language Filter
   setupRadioGroup("replacementStyle", "replacementStyle", store.replacementStyle);
   setupCheckbox("family-safe", "familySafe", store.familySafe, "Turn off Family-Safe mode");
@@ -683,44 +696,401 @@ async function applyStoredSettings(store) {
 }
 
 // ===========================================================================
-// Sidebar navigation — smooth scroll to a section and highlight the link for
-// whichever section is currently in view. (Inline page scripts are blocked by
-// the extension CSP, so this lives here rather than in options.html.)
+// Navigation — one section per view.
+//
+// The page used to be a single scroll of eleven sections, over a thousand
+// lines long, with a scroll-spy keeping the sidebar in step. Now each section
+// is its own view and the URL hash says which: #section-blocking opens Site
+// blocking, and a hash that names something INSIDE a section (#allowlist)
+// opens that section and brings the thing into view. So every in-page link,
+// the back button and a bookmarked URL all work with no extra wiring.
+// (Inline page scripts are blocked by the extension CSP, so this lives here.)
 // ===========================================================================
 
 function setupNav() {
+  const main = document.getElementById("main");
+  const sections = Array.from(document.querySelectorAll("main > .section"));
   const links = Array.from(document.querySelectorAll(".nav-link[data-target]"));
-  if (!links.length) return;
+  if (!sections.length) return null;
 
-  const byId = {};
-  links.forEach((link) => {
-    byId[link.dataset.target] = link;
-    link.addEventListener("click", (e) => {
-      e.preventDefault();
-      const section = document.getElementById(link.dataset.target);
-      if (section) section.scrollIntoView({ behavior: "smooth", block: "start" });
-    });
-  });
+  const baseTitle = document.title;
+  const strip = window.matchMedia("(max-width: 880px)");
+  let current = null;
+  let linkFrom = null; // the section an in-page link was followed from
 
-  const sections = links
-    .map((link) => document.getElementById(link.dataset.target))
-    .filter(Boolean);
+  const sectionFor = (el) => (el ? (el.classList.contains("section") ? el : el.closest(".section")) : null);
 
-  if ("IntersectionObserver" in window) {
-    const observer = new IntersectionObserver(
-      (entries) => {
-        entries.forEach((entry) => {
-          if (!entry.isIntersecting) return;
-          links.forEach((l) => l.classList.remove("active"));
-          if (byId[entry.target.id]) byId[entry.target.id].classList.add("active");
-        });
-      },
-      { rootMargin: "-15% 0px -75% 0px", threshold: 0 }
-    );
-    sections.forEach((s) => observer.observe(s));
+  // A brief mark on whatever a link or the finder brought you to.
+  function locate(el) {
+    el.classList.remove("is-located");
+    void el.offsetWidth; // restart the animation if it is already running
+    el.classList.add("is-located");
+    setTimeout(() => el.classList.remove("is-located"), 1900);
   }
 
-  links[0].classList.add("active");
+  function focusQuietly(el) {
+    if (!el) return;
+    if (!el.hasAttribute("tabindex")) el.setAttribute("tabindex", "-1");
+    el.focus({ preventScroll: true });
+  }
+
+  function show(section, target) {
+    // Where the reader is coming from. Following a "#…" link resets focus to
+    // the body before hashchange fires, so the click handler below records
+    // the link's section; anything else still focused is read here, before it
+    // is hidden and loses focus too.
+    const focusedBefore = document.activeElement;
+    const leavingFrom =
+      linkFrom || (focusedBefore && focusedBefore !== document.body ? focusedBefore.closest(".section") : null);
+    linkFrom = null;
+    if (section !== current) {
+      for (const s of sections) s.hidden = s !== section;
+      current = section;
+      for (const link of links) {
+        const on = link.dataset.target === section.id;
+        link.classList.toggle("active", on);
+        if (on) link.setAttribute("aria-current", "page");
+        else link.removeAttribute("aria-current");
+      }
+      const heading = section.querySelector(".section-title");
+      document.title = heading ? `${heading.textContent.trim()} — Sieve` : baseTitle;
+      window.scrollTo(0, 0);
+      // On a narrow window the index is a scrolling strip; keep the current
+      // tab in view rather than leaving it scrolled off to one side.
+      const active = links.find((l) => l.classList.contains("active"));
+      if (active && strip.matches) active.scrollIntoView({ block: "nearest", inline: "center" });
+    }
+
+    if (target && target !== section) {
+      // Anything inside a closed disclosure has to be opened to be seen.
+      for (let n = target.parentElement; n && n !== section; n = n.parentElement) {
+        if (n.tagName === "DETAILS") n.open = true;
+      }
+      requestAnimationFrame(() => {
+        target.scrollIntoView({ block: "center" });
+        locate(target);
+      });
+    } else if (target === section) {
+      window.scrollTo(0, 0);
+    }
+
+    // A link inside a section that just closed would leave focus nowhere;
+    // put it where the reader now is. (On first load nothing is focused and
+    // nothing should be — the page simply opens.)
+    if (leavingFrom && leavingFrom !== section) {
+      focusQuietly(target && target !== section ? target : section.querySelector(".section-title") || main);
+    }
+  }
+
+  function route() {
+    let target = null;
+    try {
+      const id = decodeURIComponent(location.hash.slice(1));
+      target = id ? document.getElementById(id) : null;
+    } catch (_) {
+      target = null; // a malformed hash just opens the first section
+    }
+    const section = sectionFor(target) || sections[0];
+    show(section, sectionFor(target) ? target : null);
+  }
+
+  window.addEventListener("hashchange", route);
+
+  // Following a link to where you already are does not change the hash, so no
+  // hashchange fires; route it by hand so it still scrolls and marks.
+  document.addEventListener("click", (e) => {
+    const a = e.target.closest && e.target.closest('a[href^="#"]');
+    if (!a) return;
+    linkFrom = a.closest(".section"); // null for the sidebar, which stays put
+    if (a.getAttribute("href") !== location.hash || !location.hash) return;
+    e.preventDefault();
+    route();
+  });
+
+  route();
+
+  return {
+    // Open the section an element lives in and bring the element into view.
+    // Pushes a history entry, so Back returns to where the reader was.
+    goTo(el) {
+      const section = sectionFor(el);
+      if (!section) return;
+      if (location.hash !== `#${section.id}`) history.pushState(null, "", `#${section.id}`);
+      show(section, el === section ? null : el);
+      focusQuietly(
+        el === section
+          ? section.querySelector(".section-title")
+          : el.querySelector(".switch input, input, select, button") || el
+      );
+    },
+  };
+}
+
+// ===========================================================================
+// Find a setting — an index over every switch, list and group on every
+// section, so with one section on screen at a time a setting is still one
+// keystroke away. Descriptions are searched too: "tinder" finds "Block dating
+// sites" because its description names it. Press / anywhere to start.
+// ===========================================================================
+
+// The text an element carries itself, without its children's (a group title
+// without its BETA stamp).
+function ownText(el) {
+  if (!el) return "";
+  let text = "";
+  for (const node of el.childNodes) if (node.nodeType === Node.TEXT_NODE) text += node.textContent;
+  return text.replace(/\s+/g, " ").trim();
+}
+
+function setupFinder(nav) {
+  const input = document.getElementById("finder-input");
+  const list = document.getElementById("finder-results");
+  if (!input || !list || !nav) return;
+
+  const MAX_RESULTS = 8;
+  let results = [];
+  let active = -1;
+
+  // Built on every search rather than once, so rows added later (a custom
+  // doomscroll site, a list that loaded late) are always included.
+  function index() {
+    const items = [];
+    let order = 0;
+    for (const section of document.querySelectorAll("main > .section")) {
+      const sectionName = (section.querySelector(".section-title") || {}).textContent || "";
+      items.push({ el: section, label: sectionName.trim(), text: sectionName, where: "Section", kind: 0, order: order++ });
+      for (const group of section.querySelectorAll(".group")) {
+        const groupName = ownText(group.querySelector(".group-title"));
+        const groupDesc = (group.querySelector(".group-desc") || {}).textContent || "";
+        const where = `${sectionName.trim()} · ${groupName}`;
+        items.push({ el: group, label: groupName, text: `${groupName} ${groupDesc}`, where: sectionName.trim(), kind: 1, order: order++ });
+        for (const row of group.querySelectorAll(".switch-row")) {
+          const label = (row.querySelector(".label") || {}).textContent || "";
+          const desc = Array.from(row.querySelectorAll(".description")).map((d) => d.textContent).join(" ");
+          items.push({ el: row, label: label.trim(), text: `${label} ${desc}`, where, kind: 2, order: order++ });
+        }
+        for (const title of group.querySelectorAll(".field-title")) {
+          const field = title.closest(".field");
+          if (!field || field.querySelector(".switch-row")) continue; // its rows are indexed already
+          items.push({ el: field, label: title.textContent.trim(), text: title.textContent, where, kind: 2, order: order++ });
+        }
+        for (const site of group.querySelectorAll(".ds-site")) {
+          const name = (site.querySelector(".ds-site-name") || {}).textContent || "";
+          items.push({ el: site, label: `${name.trim()} daily limit`, text: `${name} limit doomscroll`, where, kind: 2, order: order++ });
+        }
+      }
+    }
+    return items;
+  }
+
+  // Hidden for a reason other than "not the current section" — a panel that is
+  // closed because its parent switch is off. Pointing at it would go nowhere.
+  function isReachable(el) {
+    for (let n = el; n && n.id !== "main"; n = n.parentElement) {
+      if (n.hidden && !n.classList.contains("section")) return false;
+    }
+    return true;
+  }
+
+  function search(query) {
+    const q = query.trim().toLowerCase();
+    if (!q) return [];
+    const words = q.split(/\s+/);
+    const scored = [];
+    for (const item of index()) {
+      if (!item.label) continue;
+      const label = item.label.toLowerCase();
+      const text = `${label} ${item.text.toLowerCase()}`;
+      if (!words.every((w) => text.includes(w))) continue;
+      if (!isReachable(item.el)) continue;
+      const score = (label.startsWith(q) ? 0 : label.includes(q) ? 1 : 2) * 3 + item.kind;
+      scored.push({ ...item, score });
+    }
+    scored.sort((a, b) => a.score - b.score || a.order - b.order);
+    // The same element can match as a row and as its group; keep one.
+    const seen = new Set();
+    return scored.filter((r) => (seen.has(r.el) ? false : seen.add(r.el))).slice(0, MAX_RESULTS);
+  }
+
+  // The label with the query marked, built from text nodes — never markup.
+  function highlighted(label, query) {
+    const span = svEl("span", "finder-result-label");
+    const q = query.trim().toLowerCase();
+    const at = q ? label.toLowerCase().indexOf(q) : -1;
+    if (at < 0) {
+      span.textContent = label;
+      return span;
+    }
+    span.append(label.slice(0, at), svEl("mark", "", label.slice(at, at + q.length)), label.slice(at + q.length));
+    return span;
+  }
+
+  function setActive(i) {
+    active = i;
+    Array.from(list.children).forEach((li, j) => li.setAttribute("aria-selected", String(j === i)));
+    const li = list.children[i];
+    if (li && li.id) {
+      input.setAttribute("aria-activedescendant", li.id);
+      li.scrollIntoView({ block: "nearest" });
+    } else {
+      input.removeAttribute("aria-activedescendant");
+    }
+  }
+
+  function close() {
+    list.hidden = true;
+    list.textContent = "";
+    results = [];
+    active = -1;
+    input.setAttribute("aria-expanded", "false");
+    input.removeAttribute("aria-activedescendant");
+  }
+
+  function render() {
+    const query = input.value;
+    if (!query.trim()) return close();
+    results = search(query);
+    list.textContent = "";
+    if (!results.length) {
+      const empty = svEl("li", "finder-empty", `Nothing matches “${query.trim()}”.`);
+      empty.setAttribute("role", "presentation");
+      list.append(empty);
+    }
+    results.forEach((r, i) => {
+      const li = svEl("li", "finder-result");
+      li.id = `finder-opt-${i}`;
+      li.setAttribute("role", "option");
+      li.append(highlighted(r.label, query), svEl("span", "finder-result-where", r.where));
+      li.addEventListener("mousedown", (e) => e.preventDefault()); // keep focus in the box
+      li.addEventListener("click", () => choose(i));
+      li.addEventListener("mousemove", () => active !== i && setActive(i));
+      list.append(li);
+    });
+    list.hidden = false;
+    input.setAttribute("aria-expanded", "true");
+    setActive(results.length ? 0 : -1);
+  }
+
+  function choose(i) {
+    const r = results[i];
+    if (!r) return;
+    input.value = "";
+    close();
+    nav.goTo(r.el);
+  }
+
+  input.addEventListener("input", render);
+  input.addEventListener("focus", () => input.value.trim() && render());
+  input.addEventListener("blur", () => setTimeout(close, 120));
+  input.addEventListener("keydown", (e) => {
+    if (e.key === "ArrowDown" && results.length) {
+      e.preventDefault();
+      setActive((active + 1) % results.length);
+    } else if (e.key === "ArrowUp" && results.length) {
+      e.preventDefault();
+      setActive((active - 1 + results.length) % results.length);
+    } else if (e.key === "Enter") {
+      e.preventDefault();
+      choose(active < 0 ? 0 : active);
+    } else if (e.key === "Escape") {
+      if (input.value) {
+        input.value = "";
+        close();
+      } else {
+        input.blur();
+      }
+    }
+  });
+
+  // "/" starts a search from anywhere that is not already taking text.
+  document.addEventListener("keydown", (e) => {
+    if (e.key !== "/" || e.ctrlKey || e.metaKey || e.altKey) return;
+    const t = e.target;
+    if (t && (t.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName))) return;
+    e.preventDefault();
+    input.focus();
+    input.select();
+  });
+}
+
+// ===========================================================================
+// Switch rows — name each switch by its row.
+//
+// A row is a label and a description beside a switch, but the checkbox inside
+// the switch had no text of its own, so a screen reader announced every one
+// of the sixty-odd switches on this page as just "checkbox". This gives each
+// one its row's label as its name and the description as its description,
+// marks it as a switch, and makes the label text a hit target too — a larger
+// one than the switch itself. Run once after every row (including the ones
+// options.js builds) is on the page; rows already done are skipped.
+// ===========================================================================
+
+let switchRowSeq = 0;
+
+function enhanceSwitchRows(root = document) {
+  for (const row of root.querySelectorAll(".switch-row")) {
+    if (row.dataset.enhanced) continue;
+    const input = row.querySelector(".switch input");
+    const labelBox = row.querySelector(".switch-label");
+    const label = labelBox && labelBox.querySelector(".label");
+    if (!input || !label) continue;
+    row.dataset.enhanced = "1";
+
+    const seq = ++switchRowSeq;
+    if (!label.id) label.id = `switch-label-${seq}`;
+    input.setAttribute("aria-labelledby", label.id);
+    input.setAttribute("role", "switch");
+
+    const described = Array.from(labelBox.querySelectorAll(".description, .meta")).map((d, i) => {
+      if (!d.id) d.id = `switch-desc-${seq}-${i}`;
+      return d.id;
+    });
+    if (described.length) input.setAttribute("aria-describedby", described.join(" "));
+
+    labelBox.classList.add("is-clickable");
+    labelBox.addEventListener("click", (e) => {
+      if (e.target.closest("a, button, input, select, textarea")) return;
+      if (input.disabled) return;
+      input.click(); // fires change, so the Guardian gate runs exactly as for the switch
+    });
+  }
+}
+
+// ===========================================================================
+// Module master switches. Five modules — Bad Language, Gambling, Toxic
+// Comments, Doomscroll, Popup Hijack — could only be switched on or off from
+// the toolbar popup, so their sections here showed settings with no way to
+// tell whether the module was running at all. Same key, same message, same
+// Guardian gate as the popup, and each follows the other live.
+// ===========================================================================
+
+const MODULE_MASTERS = [
+  { id: "gambling-master-toggle", key: "gamblingEnabled", name: "the Gambling Blocker" },
+  { id: "bad-language-master-toggle", key: "badLanguageEnabled", name: "the Bad Language Filter" },
+  { id: "toxic-hider-master-toggle", key: "toxicHiderEnabled", name: "the Toxic Comment Hider" },
+  { id: "doomscroll-master-toggle", key: "doomscrollEnabled", name: "the Doomscroll Stopper" },
+  { id: "popup-hijack-master-toggle", key: "popupHijackEnabled", name: "the Popup & Click Hijack Blocker" },
+];
+
+function setupModuleMasters(store) {
+  const byKey = {};
+  for (const m of MODULE_MASTERS) {
+    const el = document.getElementById(m.id);
+    if (!el) continue;
+    byKey[m.key] = el;
+    el.checked = !!store[m.key];
+    el.addEventListener("change", async () => {
+      if (!(await SieveGuardian.gateToggleOff(el, `Turn off ${m.name}`))) return;
+      chrome.runtime.sendMessage({ type: SET_MODULE_STATE, key: m.key, enabled: el.checked });
+    });
+  }
+  // The popup can change these while this page is open.
+  chrome.storage.onChanged.addListener((changes, area) => {
+    if (area !== "local") return;
+    for (const key of Object.keys(byKey)) {
+      if (changes[key]) byKey[key].checked = !!changes[key].newValue;
+    }
+  });
 }
 
 // ===========================================================================
@@ -792,10 +1162,18 @@ const SITE_CLEANUP_SITES = [
           { key: "hideHome", label: "Hide home feed", desc: "Empties the home page — search and subscriptions still work" },
           { key: "hideShorts", label: "Hide Shorts", desc: "Removes Shorts shelves and the sidebar entry; a Shorts link opens in the normal player instead of the swipe feed" },
           { key: "hideSubscriptions", label: "Hide Subscriptions", desc: "Empties the Subscriptions feed and removes its sidebar entry" },
-          { key: "hideExplore", label: "Hide Explore", desc: "Removes Trending, Music, Movies and Gaming from the sidebar" },
           { key: "hideMixes", label: "Hide mixes & radio playlists", desc: "Drops the auto-generated endless playlists from results and recommendations" },
           { key: "hideSearchExtras", label: "Hide search filler", desc: "Removes “People also search for” and “Related to your search” from results" },
           { key: "hideSearchSuggestions", label: "Hide search suggestions", desc: "Drops the dropdown under the search box, and stops YouTube being asked for it — nothing you type is sent off to have a list built from your history. Typing and searching work as normal" },
+        ],
+      },
+      {
+        title: "Sidebar",
+        items: [
+          { key: "hideExplore", label: "Hide Explore", desc: "Removes the Explore section — Music, Movies, Gaming, News, Sports and the rest" },
+          { key: "hideSigninPromo", label: "Hide the sign-in prompt", desc: "Removes the “Sign in to like videos, comment, and subscribe” box you see when signed out. The Sign in button in the top bar stays" },
+          { key: "hideMoreFromYouTube", label: "Hide “More from YouTube”", desc: "Removes the links to YouTube Premium, Music, Kids and Studio" },
+          { key: "hideSidebarFooter", label: "Hide the sidebar footer", desc: "Removes the About, Press, Copyright, Terms and Privacy links at the bottom" },
         ],
       },
       {
@@ -813,7 +1191,7 @@ const SITE_CLEANUP_SITES = [
       {
         title: "In the player",
         items: [
-          { key: "disableEndCards", label: "Hide end cards", desc: "Removes the video suggestions laid over the end of a video" },
+          { key: "disableEndCards", label: "Hide end cards", desc: "Removes the video suggestions laid over the last seconds of a video, and the wall of them once it ends. The “Up next” countdown belongs to autoplay — turn that off below" },
           { key: "hideInfoCards", label: "Hide info cards", desc: "Removes the “i” teaser and its pop-out panel during playback" },
           { key: "disableAutoplay", label: "Turn off autoplay", desc: "Flips YouTube's own autoplay switch off when a video opens. Depends on YouTube's player controls, so it's the one setting here that can break when YouTube changes" },
         ],
@@ -869,6 +1247,7 @@ function setupSiteCleanup(store) {
     // Master switch.
     const masterField = svEl("div", "field");
     const master = scRow(site.masterLabel, site.masterDesc);
+    master.row.classList.add("is-master");
     masterField.append(master.row);
     host.append(masterField);
     master.input.checked = !!settings.enabled;
@@ -876,7 +1255,7 @@ function setupSiteCleanup(store) {
     // Grouped sub-switches.
     for (const group of site.groups) {
       const field = svEl("div", "field sc-group");
-      field.append(svEl("h3", "", group.title));
+      field.append(svEl("h3", "field-title", group.title));
       for (const item of group.items) {
         const { row, input } = scRow(item.label, item.desc);
         input.checked = !!settings[item.key];
@@ -1365,6 +1744,8 @@ function setupAdTrackerBlocker(store) {
   const countNote = document.getElementById("ad-tracker-count-note");
   if (countNote && IS_FIREFOX) countNote.hidden = false;
 
+  showYouTubeFallback(store.ssYouTubeAdsFallback);
+
   // Its own switch, its own key, and the Guardian gate on the way down like
   // every other protection toggle. Nothing about it is wired to the master
   // switch above.
@@ -1374,6 +1755,32 @@ function setupAdTrackerBlocker(store) {
     store.ssFloatVideoEnabled,
     "Turn off floating-video un-sticking"
   );
+}
+
+// While YouTube's video ads are being fast-forwarded rather than removed, say
+// so and say why. YouTube refused to play, and refused every other way of
+// asking for the video too, so removing ads any longer would only keep videos
+// from playing. A muted ad racing by at 16x otherwise looks exactly like a
+// blocker that broke.
+// (The switch itself happens inside the page; see STRATEGY in
+// content/youtube-ads.js. This only reports it.)
+function showYouTubeFallback(fb) {
+  const note = document.getElementById("yt-ads-fallback-note");
+  if (!note) return;
+  note.textContent = "";
+  note.hidden = true;
+  if (!fb || typeof fb.until !== "number" || fb.until <= Date.now()) return;
+
+  const day = (ms) => new Date(ms).toLocaleDateString(undefined, { month: "long", day: "numeric" });
+  const what =
+    fb.reason === "block"
+      ? `YouTube stopped playing videos on ${day(fb.since)} because it detected the ad blocker, and refused every other way Sieve asked for them.`
+      : `YouTube warned about the ad blocker on ${day(fb.since)}.`;
+  note.append(
+    svEl("strong", "", what + " "),
+    `So until ${day(fb.until)}, Sieve lets YouTube's video ads load and fast-forwards them — muted, at 16× — instead of removing them, which keeps your videos playing. After that it goes back to removing them. Ads in your feed and search results are still removed throughout.`
+  );
+  note.hidden = false;
 }
 
 // ===========================================================================
@@ -1581,16 +1988,18 @@ function dsClampInt(value) {
   return Number.isFinite(n) && n > 0 ? n : 0;
 }
 
-// One labelled number field; returns { wrap, input }.
-function dsLimitField(labelText, value) {
+// One number field with its unit after it — "[ 15 ] min a day" — so a list of
+// sites reads as a column of limits rather than the same label repeated on
+// every row. The input carries the full name for assistive tech.
+function dsLimitField(unitText, value, accessibleName) {
   const wrap = dsEl("label", "ds-limit");
-  wrap.append(dsEl("span", "ds-limit-label", labelText));
   const input = document.createElement("input");
   input.type = "number";
   input.min = "0";
   input.value = String(value);
   input.className = "ds-limit-input";
-  wrap.append(input);
+  if (accessibleName) input.setAttribute("aria-label", accessibleName);
+  wrap.append(input, dsEl("span", "ds-limit-label", unitText));
   return { wrap, input };
 }
 
@@ -1618,7 +2027,7 @@ function dsRenderSite(site, settings, minutesToday, allSettings, onRemove) {
   row.append(head);
 
   const limits = dsEl("div", "ds-limits");
-  const time = dsLimitField("Daily time limit (min)", settings.timeLimitMinutes);
+  const time = dsLimitField("min a day", settings.timeLimitMinutes, `Daily limit for ${site.name}, in minutes`);
   limits.append(time.wrap);
   row.append(limits);
 
@@ -2152,93 +2561,57 @@ const DASHBOARD_GROUPS = [
   {
     title: "On-page protection",
     rows: [
-      { key: "toxicComments", label: "Toxic Comments" },
-      { key: "darkPatterns", label: "Dark Patterns" },
-      { key: "popupHijacks", label: "Popup & Click Hijacks" },
-      { key: "badLanguage", label: "Bad Language Filter", combine: ["badLanguage"] },
-      { key: "cookieAutoReject", label: "Cookie Auto-Reject", combine: ["cookieAutoReject"] },
+      { key: "toxicComments", label: "Toxic comments" },
+      { key: "darkPatterns", label: "Dark patterns" },
+      { key: "popupHijacks", label: "Popup & click hijacks" },
+      { key: "badLanguage", label: "Bad language", combine: ["badLanguage"] },
+      { key: "cookieAutoReject", label: "Cookie banners auto-rejected", combine: ["cookieAutoReject"] },
       // Here rather than in "Ads & trackers", and the group comment below is
-      // the reason: bars scale against the busiest row in their OWN section. A
-      // page yields one or two floating players against thousands of blocked
+      // the reason: meters scale against the busiest row in their OWN section.
+      // A page yields one or two floating players against thousands of blocked
       // requests, so sharing a section with the request counters would draw
-      // this as a permanently empty bar.
-      { key: "floatVideo", label: "Floating Videos Un-stuck" },
+      // this as a permanently empty meter.
+      { key: "floatVideo", label: "Floating videos un-stuck" },
     ],
   },
   {
     // Its own section rather than rows inside "On-page protection", and not only
-    // for tidiness: bars scale against the busiest row in their OWN section, and
-    // a tier that stops thousands of requests a day would flatten every other bar
-    // on the page to a sliver if it shared one.
+    // for tidiness: meters scale against the busiest row in their OWN section,
+    // and a tier that stops thousands of requests a day would flatten every
+    // other meter on the page to nothing if it shared one.
     title: "Ads & trackers",
     rows: [
-      { key: "adTrackers", label: "Tracking Requests" },
-      { key: "adNetworks", label: "Ad-Network Requests" },
-      { key: "youtubeAds", label: "YouTube Ads" },
-      { key: "facebookAds", label: "Facebook Ads" },
-      { key: "antiAdblock", label: "Adblock Walls Cleared" },
-      { key: "adSlots", label: "Empty Ad Slots Hidden" },
+      { key: "adTrackers", label: "Tracking requests" },
+      { key: "adNetworks", label: "Ad-network requests" },
+      { key: "youtubeAds", label: "YouTube ads" },
+      { key: "facebookAds", label: "Facebook ads" },
+      { key: "antiAdblock", label: "Ad-blocker walls cleared" },
+      { key: "adSlots", label: "Empty ad slots hidden" },
     ],
   },
   {
     title: "Blocked websites",
     rows: [
-      { key: "gambling", label: "Gambling & Prediction Markets", combine: ["gambling", "predictionMarkets"] },
-      { key: "scam", label: "Financial Scams", combine: ["scam", "fraud"] },
+      { key: "gambling", label: "Gambling & prediction markets", combine: ["gambling", "predictionMarkets"] },
+      { key: "scam", label: "Financial scams", combine: ["scam", "fraud"] },
       { key: "trading", label: "Trading & MLM", combine: ["trading", "mlm"] },
-      { key: "malware", label: "Malware & Phishing", combine: ["malware", "cryptojacking"] },
-      { key: "piracy", label: "Piracy & Illegal Streaming", combine: ["piracy"] },
-      { key: "aiSlop", label: "AI Slop / Spam", combine: ["aiSlop"] },
-      { key: "goreShock", label: "Gore / Shock", combine: ["goreShock"] },
-      { key: "dating", label: "Dating Sites", combine: ["dating"] },
+      { key: "malware", label: "Malware & phishing", combine: ["malware", "cryptojacking"] },
+      { key: "piracy", label: "Piracy & illegal streaming", combine: ["piracy"] },
+      { key: "aiSlop", label: "AI content farms", combine: ["aiSlop"] },
+      { key: "goreShock", label: "Gore & shock", combine: ["goreShock"] },
+      { key: "dating", label: "Dating sites", combine: ["dating"] },
       // All four Game Blocker groups roll up into one row (blocked.js maps every
       // games-* category to the single "games" stats key).
-      { key: "games", label: "Game Sites", combine: ["games"] },
+      { key: "games", label: "Game sites", combine: ["games"] },
       // Same roll-up for the three AI Blocker groups (blocked.js maps every
       // ai-* category to the single "aiSites" stats key). Distinct from the
-      // "AI Slop / Spam" row above, which counts blocked AI content farms.
-      { key: "aiSites", label: "AI Sites", combine: ["aiSites"] },
-      { key: "customBlocked", label: "Custom Blocked Sites", combine: ["customBlocked"] },
-      { key: "urlShortener", label: "URL Shortener Blocks", combine: ["urlShortener"] },
+      // "AI content farms" row above, which counts blocked AI spam sites.
+      { key: "aiSites", label: "AI tools", combine: ["aiSites"] },
+      { key: "customBlocked", label: "Your blocked sites", combine: ["customBlocked"] },
+      { key: "urlShortener", label: "Short links resolved and blocked", combine: ["urlShortener"] },
     ],
   },
 ];
-
-// Per-category glyphs (inner SVG markup) — same Lucide-style line icons the rest
-// of the options page uses. Rendered inside a shared <svg> wrapper by iconSvg().
-const DASHBOARD_ICONS = {
-  darkPatterns: '<path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>',
-  toxicComments: '<path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/><line x1="12" y1="7" x2="12" y2="11"/><line x1="12" y1="14" x2="12.01" y2="14"/>',
-  popupHijacks: '<path d="m4 4 7.07 17 2.51-7.39L21 11.07z"/>',
-  gambling: '<rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8" cy="8" r="1" fill="currentColor"/><circle cx="16" cy="8" r="1" fill="currentColor"/><circle cx="12" cy="12" r="1" fill="currentColor"/><circle cx="8" cy="16" r="1" fill="currentColor"/><circle cx="16" cy="16" r="1" fill="currentColor"/>',
-  scam: '<path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><line x1="9.5" y1="9" x2="14.5" y2="14"/><line x1="14.5" y1="9" x2="9.5" y2="14"/>',
-  trading: '<polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/>',
-  malware: '<rect x="8" y="6" width="8" height="14" rx="4"/><path d="M19 7l-3 2"/><path d="M5 7l3 2"/><path d="M19 19l-3-2"/><path d="M5 19l3-2"/><path d="M20 13h-4"/><path d="M8 13H4"/><path d="M10 4l1 2"/><path d="M14 4l-1 2"/>',
-  piracy: '<rect x="2" y="2" width="20" height="20" rx="2.18"/><line x1="7" y1="2" x2="7" y2="22"/><line x1="17" y1="2" x2="17" y2="22"/><line x1="2" y1="12" x2="22" y2="12"/><line x1="2" y1="7" x2="7" y2="7"/><line x1="2" y1="17" x2="7" y2="17"/><line x1="17" y1="17" x2="22" y2="17"/><line x1="17" y1="7" x2="22" y2="7"/>',
-  aiSlop: '<rect x="4" y="4" width="16" height="16" rx="2"/><rect x="9" y="9" width="6" height="6"/><line x1="9" y1="1" x2="9" y2="4"/><line x1="15" y1="1" x2="15" y2="4"/><line x1="9" y1="20" x2="9" y2="23"/><line x1="15" y1="20" x2="15" y2="23"/><line x1="20" y1="9" x2="23" y2="9"/><line x1="20" y1="14" x2="23" y2="14"/><line x1="1" y1="9" x2="4" y2="9"/><line x1="1" y1="14" x2="4" y2="14"/>',
-  goreShock: '<path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/>',
-  dating: '<path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/>',
-  games: '<line x1="6" y1="11" x2="10" y2="11"/><line x1="8" y1="9" x2="8" y2="13"/><line x1="15" y1="12" x2="15.01" y2="12"/><line x1="18" y1="10" x2="18.01" y2="10"/><path d="M17.32 5H6.68a4 4 0 0 0-3.978 3.59c-.006.052-.01.101-.017.152C2.604 9.416 2 14.456 2 16a3 3 0 0 0 3 3c1 0 1.5-.5 2-1l1.414-1.414A2 2 0 0 1 9.828 16h4.344a2 2 0 0 1 1.414.586L17 18c.5.5 1 1 2 1a3 3 0 0 0 3-3c0-1.545-.604-6.584-.685-7.258A4 4 0 0 0 17.32 5z"/>',
-  aiSites: '<rect x="4" y="8" width="16" height="12" rx="2"/><path d="M12 8V4"/><circle cx="12" cy="3" r="1"/><line x1="2" y1="14" x2="4" y2="14"/><line x1="20" y1="14" x2="22" y2="14"/><line x1="9" y1="13" x2="9" y2="15"/><line x1="15" y1="13" x2="15" y2="15"/>',
-  customBlocked: '<circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/>',
-  urlShortener: '<path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/>',
-  badLanguage: '<polyline points="4 7 4 4 20 4 20 7"/><line x1="9" y1="20" x2="15" y2="20"/><line x1="12" y1="4" x2="12" y2="20"/>',
-  cookieAutoReject: '<path d="M12 2a10 10 0 1 0 10 10 4 4 0 0 1-5-5 4 4 0 0 1-5-5"/><path d="M8.5 8.5v.01"/><path d="M16 15.5v.01"/><path d="M12 12v.01"/><path d="M11 17v.01"/><path d="M7 14v.01"/>',
-  adTrackers: '<circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="3"/><line x1="12" y1="1" x2="12" y2="5"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="1" y1="12" x2="5" y2="12"/><line x1="19" y1="12" x2="23" y2="12"/>',
-  adNetworks: '<path d="m3 11 18-5v12L3 14v-3z"/><path d="M11.6 16.8a3 3 0 1 1-5.8-1.6"/>',
-  youtubeAds: '<path d="M2.5 17a24.12 24.12 0 0 1 0-10 2 2 0 0 1 1.4-1.4 49.56 49.56 0 0 1 16.2 0A2 2 0 0 1 21.5 7a24.12 24.12 0 0 1 0 10 2 2 0 0 1-1.4 1.4 49.55 49.55 0 0 1-16.2 0A2 2 0 0 1 2.5 17"/><path d="m10 15 5-3-5-3z"/>',
-  facebookAds: '<path d="M18 2h-3a5 5 0 0 0-5 5v3H7v4h3v8h4v-8h3l1-4h-4V7a1 1 0 0 1 1-1h3z"/>',
-  antiAdblock: '<rect x="3" y="4" width="18" height="16" rx="1"/><line x1="3" y1="9.33" x2="21" y2="9.33"/><line x1="3" y1="14.67" x2="21" y2="14.67"/><line x1="9" y1="4" x2="9" y2="9.33"/><line x1="15" y1="9.33" x2="15" y2="14.67"/><line x1="9" y1="14.67" x2="9" y2="20"/>',
-  adSlots: '<rect x="3" y="3" width="18" height="18" rx="2" stroke-dasharray="4 3"/><line x1="9" y1="15" x2="15" y2="9"/><line x1="9" y1="9" x2="15" y2="15"/>',
-  floatVideo: '<rect x="2" y="4" width="20" height="16" rx="2"/><rect x="12" y="12" width="8" height="6" rx="1"/><line x1="12" y1="18" x2="20" y2="12"/>',
-};
-
-const DASHBOARD_MOON_ICON =
-  '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>';
-
-function iconSvg(inner) {
-  return `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${inner || ""}</svg>`;
-}
 
 function dashboardValue(stats, row) {
   const keys = row.combine || [row.key];
@@ -2268,13 +2641,17 @@ async function setupUsageSection(store) {
   }
 }
 
-async function setupDashboard(store) {
+// The Overview reads like the contents page of a report: one line per
+// category, label · · · · count, where the dotted leader doubles as the meter —
+// the filled holes are that row's share of the busiest row in its group. It is
+// the landing view, so the breakdown is always shown rather than folded behind
+// a click.
+async function setupDashboard() {
   const numEl = document.getElementById("dashboard-total-num");
   const labelEl = document.getElementById("dashboard-total-label");
   const subEl = document.getElementById("dashboard-total-sub");
   const gridEl = document.getElementById("dashboard-grid");
   const tabsEl = document.getElementById("dashboard-tabs");
-  const toggleEl = document.getElementById("dashboard-toggle");
   if (!gridEl) return;
 
   let getStats;
@@ -2283,27 +2660,29 @@ async function setupDashboard(store) {
     getStats = statsMod.getStats;
   } catch (err) {
     console.error("[Sieve] Dashboard could not load stats module", err);
-    gridEl.innerHTML = "<div class='dashboard-empty'>Unable to load dashboard stats.</div>";
-    if (tabsEl) tabsEl.style.display = "none";
+    gridEl.textContent = "";
+    gridEl.append(svEl("div", "dashboard-empty", "Unable to load the activity totals."));
+    if (tabsEl) tabsEl.hidden = true;
     return;
   }
 
   let currentPeriod = "today";
 
-  // Build one category row (icon + label + proportional bar + count). `max` is
-  // the busiest value in its section, so bars scale within their own section.
+  // One ledger line. `max` is the busiest value in its group, so meters scale
+  // within their own group.
   function renderItem(row, value, max) {
     const pct = max ? Math.max(4, Math.round((value / max) * 100)) : 0;
-    const item = document.createElement("div");
-    item.className = "dashboard-item";
-    item.innerHTML = `
-      <span class="dashboard-item-icon">${iconSvg(DASHBOARD_ICONS[row.key])}</span>
-      <div class="dashboard-item-main">
-        <div class="dashboard-item-label">${escapeHtml(row.label)}</div>
-        <div class="dashboard-item-bar"><div class="dashboard-item-bar-fill" style="width:${pct}%"></div></div>
-      </div>
-      <span class="dashboard-item-count">${value.toLocaleString()}</span>
-    `;
+    const item = svEl("div", "dashboard-item");
+    const bar = svEl("span", "dashboard-item-bar");
+    bar.setAttribute("aria-hidden", "true");
+    const fill = svEl("span", "dashboard-item-bar-fill");
+    fill.style.width = `${pct}%`;
+    bar.append(fill);
+    item.append(
+      svEl("span", "dashboard-item-label", row.label),
+      bar,
+      svEl("span", "dashboard-item-count", value.toLocaleString())
+    );
     return item;
   }
 
@@ -2316,8 +2695,8 @@ async function setupDashboard(store) {
     let activeCount = 0;
 
     for (const group of DASHBOARD_GROUPS) {
-      // Value per category, then split into "active" (>0, sorted busiest-first)
-      // and the quiet remainder that collapses into a single line.
+      // Value per category, then split into "active" (>0, busiest first) and the
+      // quiet remainder, which collapses into a single line.
       const rows = group.rows.map((row) => ({ row, value: dashboardValue(stats, row) }));
       const subtotal = rows.reduce((sum, r) => sum + r.value, 0);
       const active = rows.filter((r) => r.value > 0).sort((a, b) => b.value - a.value);
@@ -2326,30 +2705,28 @@ async function setupDashboard(store) {
       grandTotal += subtotal;
       activeCount += active.length;
 
-      const groupEl = document.createElement("div");
-      groupEl.className = "dashboard-group";
+      const groupEl = svEl("section", "dashboard-group");
+      const head = svEl("div", "dashboard-group-head");
+      const title = svEl("h2", "dashboard-group-title", group.title);
+      head.append(title, svEl("span", "dashboard-group-total", subtotal.toLocaleString()));
+      groupEl.setAttribute("aria-label", group.title);
+      groupEl.append(head);
 
-      const head = document.createElement("div");
-      head.className = "dashboard-group-head";
-      head.innerHTML = `
-        <span class="dashboard-group-title">${escapeHtml(group.title)}</span>
-        <span class="dashboard-group-total">${subtotal.toLocaleString()}</span>
-      `;
-      groupEl.appendChild(head);
-
-      const list = document.createElement("div");
-      list.className = "dashboard-group-list";
-      for (const { row, value } of active) list.appendChild(renderItem(row, value, max));
-
+      const list = svEl("div", "dashboard-group-list");
+      for (const { row, value } of active) list.append(renderItem(row, value, max));
       if (quiet > 0) {
-        const line = document.createElement("div");
-        line.className = "dashboard-quiet";
-        line.innerHTML = `${DASHBOARD_MOON_ICON}<span>${quiet} ${quiet === 1 ? "category" : "categories"} — nothing to block ${periodLabel}</span>`;
-        list.appendChild(line);
+        list.append(
+          svEl(
+            "p",
+            "dashboard-quiet",
+            active.length === 0
+              ? `Nothing in this group ${periodLabel}.`
+              : `${quiet} more ${quiet === 1 ? "category" : "categories"} with nothing to block ${periodLabel}.`
+          )
+        );
       }
-
-      groupEl.appendChild(list);
-      gridEl.appendChild(groupEl);
+      groupEl.append(list);
+      gridEl.append(groupEl);
     }
 
     if (numEl) numEl.textContent = grandTotal.toLocaleString();
@@ -2366,7 +2743,9 @@ async function setupDashboard(store) {
     currentPeriod = period;
     if (tabsEl) {
       for (const btn of tabsEl.querySelectorAll(".dashboard-tab")) {
-        btn.classList.toggle("active", btn.dataset.period === period);
+        const on = btn.dataset.period === period;
+        btn.classList.toggle("active", on);
+        btn.setAttribute("aria-selected", String(on));
       }
     }
     render();
@@ -2380,45 +2759,12 @@ async function setupDashboard(store) {
     });
   }
 
-  // Collapsible breakdown — opens compact (just the tabs + hero summary). The
-  // list is always rendered, only shown/hidden, so expanding is instant. The
-  // choice persists across reloads via the batched settings read.
-  let expanded = !!(store && store.dashboardExpanded);
-  function applyExpanded() {
-    if (toggleEl) toggleEl.setAttribute("aria-expanded", String(expanded));
-    gridEl.hidden = !expanded;
-  }
-  applyExpanded();
-
-  if (toggleEl) {
-    const toggle = () => {
-      expanded = !expanded;
-      applyExpanded();
-      chrome.storage.local.set({ dashboardExpanded: expanded }).catch(() => {});
-    };
-    toggleEl.addEventListener("click", toggle);
-    toggleEl.addEventListener("keydown", (e) => {
-      if (e.key === "Enter" || e.key === " " || e.key === "Spacebar") {
-        e.preventDefault();
-        toggle();
-      }
-    });
-  }
-
   await render();
 
   // Refresh when the shared stats store changes.
   chrome.storage.onChanged.addListener((changes, area) => {
     if (area === "local" && changes.sieveStats) render();
   });
-}
-
-function escapeHtml(str) {
-  return String(str)
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;");
 }
 
 // ===========================================================================

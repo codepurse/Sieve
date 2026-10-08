@@ -69,9 +69,12 @@ function makeChrome(enabled, allowlist = [], alreadyRegistered = []) {
 // The module is a singleton once imported, so each test re-points the fake at a
 // fresh state rather than re-importing it.
 makeChrome(false);
-await import("../background/anti-adblock.js");
+const { MAIN_ALWAYS_EXCLUDED } = await import("../background/anti-adblock.js");
 const { applyAntiAdblockScript, allowlistToExcludeMatches, buildSpecs, SPEC_IDS } =
   globalThis.sieveAntiAdblock;
+const YOUTUBE = ["*://*.youtube.com/*", "*://*.youtube-nocookie.com/*"];
+const mainOf = (specs) => specs.find((s) => s.world === "MAIN");
+const domOf = (specs) => specs.find((s) => s.world !== "MAIN");
 
 // ===========================================================================
 // Registering and unregistering
@@ -173,11 +176,27 @@ test("an empty allowlist omits the key instead of sending an empty array", () =>
   // DNR rejects an empty array for its exclusion fields and some scripting
   // builds do the same. Omitting it also keeps the registered spec byte-identical
   // to what it was before this feature learned about the allowlist.
-  for (const spec of buildSpecs([])) {
-    assert.ok(!("excludeMatches" in spec), `${spec.id} must not carry an empty excludeMatches`);
-  }
-  for (const spec of buildSpecs(["example.com"])) {
-    assert.deepEqual(spec.excludeMatches, ["*://*.example.com/*"]);
+  const dom = domOf(buildSpecs([]));
+  assert.ok(!("excludeMatches" in dom), `${dom.id} must not carry an empty excludeMatches`);
+  // The MAIN half is never empty: YouTube is always excluded from it.
+  assert.deepEqual(mainOf(buildSpecs([])).excludeMatches, YOUTUBE);
+
+  const specs = buildSpecs(["example.com"]);
+  assert.deepEqual(domOf(specs).excludeMatches, ["*://*.example.com/*"]);
+  assert.deepEqual(mainOf(specs).excludeMatches, [...YOUTUBE, "*://*.example.com/*"]);
+});
+
+test("the MAIN-world half never runs on YouTube; the wall remover still does", () => {
+  // youtube-ads.js handles YouTube's enforcement. The MAIN half's pinned
+  // globals and swapped layout functions answer nothing YouTube asks, and land
+  // in the seconds its player inspects the page. uBlock does none of it there.
+  assert.deepEqual(MAIN_ALWAYS_EXCLUDED, YOUTUBE);
+  for (const allowlist of [[], ["example.com"], ["youtube.com"]]) {
+    const main = mainOf(buildSpecs(allowlist));
+    for (const p of YOUTUBE) assert.ok(main.excludeMatches.includes(p), `MAIN must exclude ${p}`);
+    assert.equal(new Set(main.excludeMatches).size, main.excludeMatches.length, "no duplicate patterns");
+    const dom = domOf(buildSpecs(allowlist));
+    assert.ok(!(dom.excludeMatches || []).includes("*://*.youtube-nocookie.com/*"), "the DOM half is not excluded by default");
   }
 });
 
@@ -192,7 +211,8 @@ test("editing the allowlist re-pushes the specs even though both ids are present
   assert.deepEqual(calls.registered, [], "nothing was missing");
   assert.equal(calls.updated.length, SPEC_IDS.length, "both had to be updated");
   for (const spec of registered.values()) {
-    assert.deepEqual(spec.excludeMatches, ["*://*.shop.example/*"]);
+    const want = spec.world === "MAIN" ? [...YOUTUBE, "*://*.shop.example/*"] : ["*://*.shop.example/*"];
+    assert.deepEqual(spec.excludeMatches, want);
   }
 });
 
@@ -205,7 +225,10 @@ test("if the exclusions are refused, register without them rather than not at al
   let attempts = 0;
   chrome.scripting.registerContentScripts = async (specs) => {
     attempts++;
-    if (specs.some((s) => s.excludeMatches)) throw new Error("Invalid match pattern");
+    // Refuses the USER's entry, as a browser would a pattern it dislikes.
+    if (specs.some((s) => (s.excludeMatches || []).includes("*://*.example.com/*"))) {
+      throw new Error("Invalid match pattern");
+    }
     return real(specs);
   };
 
@@ -213,7 +236,12 @@ test("if the exclusions are refused, register without them rather than not at al
   assert.equal(attempts, 2, "one attempt with the exclusions, one without");
   assert.deepEqual([...registered.keys()].sort(), [...SPEC_IDS].sort());
   for (const spec of calls.registered) {
-    assert.ok(!("excludeMatches" in spec));
+    if (spec.world === "MAIN") {
+      // The fixed YouTube pair survives: only the user's entries are dropped.
+      assert.deepEqual(spec.excludeMatches, YOUTUBE);
+    } else {
+      assert.ok(!("excludeMatches" in spec));
+    }
   }
 });
 

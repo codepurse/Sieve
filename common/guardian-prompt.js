@@ -33,57 +33,95 @@
   function build() {
     if (overlay) return;
 
+    // Self-contained: this dialog also opens on other people's sites (the
+    // pause screen), so it carries its own copy of the paper-and-ink tokens
+    // from common/sieve-ui.css, scoped to the dialog, and resets the few
+    // properties a host page is likely to have styled on bare elements.
     const style = document.createElement("style");
     style.textContent = `
       .sg-backdrop {
+        --sg-paper: #f9f7f2; --sg-ink: #1a1916; --sg-ink-2: #4b4840; --sg-ink-3: #66625a;
+        --sg-rule: rgba(26, 25, 22, 0.13); --sg-rule-strong: rgba(26, 25, 22, 0.26);
+        --sg-wash: rgba(26, 25, 22, 0.045); --sg-danger: #a63d24; --sg-sunken: #efece4;
+        --sg-serif: "Iowan Old Style", "Charter", "Sitka Heading", "Sitka Text", Cambria, Georgia, serif;
+        --sg-sans: "Segoe UI Variable Text", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+        --sg-mono: ui-monospace, "SF Mono", "Cascadia Mono", Menlo, Consolas, monospace;
         position: fixed; inset: 0; z-index: 2147483647;
         display: flex; align-items: center; justify-content: center;
-        background: rgba(8, 12, 24, 0.7);
-        font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+        padding: 16px; box-sizing: border-box;
+        background: rgba(20, 19, 16, 0.42);
+        font: 14px/1.5 var(--sg-sans); color: var(--sg-ink);
+        -webkit-font-smoothing: antialiased;
+        animation: sg-fade 160ms cubic-bezier(0.2, 0, 0, 1) both;
+      }
+      @media (prefers-color-scheme: dark) {
+        .sg-backdrop {
+          --sg-paper: #1b1b18; --sg-ink: #ede9df; --sg-ink-2: #b8b3a7; --sg-ink-3: #8f8a7f;
+          --sg-rule: rgba(237, 233, 223, 0.11); --sg-rule-strong: rgba(237, 233, 223, 0.22);
+          --sg-wash: rgba(237, 233, 223, 0.06); --sg-danger: #e5866b; --sg-sunken: #131311;
+          background: rgba(0, 0, 0, 0.55);
+        }
       }
       .sg-backdrop[hidden] { display: none; }
+      .sg-backdrop *, .sg-backdrop *::before, .sg-backdrop *::after { box-sizing: border-box; }
       .sg-card {
-        width: min(320px, calc(100vw - 32px)); box-sizing: border-box;
-        padding: 22px 22px 18px;
-        background: #0f172a; color: #f1f5f9;
-        border: 1px solid #334155; border-radius: 14px;
-        box-shadow: 0 18px 50px rgba(0, 0, 0, 0.5);
+        width: min(360px, 100%); margin: 0;
+        padding: 24px 24px 20px;
+        background: var(--sg-paper); color: var(--sg-ink);
+        border-radius: 6px;
+        box-shadow: 0 0 0 1px var(--sg-rule-strong), 0 24px 48px -16px rgba(0, 0, 0, 0.45);
         text-align: left;
+        animation: sg-rise 220ms cubic-bezier(0.2, 0, 0, 1) both;
       }
-      .sg-title { margin: 0 0 4px; font-size: 15px; font-weight: 600; }
-      .sg-sub { margin: 0 0 14px; font-size: 13px; color: #94a3b8; }
+      .sg-title {
+        margin: 0 0 6px; padding: 0;
+        font: 400 22px/1.15 var(--sg-serif); letter-spacing: -0.01em; color: var(--sg-ink);
+      }
+      .sg-sub { margin: 0 0 16px; padding: 0; font: 13px/1.5 var(--sg-sans); color: var(--sg-ink-2); }
       .sg-input {
-        width: 100%; box-sizing: border-box; padding: 9px 12px;
-        font-size: 14px; letter-spacing: 2px;
-        background: #1e293b; color: #f1f5f9;
-        border: 1px solid #475569; border-radius: 8px;
+        display: block; width: 100%; height: auto; min-height: 40px; margin: 0; padding: 9px 12px;
+        font: 15px/1.3 var(--sg-sans); letter-spacing: 0.15em;
+        background: var(--sg-sunken); color: var(--sg-ink);
+        border: 1px solid var(--sg-rule-strong); border-radius: 3px; box-shadow: none;
       }
-      .sg-input:focus { outline: none; border-color: #6366f1; }
-      .sg-error { min-height: 16px; margin: 8px 0 0; font-size: 12px; color: #f87171; }
-      .sg-actions { display: flex; gap: 8px; justify-content: flex-end; margin-top: 12px; }
+      .sg-input:focus { outline: none; border-color: var(--sg-ink); box-shadow: 0 0 0 1px var(--sg-ink); }
+      .sg-input::placeholder { color: var(--sg-ink-3); letter-spacing: normal; opacity: 1; }
+      .sg-error { min-height: 18px; margin: 8px 0 0; padding: 0; font: 12.5px/1.45 var(--sg-sans); color: var(--sg-danger); }
+      /* The copy-paste line explains the rule; it is not an error, so it is not red. */
+      .sg-error[data-tone="note"] { color: var(--sg-ink-3); }
+      .sg-actions { display: flex; gap: 8px; justify-content: flex-end; margin: 12px 0 0; }
       .sg-btn {
-        padding: 8px 16px; font-size: 13px; font-weight: 600;
-        border-radius: 8px; border: 1px solid transparent; cursor: pointer;
+        min-height: 36px; margin: 0; padding: 0 16px;
+        font: 500 13px/1 var(--sg-sans); letter-spacing: 0.005em; text-transform: none;
+        border-radius: 3px; border: 1px solid transparent; cursor: pointer;
+        transition: background-color 120ms, border-color 120ms, transform 80ms;
       }
-      .sg-btn.primary { background: #6366f1; color: #fff; }
-      .sg-btn.ghost { background: transparent; color: #cbd5e1; border-color: #475569; }
+      .sg-btn:active { transform: translateY(1px); }
+      .sg-btn:focus-visible { outline: 2px solid var(--sg-ink); outline-offset: 2px; }
+      .sg-btn.primary { background: var(--sg-ink); color: var(--sg-paper); border-color: var(--sg-ink); }
+      .sg-btn.primary:hover { background: var(--sg-ink-2); border-color: var(--sg-ink-2); }
+      .sg-btn.ghost { background: transparent; color: var(--sg-ink); border-color: var(--sg-rule-strong); }
+      .sg-btn.ghost:hover { border-color: var(--sg-ink); background: var(--sg-wash); }
+      @keyframes sg-fade { from { opacity: 0; } }
+      @keyframes sg-rise { from { opacity: 0; transform: translateY(8px); } }
+      @media (prefers-reduced-motion: reduce) {
+        .sg-backdrop, .sg-card { animation: none; }
+      }
 
       /* Access code stage. The card widens because a 256-character code needs
          the room, and the code itself must be read, not copied — so selection
          is off here as the first line of defence (handlers below refuse
          copy/cut/paste as the second). */
-      .sg-card.code { width: min(560px, calc(100vw - 32px)); }
+      .sg-card.code { width: min(580px, 100%); }
       .sg-code {
-        padding: 10px 12px; margin: 0 0 10px;
+        margin: 0 0 12px; padding: 12px 14px;
         max-height: 190px; overflow-y: auto;
-        background: #1e293b; border: 1px solid #475569; border-radius: 8px;
-        font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
-        font-size: 12.5px; line-height: 1.65; word-break: break-all;
-        color: #e2e8f0;
+        background: var(--sg-sunken); border: 1px solid var(--sg-rule); border-radius: 3px;
+        font: 13px/1.7 var(--sg-mono); letter-spacing: 0.04em; word-break: break-all;
+        color: var(--sg-ink);
         user-select: none; -webkit-user-select: none;
       }
-      .sg-input.code-input { letter-spacing: normal; font-size: 12.5px;
-        font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+      .sg-input.code-input { letter-spacing: 0.04em; font: 13px/1.4 var(--sg-mono); }
     `;
 
     overlay = document.createElement("div");
@@ -105,7 +143,7 @@
       </div>`;
 
     document.documentElement.appendChild(style);
-    document.body.appendChild(overlay);
+    document.documentElement.appendChild(overlay);
 
     input = overlay.querySelector("#sg-input");
     errorEl = overlay.querySelector("#sg-error");
@@ -187,6 +225,7 @@
     input.type = "text";
     input.placeholder = "Type the code above";
     errorEl.textContent = "Copy and paste are disabled on purpose.";
+    errorEl.dataset.tone = "note";
     stage = "code";
     newCode(length);
   }
@@ -211,6 +250,7 @@
         finish(true);
       } else {
         errorEl.textContent = "That didn't match. Here's a new code.";
+        errorEl.dataset.tone = "";
         newCode(codeExpected.length);
       }
       return;
@@ -218,6 +258,7 @@
 
     if (!(await G.verify(input.value))) {
       errorEl.textContent = "Incorrect PIN.";
+      errorEl.dataset.tone = "";
       input.value = "";
       input.focus();
       return;
@@ -252,6 +293,18 @@
     resolve(result);
   }
 
+  // This dialog and the doomscroll pause screen both sit at the maximum
+  // z-index, so whichever comes later in the document paints on top. The pause
+  // screen attaches itself to <html> when it opens, and the access code is then
+  // asked for FROM that screen — so the dialog was opening underneath it, the
+  // code unreadable behind a near-opaque backdrop. Moving the dialog to the end
+  // of <html> each time it opens keeps it on top of anything already there.
+  function raise() {
+    if (document.documentElement.lastElementChild !== overlay) {
+      document.documentElement.appendChild(overlay);
+    }
+  }
+
   // `opts.critical` marks the decisive actions — turning a protection off,
   // getting past the pause screen, weakening the lock itself. With the access
   // code set to its default scope, only those face the code; everything else
@@ -271,6 +324,7 @@
       subEl.textContent = actionName || "This change is protected.";
       errorEl.textContent = "";
       input.value = "";
+      raise();
       overlay.hidden = false;
       input.focus();
     });
@@ -316,6 +370,7 @@
     return new Promise((resolve) => {
       pending = { resolve, actionName, critical: true };
       resetToPinStage();
+      raise();
       overlay.hidden = false;
       askForCode(actionName, config.length);
     });

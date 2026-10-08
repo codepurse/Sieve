@@ -105,3 +105,19 @@ test("the stylesheet is inert on every site but YouTube", () => {
     assert.equal(generic, false, `"${s}" is too generic to be safe outside YouTube`);
   }
 });
+
+test("YouTube's promo bubble is hidden, and none of the ordinary tooltips are", () => {
+  // The bubble takes focus when it opens, and taking focus scrolls the page to
+  // it — so with it showing, a page scrolled down was dragged back to the top.
+  // Measured on youtube.com, October 2026: 2,400px -> 0 as it opened. This
+  // switch is what makes YouTube show it (it stands in for the promotion the
+  // filter removed), so this switch has to be the one that stops it.
+  assert.ok(ALL.includes("yt-tooltip-renderer"), "the promo bubble must stay hidden");
+
+  // Not the hover tooltips. Those are what tell you what a button does, and
+  // hiding them would be a loss with nothing gained: they do not take focus.
+  for (const tooltip of ["tp-yt-paper-tooltip", ".ytp-tooltip", "yt-tooltip", "tp-yt-iron-dropdown"]) {
+    const hit = ALL.filter((s) => s.split(/\s|>|:/).some((part) => part === tooltip));
+    assert.deepEqual(hit, [], `${tooltip} must not be hidden by this stylesheet`);
+  }
+});

@@ -68,15 +68,18 @@
     const badge = document.createElement("span");
     badge.textContent = BADGE_TEXT;
     badge.className = "sieve-pre-checked-badge";
+    // Sieve's caution stamp: its own colours, so it reads on any page.
     badge.style.cssText = `
       display: inline-block;
       margin-left: 6px;
-      padding: 1px 5px;
-      font-size: 11px;
-      line-height: 1.3;
-      color: #713f12;
-      background: #fef08a;
-      border-radius: 4px;
+      padding: 2px 5px;
+      font: 600 10px/1.2 ui-monospace, "SF Mono", "Cascadia Mono", Consolas, monospace;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      color: #6b4500;
+      background: #f6ecd6;
+      border: 1px solid #b07d1f;
+      border-radius: 2px;
       vertical-align: middle;
       white-space: nowrap;
     `;
@@ -102,7 +105,7 @@
   }
 
   function highlight(checkbox) {
-    checkbox.style.outline = "2px solid #facc15";
+    checkbox.style.outline = "2px solid #b07d1f";
     checkbox.style.outlineOffset = "2px";
   }
 

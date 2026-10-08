@@ -89,18 +89,18 @@
         margin: 4px 0; padding: 8px 12px; box-sizing: border-box;
         font: 13px/1.4 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
         color: inherit;
-        background: rgba(127,127,127,0.12);
-        border: 1px solid rgba(127,127,127,0.32);
-        border-radius: 10px;
+        background: rgba(127,127,127,0.08);
+        border: 1px solid rgba(127,127,127,0.3);
+        border-radius: 3px;
       }
       .sieve-cc-bar.is-shown { opacity: 0.7; }
-      .sieve-cc-icon { font-size: 14px; line-height: 1; flex: 0 0 auto; }
+      .sieve-cc-icon { width: 14px; height: 14px; flex: 0 0 auto; opacity: 0.8; }
       .sieve-cc-text { flex: 1 1 auto; min-width: 0; }
       .sieve-cc-reason { opacity: 0.75; }
       .sieve-cc-btn {
         flex: 0 0 auto; cursor: pointer; font: inherit; font-weight: 600;
         color: inherit; background: transparent;
-        border: 1px solid currentColor; border-radius: 6px;
+        border: 1px solid currentColor; border-radius: 3px;
         padding: 3px 10px; opacity: 0.85;
       }
       .sieve-cc-btn:hover { opacity: 1; }
@@ -118,9 +118,26 @@
     const bar = document.createElement("div");
     bar.className = "sieve-cc-bar";
 
-    const icon = document.createElement("span");
-    icon.className = "sieve-cc-icon";
-    icon.textContent = "🧹";
+    // Sieve's mark — the shield with its diagonal cut — drawn in the host
+    // page's own text colour, so the bar belongs to the comment thread it sits
+    // in and still says who put it there.
+    const SVG_NS = "http://www.w3.org/2000/svg";
+    const icon = document.createElementNS(SVG_NS, "svg");
+    icon.setAttribute("class", "sieve-cc-icon");
+    icon.setAttribute("viewBox", "0 0 24 24");
+    icon.setAttribute("aria-hidden", "true");
+    // Drawn as strokes, not a fill with a cut-out: a cut would need the bar's
+    // background colour, which is translucent over whatever the host page is.
+    for (const d of ["M12 2.7 19.5 5.4v6.2c0 4.4-3.1 8-7.5 9.6-4.4-1.6-7.5-5.2-7.5-9.6V5.4z", "M14.6 5.5 9.4 18.5"]) {
+      const path = document.createElementNS(SVG_NS, "path");
+      path.setAttribute("d", d);
+      path.setAttribute("fill", "none");
+      path.setAttribute("stroke", "currentColor");
+      path.setAttribute("stroke-width", "1.8");
+      path.setAttribute("stroke-linejoin", "round");
+      path.setAttribute("stroke-linecap", "round");
+      icon.append(path);
+    }
 
     const text = document.createElement("span");
     text.className = "sieve-cc-text";

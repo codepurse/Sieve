@@ -1,0 +1,727 @@
+/* ==========================================================================
+   Sieve — shared interface layer
+   --------------------------------------------------------------------------
+   One stylesheet for every page the extension owns (settings, popup,
+   onboarding, release notes). Page stylesheets add layout only; anything that
+   appears on more than one page — tokens, type, buttons, fields, switches,
+   badges — is defined here once, so the product cannot drift into several
+   slightly different versions of itself.
+
+   THE IDEA
+   Sieve explains itself in full, plain sentences, so it is set like a
+   well-edited field manual rather than a dashboard: warm paper and ink,
+   a serif for the things you read as headings, a monospaced face for the
+   numbers and labels in the margin, and the system sans for everything you
+   act on. The one visual motif is the sieve itself — a perforated rule, a
+   row of small holes — used as a divider and as a meter.
+
+   THE RULES
+   1. Green means on — a part of Sieve is running. Nothing else is green:
+      not links, not primary buttons, not focus, not charts. A switch, a
+      status dot, a stamp that says ON. Like the power light on a machine:
+      if you see green, something is working for you.
+   2. Hierarchy comes from type, space and rules — not boxes. There are no
+      cards. Groups are separated by a hairline and a margin.
+   3. Corners are machined, not moulded: 3px on controls, 6px on things that
+      float. No pills.
+   4. Only things that genuinely sit above the page (dialogs, menus,
+      tooltips) cast a shadow, and there is exactly one shadow.
+   5. Motion explains a change of state and then gets out of the way:
+      120ms for a press, 200ms for a switch, 280ms for a view.
+   ========================================================================== */
+
+:root {
+  color-scheme: light;
+
+  /* Paper and ink — warm, never pure white or pure black */
+  --paper: #f2efe7;
+  --raised: #f9f7f2;
+  --sunken: #e8e4d9;
+  --ink: #1a1916;
+  --ink-2: #4b4840;
+  --ink-3: #66625a;
+
+  /* Rules — the only borders on the page */
+  --rule: rgba(26, 25, 22, 0.13);
+  --rule-strong: rgba(26, 25, 22, 0.26);
+  --wash: rgba(26, 25, 22, 0.045);
+  --wash-strong: rgba(26, 25, 22, 0.08);
+
+  /* On — see rule 1 */
+  --on: #1f5e47;
+  --on-ink: #f9f7f2;
+  --on-wash: rgba(31, 94, 71, 0.09);
+
+  /* States */
+  --danger: #a63d24;
+  --danger-wash: rgba(166, 61, 36, 0.08);
+  --warn: #855600;
+  --warn-wash: rgba(133, 86, 0, 0.08);
+
+  /* Type */
+  --font-serif: "Iowan Old Style", "Charter", "Sitka Heading", "Sitka Text", "Source Serif 4",
+    "Source Serif Pro", "Noto Serif", Cambria, Georgia, serif;
+  --font-sans: "Segoe UI Variable Text", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
+    Roboto, "Helvetica Neue", Arial, sans-serif;
+  --font-mono: ui-monospace, "SF Mono", "Cascadia Mono", "Cascadia Code", "JetBrains Mono", Menlo,
+    Consolas, "Roboto Mono", "Liberation Mono", monospace;
+
+  /* Space — a 4px step, used as written; nothing in between */
+  --s-1: 4px;
+  --s-2: 8px;
+  --s-3: 12px;
+  --s-4: 16px;
+  --s-5: 24px;
+  --s-6: 32px;
+  --s-7: 48px;
+  --s-8: 64px;
+  --s-9: 96px;
+
+  /* Shape and depth */
+  --r-1: 3px;
+  --r-2: 6px;
+  --lift: 0 1px 0 var(--rule), 0 18px 40px -18px rgba(26, 25, 22, 0.32);
+
+  /* Motion */
+  --ease: cubic-bezier(0.2, 0, 0, 1);
+  --ease-in: cubic-bezier(0.4, 0, 1, 1);
+  --t-press: 120ms;
+  --t-state: 200ms;
+  --t-view: 280ms;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    color-scheme: dark;
+
+    --paper: #131311;
+    --raised: #1b1b18;
+    --sunken: #0d0d0b;
+    --ink: #ede9df;
+    --ink-2: #b8b3a7;
+    --ink-3: #8f8a7f;
+
+    --rule: rgba(237, 233, 223, 0.11);
+    --rule-strong: rgba(237, 233, 223, 0.22);
+    --wash: rgba(237, 233, 223, 0.045);
+    --wash-strong: rgba(237, 233, 223, 0.08);
+
+    --on: #7cc4a0;
+    --on-ink: #0e1a14;
+    --on-wash: rgba(124, 196, 160, 0.1);
+
+    --danger: #e5866b;
+    --danger-wash: rgba(229, 134, 107, 0.1);
+    --warn: #d8a84e;
+    --warn-wash: rgba(216, 168, 78, 0.1);
+
+    --lift: 0 0 0 1px var(--rule-strong), 0 18px 40px -16px rgba(0, 0, 0, 0.7);
+  }
+}
+
+/* ==========================================================================
+   Base
+   ========================================================================== */
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+* {
+  margin: 0;
+  padding: 0;
+}
+
+[hidden] {
+  display: none !important;
+}
+
+html {
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+
+body {
+  background: var(--paper);
+  color: var(--ink);
+  font-family: var(--font-sans);
+  font-size: 14px;
+  line-height: 1.55;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  font-kerning: normal;
+}
+
+::selection {
+  background: var(--ink);
+  color: var(--paper);
+}
+
+a {
+  color: inherit;
+  text-decoration: underline;
+  text-decoration-thickness: 1px;
+  text-decoration-color: var(--rule-strong);
+  text-underline-offset: 3px;
+  transition: text-decoration-color var(--t-press) var(--ease);
+}
+
+a:hover {
+  text-decoration-color: currentColor;
+}
+
+strong {
+  font-weight: 600;
+  color: var(--ink);
+}
+
+em {
+  font-style: italic;
+}
+
+code,
+kbd {
+  font-family: var(--font-mono);
+  font-size: 0.92em;
+}
+
+code {
+  padding: 0 3px;
+  border-radius: 2px;
+  background: var(--wash-strong);
+  color: var(--ink);
+  white-space: nowrap;
+}
+
+/* One focus treatment everywhere: an ink ring set off from the control, so it
+   reads on paper, on ink, and on a filled button alike. */
+:focus-visible {
+  outline: 2px solid var(--ink);
+  outline-offset: 2px;
+}
+
+:focus:not(:focus-visible) {
+  outline: none;
+}
+
+/* Things focused by script to move the reader (a heading, a group) are not
+   controls, so they take no ring. */
+[tabindex="-1"]:focus {
+  outline: none;
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* ==========================================================================
+   Identity
+   ========================================================================== */
+
+/* The mark: the shield with its diagonal cut, drawn in whatever colour the
+   text around it is, so it sits on paper and on ink without a second file. */
+.mark {
+  display: inline-block;
+  flex-shrink: 0;
+  width: 22px;
+  height: 22px;
+  color: var(--ink);
+}
+
+.mark svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.wordmark {
+  font-family: var(--font-serif);
+  font-weight: 400;
+  font-size: 21px;
+  line-height: 1;
+  letter-spacing: -0.01em;
+  color: var(--ink);
+}
+
+/* The perforated rule — a row of small holes. The sieve, used as a divider. */
+.perf {
+  display: block;
+  height: 5px;
+  border: 0;
+  background-image: radial-gradient(circle, var(--rule-strong) 1.15px, transparent 1.55px);
+  background-size: 7px 5px;
+  background-repeat: repeat-x;
+  background-position: 0 50%;
+}
+
+/* Marginalia: section numbers, group labels, counts, "last updated". */
+.kicker {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 500;
+  line-height: 1.3;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+}
+
+/* ==========================================================================
+   Badges — stamped, not pilled
+   ========================================================================== */
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  height: 18px;
+  padding: 0 5px;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 600;
+  line-height: 1;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  vertical-align: 2px;
+  color: var(--ink-3);
+  border: 1px solid currentColor;
+  border-radius: 2px;
+  white-space: nowrap;
+}
+
+/* A badge that reports something being on is the only green one. */
+.badge.on {
+  color: var(--on);
+}
+
+.badge-new {
+  color: var(--ink);
+}
+
+.badge-beta {
+  color: var(--warn);
+}
+
+/* ==========================================================================
+   Buttons — primary is ink, never green (rule 1)
+   ========================================================================== */
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--s-2);
+  flex-shrink: 0;
+  min-height: 36px;
+  padding: 0 14px;
+  font-family: var(--font-sans);
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 1.2;
+  letter-spacing: 0.005em;
+  color: var(--ink);
+  text-decoration: none;
+  white-space: nowrap;
+  background: transparent;
+  border: 1px solid var(--rule-strong);
+  border-radius: var(--r-1);
+  cursor: pointer;
+  transition: background-color var(--t-press) var(--ease), border-color var(--t-press) var(--ease),
+    color var(--t-press) var(--ease), transform 80ms var(--ease);
+}
+
+.btn:hover {
+  border-color: var(--ink);
+  background: var(--wash);
+}
+
+/* A press sinks by a pixel — the one tactile cue, shared by every button. */
+.btn:active {
+  transform: translateY(1px);
+}
+
+.btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.btn svg {
+  width: 15px;
+  height: 15px;
+  flex-shrink: 0;
+}
+
+.btn-primary {
+  color: var(--paper);
+  background: var(--ink);
+  border-color: var(--ink);
+}
+
+.btn-primary:hover {
+  color: var(--paper);
+  background: var(--ink-2);
+  border-color: var(--ink-2);
+}
+
+.btn-danger {
+  color: var(--danger);
+  border-color: color-mix(in srgb, var(--danger) 45%, transparent);
+}
+
+.btn-danger:hover {
+  color: var(--danger);
+  border-color: var(--danger);
+  background: var(--danger-wash);
+}
+
+/* Text-only, for the secondary path out of a row of buttons. */
+.btn-quiet {
+  border-color: transparent;
+  color: var(--ink-2);
+}
+
+.btn-quiet:hover {
+  border-color: transparent;
+  color: var(--ink);
+  background: var(--wash);
+}
+
+/* ==========================================================================
+   Fields
+   ========================================================================== */
+
+.input {
+  display: block;
+  width: 100%;
+  min-height: 38px;
+  padding: 8px 11px;
+  font-family: var(--font-sans);
+  font-size: 14px;
+  line-height: 1.35;
+  color: var(--ink);
+  background: var(--raised);
+  border: 1px solid var(--rule-strong);
+  border-radius: var(--r-1);
+  transition: border-color var(--t-press) var(--ease), box-shadow var(--t-press) var(--ease);
+}
+
+.input:hover {
+  border-color: var(--ink-3);
+}
+
+.input:focus,
+.input:focus-visible {
+  outline: none;
+  border-color: var(--ink);
+  box-shadow: 0 0 0 1px var(--ink);
+}
+
+.input::placeholder {
+  color: var(--ink-3);
+  opacity: 1;
+}
+
+.input:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* A chevron drawn from two gradients, so it takes the theme's ink with no
+   image to swap. */
+select.input {
+  appearance: none;
+  -webkit-appearance: none;
+  padding-right: 34px;
+  cursor: pointer;
+  background-image: linear-gradient(45deg, transparent 50%, var(--ink-2) 50%),
+    linear-gradient(135deg, var(--ink-2) 50%, transparent 50%);
+  background-position: calc(100% - 17px) 52%, calc(100% - 12px) 52%;
+  background-size: 5px 5px, 5px 5px;
+  background-repeat: no-repeat;
+}
+
+textarea.input {
+  min-height: 0;
+  resize: vertical;
+}
+
+/* ==========================================================================
+   The switch
+   A squared track with the power marks drawn on it — | when on, O when off —
+   so its state never depends on colour alone. Green only when on.
+   ========================================================================== */
+
+
+.switch {
+  position: relative;
+  display: inline-block;
+  flex-shrink: 0;
+  width: 44px;
+  height: 24px;
+}
+
+/* The real checkbox covers the switch, so the whole thing is the hit target
+   and keeps native focus and keyboard behaviour. */
+.switch input {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+
+.switch input:disabled {
+  cursor: not-allowed;
+}
+
+.slider {
+  position: absolute;
+  inset: 0;
+  background: var(--raised);
+  border: 1px solid var(--rule-strong);
+  border-radius: var(--r-1);
+  transition: background-color var(--t-state) var(--ease), border-color var(--t-state) var(--ease);
+}
+
+/* The thumb */
+.slider::before {
+  content: "";
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 16px;
+  height: 16px;
+  border-radius: 2px;
+  background: var(--ink-3);
+  transition: transform var(--t-state) var(--ease), background-color var(--t-state) var(--ease);
+}
+
+/* The mark: O while off… */
+.slider::after {
+  content: "";
+  position: absolute;
+  top: 50%;
+  right: 8px;
+  width: 6px;
+  height: 6px;
+  border: 1.5px solid var(--ink-3);
+  border-radius: 50%;
+  transform: translateY(-50%);
+  transition: opacity var(--t-state) var(--ease);
+}
+
+.switch:hover .slider {
+  border-color: var(--ink-3);
+}
+
+.switch input:checked + .slider {
+  background: var(--on);
+  border-color: var(--on);
+}
+
+.switch input:checked + .slider::before {
+  transform: translateX(20px);
+  background: var(--on-ink);
+}
+
+/* …and | while on. */
+.switch input:checked + .slider::after {
+  right: auto;
+  left: 10px;
+  width: 0;
+  height: 9px;
+  border-width: 0 0 0 1.5px;
+  border-radius: 0;
+  border-color: var(--on-ink);
+}
+
+.switch input:focus-visible + .slider {
+  outline: 2px solid var(--ink);
+  outline-offset: 2px;
+}
+
+.switch input:disabled + .slider {
+  opacity: 0.4;
+}
+
+/* The same switch, for a checkbox that cannot be wrapped in a .switch label
+   (rows built by script). Draws itself with pseudo-elements on the input. */
+.switch-input {
+  appearance: none;
+  -webkit-appearance: none;
+  position: relative;
+  flex-shrink: 0;
+  width: 36px;
+  height: 20px;
+  margin: 0;
+  background: var(--raised);
+  border: 1px solid var(--rule-strong);
+  border-radius: var(--r-1);
+  cursor: pointer;
+  transition: background-color var(--t-state) var(--ease), border-color var(--t-state) var(--ease);
+}
+
+.switch-input::before {
+  content: "";
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 14px;
+  height: 14px;
+  border-radius: 2px;
+  background: var(--ink-3);
+  transition: transform var(--t-state) var(--ease), background-color var(--t-state) var(--ease);
+}
+
+.switch-input:checked {
+  background: var(--on);
+  border-color: var(--on);
+}
+
+.switch-input:checked::before {
+  transform: translateX(16px);
+  background: var(--on-ink);
+}
+
+.switch-input:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+/* A plain checkbox — a choice, not a protection, so it is ink. */
+.check {
+  appearance: none;
+  -webkit-appearance: none;
+  position: relative;
+  flex-shrink: 0;
+  width: 16px;
+  height: 16px;
+  margin: 0;
+  background: var(--raised);
+  border: 1.5px solid var(--ink-3);
+  border-radius: 2px;
+  cursor: pointer;
+  transition: background-color var(--t-press) var(--ease), border-color var(--t-press) var(--ease);
+}
+
+.check:checked {
+  background: var(--ink);
+  border-color: var(--ink);
+}
+
+.check:checked::after {
+  content: "";
+  position: absolute;
+  left: 4px;
+  top: 1px;
+  width: 4px;
+  height: 8px;
+  border: solid var(--paper);
+  border-width: 0 1.5px 1.5px 0;
+  transform: rotate(45deg);
+}
+
+.check:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+/* ==========================================================================
+   Loading — five holes filling in turn, the sieve as a progress indicator
+   ========================================================================== */
+
+.loader {
+  display: inline-flex;
+  gap: 6px;
+}
+
+.loader i {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--ink);
+  opacity: 0.14;
+  animation: sieve-sift 1.1s var(--ease) infinite;
+}
+
+.loader i:nth-child(2) { animation-delay: 0.11s; }
+.loader i:nth-child(3) { animation-delay: 0.22s; }
+.loader i:nth-child(4) { animation-delay: 0.33s; }
+.loader i:nth-child(5) { animation-delay: 0.44s; }
+
+@keyframes sieve-sift {
+  0%, 60%, 100% { opacity: 0.14; }
+  30% { opacity: 0.9; }
+}
+
+/* ==========================================================================
+   Scrollbars — thin, and only as dark as the rules
+   ========================================================================== */
+
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--rule-strong) transparent;
+}
+
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--rule-strong);
+  border: 3px solid transparent;
+  background-clip: padding-box;
+  border-radius: 10px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--ink-3);
+  background-clip: padding-box;
+}
+
+/* ==========================================================================
+   Touch — larger targets where the pointer is a finger
+   ========================================================================== */
+
+@media (pointer: coarse) {
+  .btn {
+    min-height: 44px;
+  }
+  .input {
+    min-height: 44px;
+  }
+}
+
+/* ==========================================================================
+   Reduced motion — state still changes, it just does not travel
+   ========================================================================== */
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+  }
+  .loader i {
+    opacity: 0.5;
+  }
+}

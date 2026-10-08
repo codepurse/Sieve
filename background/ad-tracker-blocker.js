@@ -250,6 +250,30 @@ async function loadTrackerDomains(name) {
 // nothing outside this band.
 // ===========================================================================
 
+// ===========================================================================
+// YouTube — the one site this tier always stands down on
+//
+// On YouTube the "ad and tracking domains" are Google's, and Google is the site.
+// Blocking them there protects nobody from anything Google cannot already see
+// first-hand, and it is the surest way to get the account flagged. Measured on
+// a watch page in October 2026, with only this tier on: YouTube's own player
+// was refused ade.googlesyndication.com/ddm/activity_ext (x4),
+// pagead2.googlesyndication.com/activeview_ext (x2) and
+// googleads.g.doubleclick.net/pagead/id. Those are the ad's activity and
+// viewability reports — "this ad was really on screen". A viewer whose ads
+// never report being seen looks exactly like one who blocks them, and YouTube
+// treats it that way: on a reporter's account the playback block came back
+// even while Sieve's YouTube filter was letting every ad play.
+//
+// So YouTube pages are treated as permanently allowlisted for THIS tier only —
+// the same initiator exclusion the user's own Allowlist compiles into, so every
+// rule shape and the neutered stubs stand down together. YouTube's ads are
+// content/youtube-ads.js's job, done inside the page. Everywhere else,
+// including a page that merely embeds a YouTube video, these lists block as
+// before; the embed's own frame is YouTube's and is spared like the rest.
+// ===========================================================================
+export const ALWAYS_SPARED_INITIATORS = ["youtube.com", "youtube-nocookie.com"];
+
 // Normalise the user's allowlist into bare domains DNR will accept. Entries are
 // already clean by the time service-worker.js feeds them to requestDomains, but
 // this rule set would be taken down ENTIRELY by one entry Chrome rejects
@@ -488,7 +512,7 @@ export async function applyAdTrackerRules(name) {
       const domains = await loadTrackerDomains(name);
       addRules = buildTrackerRules(
         domains,
-        allowlistInitiators(allowlist),
+        [...new Set([...ALWAYS_SPARED_INITIATORS, ...allowlistInitiators(allowlist)])],
         spec.idStart,
         spec.category
       );

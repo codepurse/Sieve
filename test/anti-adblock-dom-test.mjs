@@ -588,3 +588,161 @@ test("a wall's text alone is not enough — it has to be covering something", ()
   dom.sweep();
   assert.deepEqual(sent, []);
 });
+
+// ===========================================================================
+// The dimmer that came with the wall
+// ===========================================================================
+//
+// Reported on YouTube, October 2026: the "Ad blockers are not allowed" dialog
+// was cleared, but the grey layer YouTube draws behind it is a separate element
+// — tp-yt-iron-overlay-backdrop, a direct child of <body> — and it stayed up.
+// The page went dark and every click landed on it. These pin the fix, and the
+// four things a layer has to be before it is taken for that dimmer.
+
+// The YouTube shape: <body> holds the app (which holds the dialog, deep down)
+// and, beside it, the backdrop.
+function youtubeShape(sandbox, backdropStyle = {}) {
+  const body = sandbox.document.body;
+  const app = node({ tag: "YTD-APP" });
+  const popups = node({ tag: "YTD-POPUP-CONTAINER" });
+  const wall = node({
+    tag: "TP-YT-PAPER-DIALOG",
+    text: "Ad blockers are not allowed on YouTube. Allow YouTube ads or try YouTube Premium.",
+    cs: style({ position: "fixed", zIndex: "2204" }),
+  });
+  const backdrop = node({
+    tag: "TP-YT-IRON-OVERLAY-BACKDROP",
+    cs: style({ position: "fixed", zIndex: "2203", ...backdropStyle }),
+    rect: { x: 0, y: 0, top: 0, left: 0, width: 985, height: 800 },
+  });
+  wall.parentElement = popups;
+  popups.parentElement = app;
+  app.parentElement = body;
+  backdrop.parentElement = body;
+  popups.children = [wall];
+  app.children = [popups];
+  body.children = [app, backdrop];
+  return { app, wall, backdrop };
+}
+
+test("the dimmer behind a wall is hidden along with it", () => {
+  const { sandbox, dom } = makeSandbox();
+  const { app, wall, backdrop } = youtubeShape(sandbox);
+
+  assert.equal(dom.clearWall(wall), true);
+  assert.deepEqual(backdrop.applied.display, { value: "none", priority: "important" });
+  assert.equal(backdrop.getAttribute("data-sieve-cleared"), "adblock-backdrop");
+  assert.equal(app.applied.display, undefined, "the app holding the wall must be left alone");
+});
+
+test("a dimmer that switches on after its dialog is caught on the next sweep", () => {
+  // YouTube's fades in by gaining a class a moment later, so when the wall is
+  // cleared it is still inert. The class change brings the observer back.
+  const { sandbox, dom } = makeSandbox();
+  const { wall, backdrop } = youtubeShape(sandbox, { pointerEvents: "none" });
+
+  dom.clearWall(wall);
+  assert.equal(backdrop.applied.display, undefined, "not yet: it is not catching clicks");
+
+  backdrop._cs = style({ position: "fixed", zIndex: "2203" });
+  dom.sweep(false);
+  assert.equal(backdrop.applied.display.value, "none");
+});
+
+test("the dimmer is part of the wall, not a second one — it is not counted", () => {
+  const { sandbox, dom, sent } = makeSandbox();
+  const { wall, backdrop } = youtubeShape(sandbox);
+  sandbox._candidates = [wall];
+
+  dom.sweep();
+  assert.equal(backdrop.applied.display.value, "none");
+  assert.deepEqual(JSON.parse(JSON.stringify(sent)), [
+    { type: "SIEVE_RECORD_BLOCK", category: "antiAdblock", count: 1 },
+  ]);
+});
+
+test("nothing is looked for on a page where no wall was cleared", () => {
+  // A site's own modal, open for its own reasons, keeps its dimmer.
+  const { sandbox, dom } = makeSandbox();
+  const { backdrop } = youtubeShape(sandbox);
+  assert.equal(dom.clearBackdrops(), 0);
+  dom.sweep(false);
+  assert.equal(backdrop.applied.display, undefined);
+});
+
+test("only an empty, fixed, full-screen, stacked layer that catches clicks qualifies", () => {
+  const { dom } = makeSandbox();
+  const full = { x: 0, y: 0, top: 0, left: 0, width: 1000, height: 800 };
+  const make = (over = {}, extra = {}) => {
+    const el = node({ cs: style({ position: "fixed", zIndex: "1040", ...over }), rect: extra.rect || full, text: extra.text || "" });
+    if (extra.media) el.querySelector = () => ({ tagName: "IMG" });
+    return el;
+  };
+  const getStyle = (n) => n._cs;
+
+  assert.equal(dom.isBackdrop(make(), getStyle), true, "the Bootstrap-shaped backdrop");
+
+  const cases = {
+    "it has words on it": make({}, { text: "Subscribe to keep reading" }),
+    "it holds a picture": make({}, { media: true }),
+    "clicks pass through it": make({ pointerEvents: "none" }),
+    "it is not stacked above the page": make({ zIndex: "10" }),
+    "it has no z-index at all": make({ zIndex: "auto" }),
+    "it scrolls with the page": make({ position: "absolute" }),
+    "it is already hidden": make({ display: "none" }),
+    "it is invisible": make({ visibility: "hidden" }),
+    "it only covers half the window": make({}, { rect: { ...full, width: 500 } }),
+    "it is a top bar": make({}, { rect: { ...full, height: 60 } }),
+  };
+  for (const [why, el] of Object.entries(cases)) {
+    assert.equal(dom.isBackdrop(el, getStyle), false, why);
+  }
+});
+
+test("never the element the wall lives in, even when it now reads as empty", () => {
+  // Once the wall is display:none its text no longer renders, so a fixed,
+  // full-screen shell around it looks exactly like an empty backdrop. Hiding it
+  // would take the whole site with it.
+  const { sandbox, dom } = makeSandbox();
+  const body = sandbox.document.body;
+  const shell = node({
+    cls: "app-shell",
+    cs: style({ position: "fixed", zIndex: "500" }),
+    rect: { x: 0, y: 0, top: 0, left: 0, width: 1000, height: 800 },
+  });
+  const wall = node({ cls: "notice", text: "Please disable your ad blocker.", cs: style({ position: "fixed", zIndex: "600" }) });
+  wall.parentElement = shell;
+  shell.parentElement = body;
+  shell.children = [wall];
+  body.children = [shell];
+
+  dom.clearWall(wall);
+  assert.equal(shell.applied.display, undefined);
+});
+
+test("a layer hosting a shadow tree is never taken for an empty dimmer", () => {
+  // Sieve's own take-a-break screen: a fixed, full-screen <div> on top of
+  // everything whose words all live in its shadow root, so innerText reads "".
+  // Hidden as a "dimmer", it would vanish while its scroll lock stayed on.
+  const { sandbox, dom } = makeSandbox();
+  const { wall } = youtubeShape(sandbox);
+  const pause = node({
+    cs: style({ position: "fixed", zIndex: "2147483647" }),
+    rect: { x: 0, y: 0, top: 0, left: 0, width: 1000, height: 800 },
+  });
+  pause.shadowRoot = { mode: "open" };
+  pause.parentElement = sandbox.document.body;
+  sandbox.document.body.children.push(pause);
+
+  assert.equal(dom.isBackdrop(pause, (n) => n._cs), false);
+  dom.clearWall(wall);
+  assert.equal(pause.applied.display, undefined, "the break screen must stay up");
+
+  // A closed root is invisible to el.shadowRoot; the extension API still sees it.
+  const closed = node({
+    cs: style({ position: "fixed", zIndex: "3000" }),
+    rect: { x: 0, y: 0, top: 0, left: 0, width: 1000, height: 800 },
+  });
+  sandbox.chrome.dom = { openOrClosedShadowRoot: (el) => (el === closed ? { mode: "closed" } : null) };
+  assert.equal(dom.isBackdrop(closed, (n) => n._cs), false);
+});

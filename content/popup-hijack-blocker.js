@@ -213,13 +213,14 @@
     promptShadow = promptHost.attachShadow ? promptHost.attachShadow({ mode: "closed" }) : promptHost;
     const style = document.createElement("style");
     style.textContent =
-      ".box{font:13px system-ui,-apple-system,'Segoe UI',sans-serif;color:#f1f5f9;background:#1e293b;" +
-      "border:1px solid #334155;border-radius:10px;padding:12px 14px;width:300px;box-shadow:0 8px 24px rgba(0,0,0,.4)}" +
-      ".t{font-weight:600;margin-bottom:4px}.u{color:#94a3b8;font-size:11px;word-break:break-all;margin-bottom:10px;max-height:48px;overflow:hidden}" +
-      ".row{display:flex;gap:8px;flex-wrap:wrap}button{font:inherit;border-radius:6px;padding:5px 10px;cursor:pointer;border:1px solid #334155}" +
-      ".allow{background:#38bdf8;color:#06283d;border-color:#38bdf8;font-weight:600}" +
-      ".x{background:transparent;color:#94a3b8;margin-left:auto}" +
-      ".hint{color:#94a3b8;font-size:11px;margin-top:8px}";
+      // Sieve's ink-and-paper notice, one variant for every host page.
+      ".box{font:13px/1.45 system-ui,-apple-system,'Segoe UI',sans-serif;color:#f2efe7;background:#1a1916;" +
+      "border-radius:6px;padding:12px 14px;width:300px;box-shadow:0 0 0 1px #3a3833,0 16px 36px -12px rgba(0,0,0,.5)}" +
+      ".t{font-weight:600;margin-bottom:4px}.u{color:#a8a397;font:11px/1.4 Consolas,monospace;word-break:break-all;margin-bottom:10px;max-height:46px;overflow:hidden}" +
+      ".row{display:flex;gap:8px;flex-wrap:wrap}button{font:inherit;border-radius:3px;padding:5px 11px;cursor:pointer;border:1px solid #57544c;background:none;color:inherit}" +
+      ".allow{background:#f2efe7;color:#1a1916;border-color:#f2efe7;font-weight:600}" +
+      ".x{color:#a8a397;margin-left:auto}" +
+      ".hint{color:#a8a397;font-size:11px;margin-top:8px}";
     const box = document.createElement("div");
     box.className = "box";
     // No "Always allow this site" button here any more.
