@@ -63,7 +63,7 @@
   }
 
   function addBadge(checkbox) {
-    if (checkbox.dataset.sieveCheckboxBadge === "true") return;
+    if (checkbox.dataset.sieveCheckboxBadge === "true") return null;
 
     const badge = document.createElement("span");
     badge.textContent = BADGE_TEXT;
@@ -92,6 +92,7 @@
     }
 
     checkbox.dataset.sieveCheckboxBadge = "true";
+    return badge;
   }
 
   function getLabelFor(checkbox) {
@@ -104,9 +105,22 @@
     return null;
   }
 
-  function highlight(checkbox) {
+  // Outline + badge: this detector's stamp, used at the ladder's "label" step.
+  // It goes no higher — unticking a box could break a form that bundles the
+  // opt-in with its terms — so the choice stays the user's. Returns its undo.
+  function flag(checkbox) {
+    const before = { outline: checkbox.style.outline, outlineOffset: checkbox.style.outlineOffset };
     checkbox.style.outline = "2px solid #b07d1f";
     checkbox.style.outlineOffset = "2px";
+    const badge = addBadge(checkbox);
+    return () => {
+      checkbox.style.outline = before.outline;
+      checkbox.style.outlineOffset = before.outlineOffset;
+      if (badge) {
+        badge.remove();
+        delete checkbox.dataset.sieveCheckboxBadge;
+      }
+    };
   }
 
   function processCheckbox(checkbox, ctx) {
@@ -114,11 +128,23 @@
     if (checkbox.type !== "checkbox") return;
     if (!checkbox.checked) return;
     if (!hasMarketingContext(checkbox, ctx)) return;
-
-    highlight(checkbox);
-    addBadge(checkbox);
     ctx.mark(checkbox, TYPE);
-    ctx.report(TYPE, 1);
+
+    if (typeof ctx.tell !== "function") {
+      flag(checkbox);
+      ctx.report(TYPE, 1);
+      return;
+    }
+    const label = getLabelFor(checkbox);
+    const words = ((label && label.textContent) || "").trim().replace(/\s+/g, " ").slice(0, 90);
+    ctx.tell(checkbox, {
+      type: TYPE,
+      confidence: "medium",
+      maxLevel: ctx.LEVEL.LABEL,
+      title: "A box ticked for you",
+      detail: words ? `“${words}” was already ticked. Untick it if you don't want it.` : "A marketing opt-in was already ticked. Untick it if you don't want it.",
+      labelWith: flag,
+    });
   }
 
   function scan(root, ctx) {

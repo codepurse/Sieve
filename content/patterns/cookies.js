@@ -103,8 +103,15 @@
     return rect.width < 20 || rect.height < 10;
   }
 
-  function normalizeButtons(acceptBtn, rejectBtn, ctx) {
-    if (ctx.isMarked(acceptBtn) && ctx.isMarked(rejectBtn)) return;
+  // The fix at the ladder's "defuse" step. Returns its undo, which hands both
+  // buttons back exactly as the site styled them.
+  function normalizeButtons(acceptBtn, rejectBtn) {
+    const saved = [acceptBtn, rejectBtn].map((btn) => ({
+      btn,
+      css: btn.getAttribute("style"),
+      ariaHidden: btn.getAttribute("aria-hidden"),
+      hidden: btn.getAttribute("hidden"),
+    }));
 
     // Make reject visible if hidden.
     rejectBtn.style.display = "";
@@ -133,9 +140,15 @@
     acceptBtn.setAttribute("data-sieve-cookie", "leveled");
     rejectBtn.setAttribute("data-sieve-cookie", "leveled");
 
-    ctx.mark(acceptBtn, TYPE);
-    ctx.mark(rejectBtn, TYPE);
-    ctx.report(TYPE, 1);
+    return () => {
+      for (const s of saved) {
+        const put = (name, value) => (value === null ? s.btn.removeAttribute(name) : s.btn.setAttribute(name, value));
+        put("style", s.css);
+        put("aria-hidden", s.ariaHidden);
+        put("hidden", s.hidden);
+        s.btn.removeAttribute("data-sieve-cookie");
+      }
+    };
   }
 
   function scan(root, ctx) {
@@ -164,10 +177,29 @@
     // Only act if the banner looks manipulative: reject is hidden or much
     // smaller/less prominent than accept.
     if (isVisuallySuppressed(rejectBtn) || isTiny(rejectBtn)) {
-      normalizeButtons(acceptBtn, rejectBtn, ctx);
+      if (ctx.isMarked(acceptBtn) && ctx.isMarked(rejectBtn)) return 0;
+      ctx.mark(acceptBtn, TYPE);
+      ctx.mark(rejectBtn, TYPE);
       ctx.mark(banner, TYPE);
-      // normalizeButtons() already reports via ctx.report(). Return 0 so the
-      // coordinator (dark-patterns.js scanRoot) doesn't double-count this.
+
+      // The cookie auto-reject fallback (content/cookie-autoreject.js) may call
+      // this with a bare context of its own when the coordinator is missing.
+      if (typeof ctx.tell !== "function") {
+        normalizeButtons(acceptBtn, rejectBtn);
+        ctx.report(TYPE, 1);
+        return 0;
+      }
+      ctx.tell(banner, {
+        type: TYPE,
+        confidence: "medium",
+        title: "A lopsided cookie banner",
+        label: "Reject is hidden",
+        detail: "Its Reject button was hidden or shrunk so that Accept stands out. Sieve made the two the same size.",
+        defuse: () => normalizeButtons(acceptBtn, rejectBtn),
+        done: "Levelled",
+      });
+      // ctx.tell() does the counting. Return 0 so the coordinator
+      // (dark-patterns.js scanRoot) doesn't double-count this.
       return 0;
     }
 

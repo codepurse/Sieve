@@ -576,6 +576,8 @@ function optionsDefaults() {
     // Dark Pattern Blocker — master + cookie-autoreject tally (per-type keys added below)
     darkPatternsEnabled: true,
     cookieAutoRejectStats: null,
+    // How firmly it answers what it finds; see the ladder in content/dark-patterns.js
+    tellsStrictness: "balanced",
     // Usage Insights — opt-in screen-time tracking, and how long to keep it
     usageEnabled: false,
     usageRetentionDays: 30,
@@ -2597,7 +2599,7 @@ function setupSearchFilter(store) {
 // ===========================================================================
 
 const DARK_PATTERN_TYPES = [
-  { key: "darkPatternTimersEnabled", id: "dark-pattern-timers-toggle", name: "fake countdown timer removal" },
+  { key: "darkPatternTimersEnabled", id: "dark-pattern-timers-toggle", name: "fake countdown and deadline catching" },
   { key: "darkPatternGuiltCopyEnabled", id: "dark-pattern-guilt-copy-toggle", name: "guilt-trip copy rewriting" },
   { key: "darkPatternCheckboxesEnabled", id: "dark-pattern-checkboxes-toggle", name: "pre-ticked checkbox highlighting" },
   { key: "darkPatternCookiesEnabled", id: "dark-pattern-cookies-toggle", name: "cookie banner fixing" },
@@ -2605,6 +2607,8 @@ const DARK_PATTERN_TYPES = [
   // switch and reuses the same gate/persist plumbing; only its default differs.
   { key: "darkPatternCookieAutoRejectEnabled", id: "dark-pattern-cookie-autoreject-toggle", name: "auto-rejecting non-essential cookies", default: false },
   { key: "darkPatternScarcityEnabled", id: "dark-pattern-scarcity-toggle", name: "fake scarcity dimming" },
+  { key: "darkPatternTrialsEnabled", id: "dark-pattern-trials-toggle", name: "free-trial warnings" },
+  { key: "darkPatternSocialProofEnabled", id: "dark-pattern-social-proof-toggle", name: "fake popularity hiding" },
 ];
 
 function setupDarkPatterns(store) {
@@ -2634,6 +2638,9 @@ function setupDarkPatterns(store) {
     });
   }
 
+  setupTellsStrictness(store);
+  setupClaimMemory();
+
   // Live counter under the auto-reject toggle: "Auto-rejected cookies on X sites
   // this week". The tally is written by content/cookie-autoreject.js into
   // cookieAutoRejectStats; here we just render the current week's figure and keep
@@ -2659,6 +2666,76 @@ function setupDarkPatterns(store) {
       if (area === "local" && changes.cookieAutoRejectStats) render(changes.cookieAutoRejectStats.newValue);
     });
   }
+}
+
+// How firmly the Dark Pattern Blocker answers what it finds: Gentle labels,
+// Balanced fixes what's likely and covers what's proven, Firm covers anything
+// likely. Moving GENTLER weakens protection, so it goes through the lock;
+// moving firmer is free, like every other strengthening change.
+const TELLS_STRICTNESS_ORDER = ["gentle", "balanced", "firm"];
+
+function setupTellsStrictness(store) {
+  const radios = document.querySelectorAll('input[name="tellsStrictness"]');
+  if (radios.length === 0) return;
+  let current = TELLS_STRICTNESS_ORDER.includes(store.tellsStrictness) ? store.tellsStrictness : "balanced";
+
+  function check(value) {
+    radios.forEach((radio) => {
+      radio.checked = radio.value === value;
+    });
+  }
+
+  radios.forEach((radio) => {
+    radio.addEventListener("change", async () => {
+      if (!radio.checked) return;
+      const next = radio.value;
+      const gentler = TELLS_STRICTNESS_ORDER.indexOf(next) < TELLS_STRICTNESS_ORDER.indexOf(current);
+      if (gentler && !(await SieveGuardian.confirmUnlock("Make the Dark Pattern Blocker gentler"))) {
+        check(current);
+        return;
+      }
+      current = next;
+      chrome.storage.local.set({ tellsStrictness: next });
+    });
+  });
+  chrome.storage.onChanged.addListener((changes, area) => {
+    if (area === "local" && changes.tellsStrictness && TELLS_STRICTNESS_ORDER.includes(changes.tellsStrictness.newValue)) {
+      current = changes.tellsStrictness.newValue;
+      check(current);
+    }
+  });
+  check(current);
+}
+
+// The Claim Ledger lives in the service worker (background/tells.js); this
+// shows how much it holds and lets the user empty it. Forgetting is not gated:
+// it costs Sieve its evidence, not the user any protection they switched on.
+function setupClaimMemory() {
+  const countEl = document.getElementById("claims-count");
+  const forget = document.getElementById("claims-forget");
+  if (!countEl || !forget) return;
+
+  function render(n) {
+    countEl.textContent =
+      n === 0 ? "Remembering nothing yet" : `Remembering ${n} claim${n === 1 ? "" : "s"} from the last 30 days`;
+    forget.disabled = n === 0;
+  }
+
+  chrome.runtime
+    .sendMessage({ type: "sieve:claims-info" })
+    .then((info) => render(info && typeof info.count === "number" ? info.count : 0))
+    .catch(() => render(0));
+
+  forget.addEventListener("click", async () => {
+    forget.disabled = true;
+    try {
+      await chrome.runtime.sendMessage({ type: "sieve:claims-forget" });
+      render(0);
+      countEl.textContent = "Forgotten. Sieve starts again from your next visit.";
+    } catch {
+      forget.disabled = false;
+    }
+  });
 }
 
 // ===========================================================================

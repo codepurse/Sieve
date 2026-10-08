@@ -133,7 +133,29 @@ jobs:
           #
           # Only <all_urls> entries count. A script scoped to youtube.com is not
           # a cost on every page, so it is not what this measures.
-          $TOP_FRAME_BUDGET = 140000
+          #
+          # RAISED from 140,000 for "tells" (the Claim Ledger, the intervention
+          # ladder, and the popup's "On this page"), which took the top-frame
+          # figure from about 118,500 to about 140,100. That is the Dark Pattern
+          # Blocker's engine growing a memory, a ladder and a report, and it has
+          # to be on every page because any page can be a shop. Its drawing half
+          # -- the stamps, covers and "Show me" ring, 5.5 KB -- was moved OUT of
+          # the injection into content/tells-ui.js, which the service worker
+          # injects only into a page that has something to draw. The new figure
+          # left about 14% headroom over the new size, a little under the 18%
+          # this step started with.
+          #
+          # The free-trial warning then took it to about 144,300: only its
+          # trigger (the words "free trial") and the due-reminder check are on
+          # every page; reading a trial's terms -- 9 KB -- is in
+          # content/trial-terms.js, injected on demand the same way.
+          #
+          # Fake popularity then took it to about 150,500 -- about 6% headroom.
+          # It stays on every page because its trigger ("... ago") is on nearly
+          # every page, so an on-demand half would be fetched almost always.
+          # The next addition should load on demand, or this becomes a decision
+          # again.
+          $TOP_FRAME_BUDGET = 160000
           $SUBFRAME_BUDGET  = 45000
 
           $manifest = Get-Content "dist\chrome\manifest.json" -Raw | ConvertFrom-Json

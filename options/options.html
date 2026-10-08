@@ -1077,8 +1077,10 @@
             <div class="group-head">
               <h2 class="group-title">Dark patterns</h2>
               <p class="group-desc">
-                Removes manipulative design as you browse — fake countdowns, guilt-trip buttons,
-                pre-ticked boxes, cookie walls and fake scarcity.
+                Catches manipulative design as you browse — fake countdowns, guilt-trip buttons,
+                pre-ticked boxes, cookie walls, fake scarcity, fake popularity and free trials
+                that quietly turn into payments — and tells you what it found:
+                open the toolbar popup on any page to see what that page tried.
               </p>
             </div>
             <div class="group-body">
@@ -1093,9 +1095,34 @@
               </div>
 
               <div class="field">
+                <h3 class="field-title" id="tells-strictness-title">How firmly Sieve responds</h3>
+                <p class="hint">
+                  What Sieve does on the page with what it finds. Gentle only labels it. Balanced
+                  fixes what&rsquo;s likely &mdash; hides the countdown, rewords the button &mdash; and
+                  covers what&rsquo;s proven, with a note saying why. Firm covers anything likely.
+                  Whatever you pick, something Sieve isn&rsquo;t sure about is only ever labelled,
+                  and anything it changes can be put back from the toolbar popup.
+                </p>
+                <div class="radio-group" role="radiogroup" aria-labelledby="tells-strictness-title">
+                  <label class="radio">
+                    <input type="radio" name="tellsStrictness" value="gentle" />
+                    <span>Gentle</span> <span class="eg">label, change nothing</span>
+                  </label>
+                  <label class="radio">
+                    <input type="radio" name="tellsStrictness" value="balanced" />
+                    <span>Balanced</span> <span class="eg">recommended</span>
+                  </label>
+                  <label class="radio">
+                    <input type="radio" name="tellsStrictness" value="firm" />
+                    <span>Firm</span> <span class="eg">cover what&rsquo;s likely</span>
+                  </label>
+                </div>
+              </div>
+
+              <div class="field">
                 <h3 class="field-title">What to clean up</h3>
                 <div class="switch-row">
-                  <div class="switch-label"><span class="label">Fake countdown timers</span><span class="description">Remove bogus &ldquo;offer ends in…&rdquo; timers.</span></div>
+                  <div class="switch-label"><span class="label">Fake countdowns and deadlines</span><span class="description">Hide &ldquo;offer ends in…&rdquo; timers, and catch the ones that restart, or a sale that &ldquo;ends today&rdquo; every day.</span></div>
                   <label class="switch"><input type="checkbox" id="dark-pattern-timers-toggle" /><span class="slider"></span></label>
                 </div>
                 <div class="switch-row">
@@ -1120,8 +1147,31 @@
                   <label class="switch"><input type="checkbox" id="dark-pattern-cookie-autoreject-toggle" /><span class="slider"></span></label>
                 </div>
                 <div class="switch-row">
-                  <div class="switch-label"><span class="label">Fake scarcity messages</span><span class="description">Dim &ldquo;Only 2 left!&rdquo; pressure tactics.</span></div>
+                  <div class="switch-label"><span class="label">Fake scarcity messages</span><span class="description">Dim &ldquo;Only 2 left!&rdquo; when the number never moves, jumps about, or is the same on every product.</span></div>
                   <label class="switch"><input type="checkbox" id="dark-pattern-scarcity-toggle" /><span class="slider"></span></label>
+                </div>
+                <div class="switch-row">
+                  <div class="switch-label"><span class="label">Free trials that turn into payments</span><span class="description">Say what a free trial will cost when it ends and the day it starts charging, and offer to remind you two days before. Reminders you set stay even if you switch this off.</span></div>
+                  <label class="switch"><input type="checkbox" id="dark-pattern-trials-toggle" /><span class="slider"></span></label>
+                </div>
+                <div class="switch-row">
+                  <div class="switch-label"><span class="label">Fake popularity</span><span class="description">Hide &ldquo;Sarah from Ohio just bought this&rdquo; pop-ups, and flag &ldquo;23 people are viewing this&rdquo; counts nobody can check &mdash; dimmed if the number never moves.</span></div>
+                  <label class="switch"><input type="checkbox" id="dark-pattern-social-proof-toggle" /><span class="slider"></span></label>
+                </div>
+              </div>
+
+              <div class="field">
+                <h3 class="field-title">What Sieve remembers</h3>
+                <p class="hint">
+                  To tell a fake countdown from a real one, Sieve writes down what a page claimed &mdash;
+                  the time a countdown said it would end, a stock number, a &ldquo;people viewing&rdquo;
+                  count, the day a sale &ldquo;ended today&rdquo; &mdash; and checks it the next time you visit. It keeps these for 30 days,
+                  on this device only, filed under scrambled codes rather than page addresses. Nothing
+                  from a private window is kept, and none of it leaves your browser.
+                </p>
+                <div class="claims-row">
+                  <span class="meta" id="claims-count" role="status" aria-live="polite">Remembering &hellip;</span>
+                  <button type="button" class="btn" id="claims-forget">Forget it all</button>
                 </div>
               </div>
             </div>

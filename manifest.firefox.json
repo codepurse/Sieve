@@ -70,10 +70,13 @@
       "js": [
         "content/dark-patterns.js",
         "content/patterns/timers.js",
+        "content/patterns/deadlines.js",
         "content/patterns/guilt-copy.js",
         "content/patterns/checkboxes.js",
         "content/patterns/cookies.js",
-        "content/patterns/scarcity.js"
+        "content/patterns/scarcity.js",
+        "content/patterns/trials.js",
+        "content/patterns/social-proof.js"
       ],
       "run_at": "document_idle"
     },

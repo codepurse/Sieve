@@ -751,6 +751,21 @@ html.preload .loading-veil {
   margin-top: -2px;
 }
 
+/* ---- Dark patterns: what Sieve remembers ----------------------------------- */
+
+/* The count, and the button that empties it, on one line. */
+.claims-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px 16px;
+}
+
+.claims-row .meta {
+  margin-top: 0;
+}
+
 /* ---- Radio rows ------------------------------------------------------------ */
 
 .radio-group {
