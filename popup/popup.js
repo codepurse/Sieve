@@ -57,6 +57,7 @@ document.addEventListener("DOMContentLoaded", () => {
     chrome.runtime.openOptionsPage();
   });
 
+  setupReceipt();
   setupDarkPatterns();
   setupToxicHider();
   setupPopupHijack();
@@ -149,29 +150,226 @@ function showSiteHost(host) {
 }
 
 // ===========================================================================
-// Dark Pattern Blocker (Module 3A) — master toggle + per-page count only.
-// The per-type sub-toggles live on the options page (options/options.js).
+// On this page — what the page tried, and what Sieve did about each thing.
+// The Dark Pattern Blocker's content script (content/dark-patterns.js) keeps
+// the list of findings for its page; this asks for it, and sends "Show me" and
+// "Undo" back. The bar of three holes beside each one is the intervention
+// ladder: one filled for a label, two for a fix, three for a cover.
 // ===========================================================================
 
-function updateDarkPatternsCount(counts) {
-  const el = document.getElementById("dark-patterns-count");
-  const total = counts?.total ?? 0;
-  el.textContent =
-    total === 0
-      ? "No dark patterns on this page"
-      : `Removed ${total} dark pattern${total === 1 ? "" : "s"} on this page`;
+const CONFIDENCE_WORDS = { high: "sure", medium: "likely", low: "unsure" };
+// Proven first. Sorted by how sure Sieve is, not by what it did, so an item
+// does not jump down the list when its Undo is pressed.
+const CONFIDENCE_RANK = { high: 0, medium: 1, low: 2 };
+// Beyond this many, the rest wait behind "Show N more", so the switches below
+// stay in reach without the list scrolling inside a popup that scrolls.
+const RECEIPT_SHOWN = 3;
+
+let receiptTabId = null;
+let receiptShown = ""; // the last report drawn, so a refresh that changes nothing draws nothing
+let receiptExpanded = false;
+let receiptReport = null;
+
+async function sendToPage(message) {
+  if (receiptTabId == null) return null;
+  try {
+    return await chrome.tabs.sendMessage(receiptTabId, message, { frameId: 0 });
+  } catch {
+    return null; // no content script here: chrome:// pages, the web store, PDFs
+  }
 }
 
-async function refreshDarkPatternsCount() {
+function receiptButton(text, onClick) {
+  const button = document.createElement("button");
+  button.type = "button";
+  button.className = "link-btn";
+  button.textContent = text;
+  button.addEventListener("click", onClick);
+  return button;
+}
+
+function tellItem(t) {
+  const li = document.createElement("li");
+  li.className = "tell" + (t.undone ? " is-undone" : "");
+
+  const meter = document.createElement("span");
+  meter.className = "tell-meter";
+  meter.dataset.level = String(Math.max(0, t.level));
+  meter.setAttribute("aria-hidden", "true");
+  for (let i = 0; i < 3; i++) meter.appendChild(document.createElement("i"));
+
+  const main = document.createElement("div");
+  main.className = "tell-main";
+
+  const title = document.createElement("span");
+  title.className = "tell-title";
+  title.textContent = t.title;
+
+  const detail = document.createElement("span");
+  detail.className = "tell-detail";
+  detail.textContent = t.detail;
+
+  const foot = document.createElement("div");
+  foot.className = "tell-foot";
+  const done = document.createElement("span");
+  done.className = "tell-done";
+  done.textContent = t.trick ? `${t.done} · ${CONFIDENCE_WORDS[t.confidence] || ""}` : t.done;
+  foot.appendChild(done);
+
+  foot.appendChild(
+    receiptButton("Show me", async () => {
+      const result = await sendToPage({ type: "sieve:tells-show", id: t.id });
+      if (result && result.ok) window.close(); // out of the way, so the ring can be seen
+    })
+  );
+  if (t.canUndo) {
+    foot.appendChild(
+      receiptButton(t.undone ? "Redo" : "Undo", async () => {
+        const report = await sendToPage({ type: t.undone ? "sieve:tells-redo" : "sieve:tells-undo", id: t.id });
+        if (report) renderReceipt(report);
+      })
+    );
+  }
+  // The finding's own buttons, e.g. a free trial's "Remind me on Tue, Oct 13".
+  for (const action of t.actions || []) {
+    const button = receiptButton(action.label, async () => {
+      button.disabled = true;
+      const report = await sendToPage({ type: "sieve:tells-action", id: t.id, action: action.id });
+      if (report) renderReceipt(report);
+      refreshReminders();
+    });
+    button.disabled = !!action.disabled;
+    foot.appendChild(button);
+  }
+
+  main.append(title, detail, foot);
+  li.append(meter, main);
+  return li;
+}
+
+function renderReceipt(report, force) {
+  const key = JSON.stringify(report);
+  if (key === receiptShown && !force) return;
+  receiptShown = key;
+  receiptReport = report;
+
+  const empty = document.getElementById("receipt-empty");
+  const count = document.getElementById("receipt-count");
+  const list = document.getElementById("receipt-list");
+  const more = document.getElementById("receipt-more");
+  const watchTitle = document.getElementById("receipt-watch-title");
+  const watch = document.getElementById("receipt-watch");
+  list.textContent = "";
+  watch.textContent = "";
+
+  const tells = report && Array.isArray(report.tells) ? report.tells : [];
+  const tricks = tells
+    .filter((t) => t.trick)
+    .sort((a, b) => (CONFIDENCE_RANK[a.confidence] ?? 3) - (CONFIDENCE_RANK[b.confidence] ?? 3));
+  const watching = tells.filter((t) => !t.trick);
+
+  const shown = receiptExpanded ? tricks : tricks.slice(0, RECEIPT_SHOWN);
+  for (const t of shown) list.appendChild(tellItem(t));
+  for (const t of watching) watch.appendChild(tellItem(t));
+
+  const hiddenCount = tricks.length - shown.length;
+  more.hidden = tricks.length <= RECEIPT_SHOWN;
+  more.textContent = hiddenCount > 0 ? `Show ${hiddenCount} more` : "Show fewer";
+
+  list.hidden = tricks.length === 0;
+  watch.hidden = watchTitle.hidden = watching.length === 0;
+  count.hidden = tricks.length === 0;
+  count.textContent = `${tricks.length} trick${tricks.length === 1 ? "" : "s"}`;
+
+  empty.hidden = tricks.length > 0;
+  if (!report) empty.textContent = "Sieve can't read this page.";
+  else if (!report.enabled && tells.length === 0) empty.textContent = "The Dark Pattern Blocker is off.";
+  else empty.textContent = "No tricks spotted on this page.";
+
+  updateDarkPatternsCount(report ? tricks.length : 0);
+}
+
+async function refreshReceipt() {
+  renderReceipt(await sendToPage({ type: "sieve:tells-list" }));
+}
+
+// ===========================================================================
+// Free-trial reminders — the ones you set, from any site, each with Cancel.
+// Kept by the service worker (background/trial-reminders.js); this only lists
+// them. The section stays hidden until there is one.
+// ===========================================================================
+
+function reminderDay(ms) {
+  return new Date(ms).toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" });
+}
+
+async function refreshReminders() {
+  let list = [];
+  try {
+    list = (await chrome.runtime.sendMessage({ type: "sieve:trial-list" })) || [];
+  } catch {
+    list = [];
+  }
+  const section = document.getElementById("reminders");
+  const ol = document.getElementById("reminder-list");
+  ol.textContent = "";
+  section.hidden = list.length === 0;
+
+  for (const r of list) {
+    const li = document.createElement("li");
+    li.className = "reminder";
+    const info = document.createElement("div");
+    info.className = "reminder-info";
+    const host = document.createElement("span");
+    host.className = "reminder-host";
+    host.textContent = r.host;
+    const when = document.createElement("span");
+    when.className = "reminder-when";
+    when.textContent =
+      `Trial ends ${reminderDay(r.ends)} · reminder ${reminderDay(r.remindAt)}` + (r.terms ? ` · then ${r.terms}` : "");
+    info.append(host, when);
+    const cancel = receiptButton("Cancel", async () => {
+      cancel.disabled = true;
+      try {
+        await chrome.runtime.sendMessage({ type: "sieve:trial-cancel", id: r.id });
+      } catch {
+        /* the list is redrawn either way */
+      }
+      refreshReminders();
+    });
+    li.append(info, cancel);
+    ol.appendChild(li);
+  }
+}
+
+async function setupReceipt() {
+  refreshReminders();
+  document.getElementById("receipt-more").addEventListener("click", () => {
+    receiptExpanded = !receiptExpanded;
+    renderReceipt(receiptReport, true);
+  });
   try {
     const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-    if (!tab?.id) return;
-    const counts = await chrome.tabs.sendMessage(tab.id, { type: "GET_DARK_PATTERN_COUNTS" });
-    updateDarkPatternsCount(counts);
-  } catch (err) {
-    // Content script not loaded on this page (e.g. chrome:// URLs).
-    updateDarkPatternsCount({ total: 0 });
+    receiptTabId = tab?.id ?? null;
+  } catch {
+    receiptTabId = null;
   }
+  await refreshReceipt();
+  // Some findings wait on the Claim Ledger, so a popup opened the moment a page
+  // loads can arrive before they do. Ask once more.
+  setTimeout(refreshReceipt, 1200);
+}
+
+// ===========================================================================
+// Dark Pattern Blocker (Module 3A) — master toggle; its per-page count comes
+// from the receipt above. The per-type sub-toggles and the strictness setting
+// live on the options page (options/options.js).
+// ===========================================================================
+
+function updateDarkPatternsCount(tricks) {
+  const el = document.getElementById("dark-patterns-count");
+  el.textContent =
+    tricks === 0 ? "No tricks on this page" : `Caught ${tricks} trick${tricks === 1 ? "" : "s"} on this page`;
 }
 
 function setupDarkPatterns() {
@@ -192,8 +390,6 @@ function setupDarkPatterns() {
       enabled: masterToggle.checked,
     });
   });
-
-  refreshDarkPatternsCount();
 }
 
 // ===========================================================================

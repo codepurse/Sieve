@@ -25,6 +25,15 @@
   let prevHtmlOverflow = "";
   let prevBodyOverflow = "";
 
+  // The dark palette, used twice in the stylesheet: under the system's dark
+  // mode unless Sieve is set to Light, and always when it is set to Dark. The
+  // choice rides on .backdrop inside the shadow root — never on the site's
+  // own <html>. See common/theme.js.
+  const DARK = `
+    --paper: #131311; --ink: #ede9df; --ink-2: #b8b3a7; --ink-3: #8f8a7f;
+    --rule-strong: rgba(237, 233, 223, 0.22); --wash: rgba(237, 233, 223, 0.06);
+    --sunken: #0d0d0b; --danger: #e5866b;`;
+
   // --- the overlay's isolated styles + markup -----------------------------
   function overlayHTML(guardian) {
     const sub = guardian
@@ -82,12 +91,9 @@
           animation: fade 0.4s cubic-bezier(0.2, 0, 0, 1);
         }
         @media (prefers-color-scheme: dark) {
-          .backdrop {
-            --paper: #131311; --ink: #ede9df; --ink-2: #b8b3a7; --ink-3: #8f8a7f;
-            --rule-strong: rgba(237, 233, 223, 0.22); --wash: rgba(237, 233, 223, 0.06);
-            --sunken: #0d0d0b; --danger: #e5866b;
-          }
+          .backdrop:not([data-theme="light"]) { ${DARK} }
         }
+        .backdrop[data-theme="dark"] { ${DARK} }
         .card {
           width: min(400px, 100%);
           text-align: center;
@@ -312,6 +318,7 @@
     host.style.cssText = `position:fixed;inset:0;z-index:${Z_TOP};`;
     const root = host.attachShadow({ mode: "open" });
     root.innerHTML = overlayHTML(guardianActive);
+    if (window.SieveTheme) window.SieveTheme.mark(root.querySelector(".backdrop"));
     buildMessage(root, handlers);
 
     if (guardianActive) {

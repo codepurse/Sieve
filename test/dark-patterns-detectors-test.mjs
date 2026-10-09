@@ -43,10 +43,13 @@ const CHROME = [
 const DETECTOR_FILES = [
   "content/dark-patterns.js",
   "content/patterns/timers.js",
+  "content/patterns/deadlines.js",
   "content/patterns/guilt-copy.js",
   "content/patterns/checkboxes.js",
   "content/patterns/cookies.js",
   "content/patterns/scarcity.js",
+  "content/patterns/trials.js",
+  "content/patterns/social-proof.js",
 ];
 
 // --- the page under test ----------------------------------------------------
@@ -70,7 +73,11 @@ const SETTINGS = `
       },
       onChanged: { addListener() {} }
     },
-    runtime: { getURL: (p) => "/" + p, sendMessage: () => Promise.resolve({}), onMessage: { addListener() {} } }
+    runtime: {
+      getURL: (p) => "/" + p,
+      sendMessage: (m) => { (window.__sent = window.__sent || []).push(m && (m.part ? m.type + ":" + m.part : m.type)); return Promise.resolve({}); },
+      onMessage: { addListener() {} }
+    }
   };`;
 
 // A button carries data-case; the reporter says whether Sieve rewrote it.
@@ -162,6 +169,7 @@ ${checkbox("cb-context", "Remember this device", "Read the help article in conte
   document.body.appendChild(probe);
   await new Promise((r) => setTimeout(r, 900));
   out.observerAlive = probe.hasAttribute("data-sieve-guilt-copy");
+  out.sent = window.__sent || [];
 
   document.getElementById("RESULTS").textContent = "<<<" + JSON.stringify(out) + ">>>";
 })();
@@ -322,6 +330,16 @@ test("cookies picks the real Accept, not the button whose text merely contains '
 test("a guilt trip added after load is caught by the observer", { skip: !CHROME && "Chrome not found" }, async () => {
   const r = await results();
   assert.equal(r.observerAlive, true, "the coordinator did not scan content added after load");
+});
+
+// At the default setting these three fix in place (reword, flag, level) and
+// draw nothing of Sieve's own, so the drawing code — content/tells-ui.js,
+// fetched on demand — is never asked for. A page pays for it only when it has
+// a stamp or a cover to show.
+test("a page with nothing to draw never fetches the drawing code", { skip: !CHROME && "Chrome not found" }, async () => {
+  const r = await results();
+  assert.ok(!r.sent.some((m) => m === "sieve:tells-ui:ui" || m === "sieve:tells-ui"), `asked for: ${r.sent.join(", ")}`);
+  assert.ok(r.sent.includes("sieve:tells-count"), "the badge was told");
 });
 
 test("every detector reports through the coordinator", { skip: !CHROME && "Chrome not found" }, async () => {

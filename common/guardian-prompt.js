@@ -36,6 +36,14 @@
   let cancelBtn = null;
   let pending = null; // { resolve, actionName, critical, cooloffKey } for the dialog currently open
 
+  // The dark palette, used twice below: under the system's dark mode unless
+  // Sieve is set to Light, and always when it is set to Dark (common/theme.js).
+  const SG_DARK = `
+    --sg-paper: #1b1b18; --sg-ink: #ede9df; --sg-ink-2: #b8b3a7; --sg-ink-3: #8f8a7f;
+    --sg-rule: rgba(237, 233, 223, 0.11); --sg-rule-strong: rgba(237, 233, 223, 0.22);
+    --sg-wash: rgba(237, 233, 223, 0.06); --sg-danger: #e5866b; --sg-sunken: #131311;
+    background: rgba(0, 0, 0, 0.55);`;
+
   function build() {
     if (overlay) return;
 
@@ -61,13 +69,9 @@
         animation: sg-fade 160ms cubic-bezier(0.2, 0, 0, 1) both;
       }
       @media (prefers-color-scheme: dark) {
-        .sg-backdrop {
-          --sg-paper: #1b1b18; --sg-ink: #ede9df; --sg-ink-2: #b8b3a7; --sg-ink-3: #8f8a7f;
-          --sg-rule: rgba(237, 233, 223, 0.11); --sg-rule-strong: rgba(237, 233, 223, 0.22);
-          --sg-wash: rgba(237, 233, 223, 0.06); --sg-danger: #e5866b; --sg-sunken: #131311;
-          background: rgba(0, 0, 0, 0.55);
-        }
+        .sg-backdrop:not([data-theme="light"]) { ${SG_DARK} }
       }
+      .sg-backdrop[data-theme="dark"] { ${SG_DARK} }
       .sg-backdrop[hidden] { display: none; }
       .sg-backdrop *, .sg-backdrop *::before, .sg-backdrop *::after { box-sizing: border-box; }
       .sg-card {
@@ -156,6 +160,8 @@
 
     document.documentElement.appendChild(style);
     document.documentElement.appendChild(overlay);
+    // A choice made in another window while this dialog is open shows at once.
+    if (window.SieveTheme) window.SieveTheme.onChange(() => window.SieveTheme.mark(overlay));
 
     input = overlay.querySelector("#sg-input");
     errorEl = overlay.querySelector("#sg-error");
@@ -432,6 +438,10 @@
     if (document.documentElement.lastElementChild !== overlay) {
       document.documentElement.appendChild(overlay);
     }
+    // Every open goes through here, so this is where the dialog takes the
+    // Appearance choice. It is set on the dialog itself, never on <html>: on
+    // the pause screen that element belongs to the website.
+    if (window.SieveTheme) window.SieveTheme.mark(overlay);
   }
 
   // The cool-off for this action, or null when none applies (none is set, or

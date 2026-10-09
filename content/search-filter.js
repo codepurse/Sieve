@@ -51,6 +51,10 @@
     '<path d="M15.4 0h2.5L9.1 24H6.6z" fill="' + INK + '"/>' +
     "</svg>";
   const MONO = 'ui-monospace,"SF Mono","Cascadia Mono",Consolas,monospace';
+  const POPOVER_DARK =
+    "--sv-bg:#1b1b18;--sv-ink:#ede9df;--sv-dim:#8f8a7f;" +
+    "--sv-line:rgba(237,233,223,.12);--sv-edge:rgba(237,233,223,.24);" +
+    "box-shadow:0 0 0 1px var(--sv-edge),0 18px 40px -16px rgba(0,0,0,.75)";
 
   // --- engines ------------------------------------------------------------
   //
@@ -163,6 +167,16 @@
   let enabled = false;
   let compiled = [];
   let palette = [];
+  // Sieve's Appearance choice: "auto", "light" or "dark". Read here with the
+  // other settings rather than by loading common/theme.js, which would add a
+  // storage read to every page this script is injected into.
+  let uiTheme = "auto";
+
+  function markTheme(el) {
+    if (!el) return;
+    if (uiTheme === "light" || uiTheme === "dark") el.setAttribute("data-theme", uiTheme);
+    else el.removeAttribute("data-theme");
+  }
   let hiddenCount = 0;
   let observer = null;
   let scheduled = false;
@@ -234,9 +248,11 @@
         `--sv-bg:#f9f7f2;--sv-ink:${INK};--sv-dim:#66625a;--sv-line:rgba(26,25,22,.13);--sv-edge:rgba(26,25,22,.26);` +
         `background:var(--sv-bg);color:var(--sv-ink);` +
         `box-shadow:0 0 0 1px var(--sv-edge),0 18px 40px -16px rgba(0,0,0,.4)}`,
-      `@media (prefers-color-scheme:dark){#${POPOVER_ID}{--sv-bg:#1b1b18;--sv-ink:#ede9df;--sv-dim:#8f8a7f;` +
-        `--sv-line:rgba(237,233,223,.12);--sv-edge:rgba(237,233,223,.24);` +
-        `box-shadow:0 0 0 1px var(--sv-edge),0 18px 40px -16px rgba(0,0,0,.75)}}`,
+      // Dark under the system's dark mode unless Sieve is set to Light, and
+      // always when it is set to Dark (common/theme.js). The choice rides on
+      // the panel itself — the results page's <html> is the search engine's.
+      `@media (prefers-color-scheme:dark){#${POPOVER_ID}:not([data-theme="light"]){${POPOVER_DARK}}}`,
+      `#${POPOVER_ID}[data-theme="dark"]{${POPOVER_DARK}}`,
       `#${POPOVER_ID} *{box-sizing:border-box}`,
 
       // Header: who is talking (the mark), about what (site in serif, address
@@ -504,6 +520,7 @@
 
     popover = document.createElement("div");
     popover.id = POPOVER_ID;
+    markTheme(popover);
     popover.setAttribute("role", "dialog");
     popover.setAttribute("aria-label", "Why Sieve changed this result");
     // The panel is tinted by the very colour it is explaining, so the answer is
@@ -742,8 +759,10 @@
       searchFilterColors: [],
       searchFilterHideBlocked: true,
       customBlocks: [],
+      uiTheme: "auto",
     });
     enabled = stored.searchFilterEnabled;
+    uiTheme = stored.uiTheme;
     palette = stored.searchFilterColors;
 
     const rules = stored.searchFilterRules.slice();
@@ -780,6 +799,11 @@
 
   chrome.storage.onChanged.addListener((changes, area) => {
     if (area !== "local") return;
+    // A new Appearance choice only recolours the open panel; nothing to re-run.
+    if (changes.uiTheme) {
+      uiTheme = changes.uiTheme.newValue;
+      markTheme(popover);
+    }
     if (
       changes.searchFilterEnabled ||
       changes.searchFilterRules ||

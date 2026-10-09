@@ -1,6 +1,6 @@
 # Privacy Policy for Sieve
 
-**Last updated: August 28, 2026**
+**Last updated: October 8, 2026**
 
 ## The short version
 
@@ -13,6 +13,13 @@ screen-time report, which is off until you switch it on. What it stores, and how
 to limit or erase it, is spelled out [below](#usage-insights-screen-time--off-unless-you-turn-it-on).
 That record lives in your browser and is yours alone — it is not telemetry, and
 we never see it.
+
+The Dark Pattern Blocker also keeps a small memory, because the only way to
+prove a countdown is fake is to see it restart: for 30 days it remembers the
+end time a countdown gave, a stock number, or the day a sale said it "ends
+today", so it can compare them on your next visit. It is described
+[below](#what-the-dark-pattern-blocker-remembers), stays on your device, and can
+be erased with one button.
 
 Sieve is open source, so anyone can verify these claims:
 <https://github.com/codepurse/Sieve>
@@ -34,11 +41,49 @@ third party.
 | Cool-off requests, **only if you set a cool-off** | The changes you have asked for and when each unlocks — the change's name, which includes the site when you asked to allow one; each is deleted once used, called off, or lapsed | Yes |
 | Cached blocklists | Match sites quickly and offline | Yes |
 | Screen-time tally, **only if you turn Usage Insights on** | Show you where your time goes | Yes |
+| What a page claimed, while the Dark Pattern Blocker is on | Tell a fake countdown or stock number from a real one on your next visit — see [below](#what-the-dark-pattern-blocker-remembers) | Yes |
+| Free-trial reminders, **only the ones you ask for** | Remind you before a free trial starts charging — see [below](#free-trial-reminders) | Yes |
 
 Sieve also reads the content of web pages you visit **in the page itself** — for
 example, to mask profanity, hide toxic comments, remove dark patterns, or count
 how long you have been scrolling. This processing is momentary and local: the
-page content is **never copied, stored, or transmitted** anywhere.
+page content is **never copied or transmitted** anywhere, and it is not stored,
+apart from the few numbers described next.
+
+### What the Dark Pattern Blocker remembers
+
+A countdown that starts again every time you reload, or an "only 3 left" that
+has said 3 all week, can only be caught by remembering what the page said last
+time. So while the Dark Pattern Blocker is on, Sieve keeps, on your device only:
+
+- for a **countdown**: the time it said it would end, and when you saw it;
+- for a **"low stock" message**: the number it gave, and the days you saw it;
+- for a **"people are viewing this" count**: the number it gave, and when;
+- for an **"ends today" sale**: the days the shop said it.
+
+Each is filed under a **scrambled code** made from the site, the page's path and
+the claim's wording — never the page address, the page's title, or anything you
+did there. Entries are deleted after 30 days, the whole memory is capped at 800
+entries, and **nothing seen in a private window is kept**. Settings →
+Browsing → *What Sieve remembers* shows how much it holds, and *Forget it all*
+erases it. It is never transmitted anywhere.
+
+### Free-trial reminders
+
+When a page offers a free trial that will start charging by itself, Sieve
+says what it will cost and when, and offers to remind you before it does.
+Nothing is kept unless you press **Remind me**. Then Sieve keeps, on your device
+only:
+
+- the **site's name** (`stream.example`), never the full address;
+- the day the trial **ends**, and the day to **remind** you;
+- the **price** the page gave, if it gave one ("$14.99 a month").
+
+The reminder is shown at the top of a page you visit once it falls due — no
+account, no email, and no notification permission needed. It is deleted when
+you press **Done** or cancel it from the toolbar popup, and on its own a few
+days after the trial ends. A reminder cannot be set from a private window. It is
+never transmitted anywhere.
 
 ### Usage Insights (screen time) — off unless you turn it on
 
@@ -112,6 +157,7 @@ Sieve requests only the permissions needed to filter content locally:
 - **tabs** — open the local "blocked"/settings pages and close popup/hijack tabs. It does not read your browser history. If you switch Usage Insights on, it also reads the site name of the tab you are looking at, in order to time it.
 - **idle** — used only by Usage Insights, to stop the clock when you step away or lock the screen. It reports how long it has been since you touched the keyboard or mouse; it cannot see what you typed.
 - **offscreen** — run the optional toxicity model locally, off the main page.
+- **scripting** — run Sieve's own filters in pages. For example, the Dark Pattern Blocker's on-page notes are added only to a page where it has found something to show, rather than to every page.
 - **host access (all sites)** — required because harmful content can appear on any site; used only to run the local filters. No browsing data is collected.
 
 ---
@@ -125,11 +171,13 @@ information, financial and payment information, authentication information,
 personal communications, location, web history, user activity, or website
 content.
 
-To be plain about the one case where that wording could mislead: if you switch
+To be plain about the three cases where that wording could mislead: if you switch
 on Usage Insights, a tally of site names and durations is written **to your own
-browser storage**, and you can inspect, limit or erase it at any time. Nothing
-about it is ever sent to us or to a third party, which is why the declaration
-above is still accurate.
+browser storage**; the Dark Pattern Blocker writes the numbers described
+above under scrambled codes; and a free-trial reminder you ask for keeps that
+site's name and dates. You can erase any of them at any time. Nothing about
+them is ever sent to us or to a third party, which is why the declaration above
+is still accurate.
 
 ---
 

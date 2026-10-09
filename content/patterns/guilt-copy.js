@@ -62,36 +62,66 @@
     return true;
   }
 
-  function rewriteButton(el, ctx) {
-    if (ctx.isMarked(el)) return;
-
-    const text = (el.textContent || "").trim();
-    if (!isGuiltTrip(text, ctx)) return;
-
-    const label = neutralLabel(text);
+  // The fix at the ladder's "defuse" step. Returns its own undo, which puts
+  // back the button's own words exactly.
+  function rewrite(el) {
+    const label = neutralLabel((el.textContent || "").trim());
+    const restored = [];
 
     // Preserve any icons / child elements by replacing text nodes only.
-    let textNodeFound = false;
     for (const child of el.childNodes) {
       if (child.nodeType === Node.TEXT_NODE && child.textContent.trim()) {
+        restored.push([child, child.textContent]);
         child.textContent = " " + label + " ";
-        textNodeFound = true;
       }
     }
 
     // If the element has no direct text node (e.g. everything wrapped in spans),
     // set aria-label and prepend the label text.
-    if (!textNodeFound) {
+    let labelSpan = null;
+    const ariaBefore = el.getAttribute("aria-label");
+    if (restored.length === 0) {
       el.setAttribute("aria-label", label);
-      const labelSpan = document.createElement("span");
+      labelSpan = document.createElement("span");
       labelSpan.textContent = label;
       el.insertBefore(labelSpan, el.firstChild);
     }
 
     // Add a subtle attribute so the user (and tests) can see it was touched.
     el.setAttribute("data-sieve-guilt-copy", "neutralized");
+
+    return () => {
+      for (const [node, text] of restored) node.textContent = text;
+      if (labelSpan) {
+        labelSpan.remove();
+        if (ariaBefore === null) el.removeAttribute("aria-label");
+        else el.setAttribute("aria-label", ariaBefore);
+      }
+      el.removeAttribute("data-sieve-guilt-copy");
+    };
+  }
+
+  function rewriteButton(el, ctx) {
+    if (ctx.isMarked(el)) return;
+
+    const text = (el.textContent || "").trim();
+    if (!isGuiltTrip(text, ctx)) return;
     ctx.mark(el, TYPE);
-    ctx.report(TYPE, 1);
+
+    if (typeof ctx.tell !== "function") {
+      rewrite(el);
+      ctx.report(TYPE, 1);
+      return;
+    }
+    ctx.tell(el, {
+      type: TYPE,
+      confidence: "medium",
+      title: "A guilt-trip button",
+      label: "Guilt trip",
+      detail: `“${text}” is worded to make saying no feel bad. Sieve changed it to “${neutralLabel(text)}”.`,
+      defuse: rewrite,
+      done: "Reworded",
+    });
   }
 
   function scan(root, ctx) {

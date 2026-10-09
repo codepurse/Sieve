@@ -1,13 +1,26 @@
 // content/patterns/timers.js
 // Sieve — Dark Pattern Blocker: fake countdown timers.
 // Detects elements that display a time value and are actively counting down
-// while surrounded by urgency language. Removes only when all three signals
-// are present to avoid killing legitimate timers (cooking timers, auctions).
+// while surrounded by urgency language. Acts only when all three signals are
+// present, to avoid touching legitimate timers (cooking timers, auctions).
+//
+// Then it asks the Claim Ledger (common/claim-ledger.js) whether this page
+// showed the same countdown before, and with what end time. A countdown that
+// restarted is a fake, proven; one that kept its end time is behaving like a
+// real one and is left alone; one seen for the first time is unverified, and
+// the intervention ladder in content/dark-patterns.js decides what to do with
+// each.
 
 (() => {
   "use strict";
 
   const TYPE = "timers";
+
+  // Delivery cut-offs count down too, and they are true: "order within
+  // 2:14:05 for delivery tomorrow" is the latest you can order and still get
+  // it then. That is information, not pressure, so it is left alone.
+  const CUTOFF_RE =
+    /\b(dispatch(?:ed|es)?|ships?|shipping|shipped|deliver(?:y|ed|s)?|arrives?|get it by|order within|order in the next)\b/i;
 
   const URGENCY_WORDS = [
     "offer", "hurry", "ends", "ending", "limited", "sale", "deal",
@@ -22,6 +35,8 @@
   const SAMPLE_WINDOW_MS = 2000;
   // How often to re-check pending candidates (ms).
   const CHECK_INTERVAL_MS = 500;
+  // How many times a time that jumped UP is sampled again — see evaluateCandidate.
+  const MAX_RESAMPLES = 2;
 
   let ctx = null;
   const samples = new WeakMap(); // element -> { firstValue, firstTime }
@@ -87,23 +102,86 @@
   }
 
   // ---------------------------------------------------------------------------
-  // Removal
+  // Judging a confirmed countdown
   // ---------------------------------------------------------------------------
 
-  function removeTimer(el) {
+  // Countdowns already judged on this page load, by wording. A deals page shows
+  // a dozen worded alike, each with its own end time, and comparing one of them
+  // with whichever came first last time would "catch" a restart that never
+  // happened. So once a wording is seen twice, the ledger's verdict on it is
+  // not trusted for this load.
+  const seenThisLoad = new Map();
+
+  // The fix: hidden, not removed, so it can be put back.
+  function hide(el) {
+    const before = { value: el.style.getPropertyValue("display"), priority: el.style.getPropertyPriority("display") };
+    el.style.setProperty("display", "none", "important");
+    return () => {
+      if (before.value) el.style.setProperty("display", before.value, before.priority);
+      else el.style.removeProperty("display");
+    };
+  }
+
+  function describe(verdict) {
+    const base = { type: TYPE, defuse: hide, done: "Hidden", cover: true };
+    if (verdict && verdict.status === "restarted") {
+      return {
+        ...base,
+        confidence: "high",
+        title: "Fake countdown",
+        label: "Fake countdown",
+        detail:
+          `It restarted when you came back. Earlier it said it would end at ` +
+          `${ctx.formatTime(verdict.promised)}; now it says ${ctx.formatTime(verdict.deadline)}.`,
+      };
+    }
+    if (verdict && verdict.status === "consistent") {
+      return {
+        ...base,
+        confidence: "low",
+        maxLevel: ctx.LEVEL.NOTE,
+        trick: false,
+        title: "A countdown that kept its time",
+        detail: `It has said it ends at ${ctx.formatTime(verdict.deadline)} on each of your visits, so it looks genuine.`,
+      };
+    }
+    return {
+      ...base,
+      confidence: "medium",
+      title: "Pressure countdown",
+      label: "Unverified countdown",
+      detail: "A countdown next to hurry-up wording. Sieve will check whether it restarts if you come back.",
+    };
+  }
+
+  function confirmTimer(el, remainingSeconds) {
     if (ctx.isMarked(el)) return;
 
-    // Try to remove the smallest meaningful container. If the timer text is
-    // inline inside a sentence, hide just the text node wrapper instead of
-    // deleting the whole paragraph.
-    const target = chooseTarget(el);
-    if (target) {
-      target.remove();
-      ctx.mark(target, TYPE);
-      ctx.report(TYPE, 1);
-    } else {
-      ctx.mark(el, TYPE);
+    // Act on the smallest meaningful container. If the timer text is inline
+    // inside a sentence, that is the text's own wrapper, not the paragraph.
+    const target = chooseTarget(el) || el;
+    ctx.mark(el, TYPE);
+    ctx.mark(target, TYPE);
+
+    // The cut-off wording sits in the timer's own line or the one around it —
+    // not anywhere in a product panel that also happens to offer free shipping.
+    const own = target.textContent || "";
+    const around = (target.parentElement && target.parentElement.textContent) || "";
+    if (CUTOFF_RE.test(around.length <= 200 ? around : own)) return;
+
+    const sig = ctx.claimSignature(target.textContent);
+    const seen = (seenThisLoad.get(sig) || 0) + 1;
+    seenThisLoad.set(sig, seen);
+    if (seen > 1 || !sig) {
+      ctx.tell(target, describe(null));
+      return;
     }
+
+    const deadline = Date.now() + remainingSeconds * 1000;
+    ctx.observeClaim({ kind: "timer", sig, deadline }).then((verdict) => {
+      if (!target.isConnected) return;
+      ctx.tell(target, describe(seenThisLoad.get(sig) > 1 ? null : verdict));
+    });
   }
 
   function chooseTarget(el) {
@@ -165,10 +243,21 @@
       return;
     }
 
+    // Went UP, or has not moved yet. Countdown widgets often draw a placeholder
+    // first — "00:00", or whatever the HTML shipped with — and only start once
+    // their script has run, so the first sample may not be the countdown yet.
+    // Sample again from here, a couple of times at most, rather than give up
+    // on it. A time that never moves ("Open 9:00") is let go a few seconds
+    // later than it used to be.
+    if (currentValue >= sample.firstValue && (sample.resamples || 0) < MAX_RESAMPLES) {
+      samples.set(el, { firstValue: currentValue, firstTime: Date.now(), resamples: (sample.resamples || 0) + 1 });
+      return;
+    }
+
     pending.delete(el);
 
     if (currentValue < sample.firstValue && hasUrgencyNearby(el)) {
-      removeTimer(el);
+      confirmTimer(el, currentValue);
     } else {
       // Either it isn't decreasing, or there's no urgency language.
       // Mark it so we don't keep re-evaluating forever.
@@ -176,12 +265,20 @@
     }
   }
 
+  // Poll until every candidate has been judged. This used to fire once: the
+  // first check, 500ms in, is inside the 2-second sample window, so it waited
+  // — and nothing ever asked again. A countdown only got its second look if
+  // the page happened to add new elements near it; one that updates its own
+  // text in place, which is the commonest kind, was never judged at all.
   function scheduleCheck() {
     if (checkTimer) return;
     checkTimer = setTimeout(() => {
       checkTimer = null;
       const list = Array.from(pending);
       for (const el of list) evaluateCandidate(el);
+      // Gone from the page, or settled some other way: nothing left to ask.
+      for (const el of pending) if (!el.isConnected || ctx.isMarked(el)) pending.delete(el);
+      if (pending.size > 0) scheduleCheck();
     }, CHECK_INTERVAL_MS);
   }
 
@@ -217,7 +314,7 @@
       if (!el || ctx.isMarked(el)) continue;
       if (hasTimeText(el)) evaluateCandidate(el);
     }
-    return 0; // actual removals are reported asynchronously via ctx.report
+    return 0; // findings are reported asynchronously, through ctx.tell
   }
 
   window.SieveDarkPatterns.registerText(TYPE, TIME_TEXT_RE, onTimeText);

@@ -8,10 +8,11 @@
     <meta name="color-scheme" content="light dark" />
     <title>Sieve Settings</title>
     <link rel="stylesheet" href="../common/sieve-ui.css" />
+    <script src="../common/theme.js"></script>
     <link rel="stylesheet" href="options.css" />
     <link rel="stylesheet" href="usage-insights.css" />
   </head>
-  <body>
+  <body class="paper">
     <!-- Loading veil — shown only while <html> carries `preload` (i.e. until
          options.js has read and applied the saved state). Covers the page so the
          momentary all-toggles-off default is never visible on refresh. -->
@@ -72,6 +73,19 @@
         </nav>
 
         <div class="sidebar-foot">
+          <!-- Announcement — fetched from announcement.json in the repo (no
+               backend). Shown whenever that file has an active message, and
+               populated by options.js → setupAnnouncement(). It lives here, in
+               the margin, rather than above the settings: a note from the
+               developer should not stand between you and the page you opened.
+               It stays put — there is no dismiss — so its copy is kept short
+               enough to sit in the sidebar without crowding it. -->
+          <div class="announcement" id="announcement" data-level="info" role="status" hidden>
+            <h2 class="announcement-title" id="announcement-title"></h2>
+            <p class="announcement-text" id="announcement-text"></p>
+            <a class="announcement-link" id="announcement-link" target="_blank" rel="noopener noreferrer" hidden></a>
+          </div>
+
           <!-- What's New — the notes live on their own page. The version, how
                many changes it carries and a NEW stamp until it has been read
                are filled in by options.js → setupWhatsNew(). -->
@@ -88,20 +102,6 @@
       </aside>
 
       <main class="main" id="main" tabindex="-1">
-        <!-- ===== Announcement banner — fetched from announcement.json in the
-             repo (no backend). Hidden unless there's an active, undismissed
-             message. Populated by options.js → setupAnnouncement(). ===== -->
-        <div class="announcement" id="announcement" data-level="info" role="status" hidden>
-          <div class="announcement-body">
-            <h2 class="announcement-title" id="announcement-title"></h2>
-            <p class="announcement-text" id="announcement-text"></p>
-            <a class="announcement-link" id="announcement-link" target="_blank" rel="noopener noreferrer" hidden></a>
-          </div>
-          <button class="announcement-dismiss" id="announcement-dismiss" type="button" aria-label="Dismiss this message">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" aria-hidden="true"><path d="M18 6 6 18M6 6l12 12"/></svg>
-          </button>
-        </div>
-
         <!-- ========================== 01 Overview ========================== -->
         <section class="section" id="section-dashboard" aria-labelledby="h-dashboard">
           <header class="section-head">
@@ -109,6 +109,43 @@
             <h1 class="section-title" id="h-dashboard">Overview</h1>
             <p class="section-desc">What Sieve kept off your screen. Counted on this device, and only as totals.</p>
           </header>
+
+          <!-- Warden — a note about the maker's other product, set as its own
+               pine band so it reads as a separate thing, not a Sieve setting.
+               Design "B compact · Dial on pine" from the Warden banner canvas.
+               The × folds it to a one-line bar rather than removing it, and
+               the choice is remembered (options.js → setupWarden()). The dial
+               is an illustration of a cool-down, not a real timer. -->
+          <section class="warden" id="warden" aria-labelledby="warden-title">
+            <div class="warden-band" id="warden-band">
+              <div class="warden-copy">
+                <p class="warden-kicker">Warden <span class="warden-beta">beta</span> <span aria-hidden="true" class="warden-dot">&middot;</span> from the maker of BlockNSFW</p>
+                <h2 class="warden-title" id="warden-title">In a weak moment, Warden <em>makes you wait.</em></h2>
+                <p class="warden-text">Anything that loosens protection waits out a cool-down first, across every browser and every app on your Windows PC.</p>
+                <div class="warden-actions">
+                  <a class="warden-cta" href="https://monolab.dev/warden#beta" target="_blank" rel="noopener noreferrer">Join the beta</a>
+                  <a class="warden-more" href="https://monolab.dev/warden" target="_blank" rel="noopener noreferrer">Learn more<svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true"><path d="M4.5 11.5l7-7M6 4.5h5.5V10" fill="none" stroke="currentColor" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round"/></svg></a>
+                  <span class="warden-note">The cool-down is a pro feature &middot; not on sale yet</span>
+                </div>
+              </div>
+              <svg class="warden-dial" viewBox="0 0 128 128" width="128" height="128" role="img" aria-label="A cool-down counting down">
+                <circle cx="64" cy="64" r="58.25" fill="none" stroke="var(--band-rule)" stroke-width="3.5" stroke-dasharray="1 5.1" stroke-dashoffset="0.5" transform="rotate(-90 64 64)"/>
+                <circle cx="64" cy="64" r="56.5" fill="none" stroke="var(--on-band-2)" stroke-width="6" stroke-dasharray="1.25 28.33" stroke-dashoffset="0.6" transform="rotate(-90 64 64)"/>
+                <circle cx="64" cy="64" r="46" fill="none" stroke="var(--band-rule)" stroke-width="1.5"/>
+                <circle class="warden-arc" cx="64" cy="64" r="46" fill="none" stroke="var(--band-signal)" stroke-width="1.5" stroke-linecap="round" stroke-dasharray="289.03" stroke-dashoffset="91.53" transform="rotate(-90 64 64)"/>
+                <text class="warden-clock" x="64" y="67" text-anchor="middle" data-warden-clock>23:59:41</text>
+                <text class="warden-clock-label" x="64" y="82" text-anchor="middle">COOL-DOWN</text>
+              </svg>
+              <button class="warden-hide" id="warden-hide" type="button" aria-label="Hide this message" aria-controls="warden-band">
+                <svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true"><path d="M3.5 3.5l9 9M12.5 3.5l-9 9" fill="none" stroke="currentColor" stroke-width="1.25" stroke-linecap="round"/></svg>
+              </button>
+            </div>
+            <button class="warden-folded" id="warden-folded" type="button" aria-controls="warden-band" hidden>
+              <span class="warden-folded-name">Warden</span>
+              <span class="warden-folded-clock"><span data-warden-clock>23:59:41</span> &middot; makes you wait</span>
+              <span class="warden-folded-show">Show</span>
+            </button>
+          </section>
 
           <div class="dashboard">
             <div class="dashboard-tabs" id="dashboard-tabs" role="tablist" aria-label="Reporting period">
@@ -1040,8 +1077,10 @@
             <div class="group-head">
               <h2 class="group-title">Dark patterns</h2>
               <p class="group-desc">
-                Removes manipulative design as you browse — fake countdowns, guilt-trip buttons,
-                pre-ticked boxes, cookie walls and fake scarcity.
+                Catches manipulative design as you browse — fake countdowns, guilt-trip buttons,
+                pre-ticked boxes, cookie walls, fake scarcity, fake popularity and free trials
+                that quietly turn into payments — and tells you what it found:
+                open the toolbar popup on any page to see what that page tried.
               </p>
             </div>
             <div class="group-body">
@@ -1056,9 +1095,34 @@
               </div>
 
               <div class="field">
+                <h3 class="field-title" id="tells-strictness-title">How firmly Sieve responds</h3>
+                <p class="hint">
+                  What Sieve does on the page with what it finds. Gentle only labels it. Balanced
+                  fixes what&rsquo;s likely &mdash; hides the countdown, rewords the button &mdash; and
+                  covers what&rsquo;s proven, with a note saying why. Firm covers anything likely.
+                  Whatever you pick, something Sieve isn&rsquo;t sure about is only ever labelled,
+                  and anything it changes can be put back from the toolbar popup.
+                </p>
+                <div class="radio-group" role="radiogroup" aria-labelledby="tells-strictness-title">
+                  <label class="radio">
+                    <input type="radio" name="tellsStrictness" value="gentle" />
+                    <span>Gentle</span> <span class="eg">label, change nothing</span>
+                  </label>
+                  <label class="radio">
+                    <input type="radio" name="tellsStrictness" value="balanced" />
+                    <span>Balanced</span> <span class="eg">recommended</span>
+                  </label>
+                  <label class="radio">
+                    <input type="radio" name="tellsStrictness" value="firm" />
+                    <span>Firm</span> <span class="eg">cover what&rsquo;s likely</span>
+                  </label>
+                </div>
+              </div>
+
+              <div class="field">
                 <h3 class="field-title">What to clean up</h3>
                 <div class="switch-row">
-                  <div class="switch-label"><span class="label">Fake countdown timers</span><span class="description">Remove bogus &ldquo;offer ends in…&rdquo; timers.</span></div>
+                  <div class="switch-label"><span class="label">Fake countdowns and deadlines</span><span class="description">Hide &ldquo;offer ends in…&rdquo; timers, and catch the ones that restart, or a sale that &ldquo;ends today&rdquo; every day.</span></div>
                   <label class="switch"><input type="checkbox" id="dark-pattern-timers-toggle" /><span class="slider"></span></label>
                 </div>
                 <div class="switch-row">
@@ -1083,8 +1147,31 @@
                   <label class="switch"><input type="checkbox" id="dark-pattern-cookie-autoreject-toggle" /><span class="slider"></span></label>
                 </div>
                 <div class="switch-row">
-                  <div class="switch-label"><span class="label">Fake scarcity messages</span><span class="description">Dim &ldquo;Only 2 left!&rdquo; pressure tactics.</span></div>
+                  <div class="switch-label"><span class="label">Fake scarcity messages</span><span class="description">Dim &ldquo;Only 2 left!&rdquo; when the number never moves, jumps about, or is the same on every product.</span></div>
                   <label class="switch"><input type="checkbox" id="dark-pattern-scarcity-toggle" /><span class="slider"></span></label>
+                </div>
+                <div class="switch-row">
+                  <div class="switch-label"><span class="label">Free trials that turn into payments</span><span class="description">Say what a free trial will cost when it ends and the day it starts charging, and offer to remind you two days before. Reminders you set stay even if you switch this off.</span></div>
+                  <label class="switch"><input type="checkbox" id="dark-pattern-trials-toggle" /><span class="slider"></span></label>
+                </div>
+                <div class="switch-row">
+                  <div class="switch-label"><span class="label">Fake popularity</span><span class="description">Hide &ldquo;Sarah from Ohio just bought this&rdquo; pop-ups, and flag &ldquo;23 people are viewing this&rdquo; counts nobody can check &mdash; dimmed if the number never moves.</span></div>
+                  <label class="switch"><input type="checkbox" id="dark-pattern-social-proof-toggle" /><span class="slider"></span></label>
+                </div>
+              </div>
+
+              <div class="field">
+                <h3 class="field-title">What Sieve remembers</h3>
+                <p class="hint">
+                  To tell a fake countdown from a real one, Sieve writes down what a page claimed &mdash;
+                  the time a countdown said it would end, a stock number, a &ldquo;people viewing&rdquo;
+                  count, the day a sale &ldquo;ended today&rdquo; &mdash; and checks it the next time you visit. It keeps these for 30 days,
+                  on this device only, filed under scrambled codes rather than page addresses. Nothing
+                  from a private window is kept, and none of it leaves your browser.
+                </p>
+                <div class="claims-row">
+                  <span class="meta" id="claims-count" role="status" aria-live="polite">Remembering &hellip;</span>
+                  <button type="button" class="btn" id="claims-forget">Forget it all</button>
                 </div>
               </div>
             </div>
@@ -1408,7 +1495,7 @@
           <header class="section-head">
             <p class="section-num kicker">10 &middot; Controls</p>
             <h1 class="section-title" id="h-advanced">Advanced</h1>
-            <p class="section-desc">Extra protections, on by default where they cost nothing.</p>
+            <p class="section-desc">Extra protections, on by default where they cost nothing — and how Sieve looks.</p>
           </header>
 
           <section class="group">
@@ -1426,6 +1513,64 @@
                   <label class="switch">
                     <input type="checkbox" id="url-shortener-resolver-toggle" />
                     <span class="slider"></span>
+                  </label>
+                </div>
+              </div>
+            </div>
+          </section>
+
+          <section class="group" id="appearance-card">
+            <div class="group-head">
+              <h2 class="group-title">Appearance</h2>
+              <p class="group-desc">
+                Light or dark for everything Sieve shows you: these settings, the toolbar popup, the
+                blocked page, and the pause screen and lock prompts it puts over a site.
+              </p>
+            </div>
+            <div class="group-body">
+              <div class="field">
+                <h3 class="field-title" id="ui-theme-title">Theme</h3>
+                <!-- Each tile is this settings page in miniature, drawn in its
+                     own fixed palette (see .theme-mini in options.css). The
+                     radios underneath are real, so keys and screen readers work
+                     as they would on a list. -->
+                <div class="theme-tiles" role="radiogroup" aria-labelledby="ui-theme-title">
+                  <label class="theme-tile">
+                    <input type="radio" name="uiTheme" value="auto" />
+                    <span class="theme-preview" aria-hidden="true">
+                      <span class="theme-mini is-light">
+                        <span class="tm-side"><i></i><i></i><i></i></span>
+                        <span class="tm-main"><i class="tm-head"></i><i></i><i class="is-short"></i><span class="tm-row"><i></i><b class="tm-switch"></b></span></span>
+                      </span>
+                      <span class="theme-mini is-dark is-half">
+                        <span class="tm-side"><i></i><i></i><i></i></span>
+                        <span class="tm-main"><i class="tm-head"></i><i></i><i class="is-short"></i><span class="tm-row"><i></i><b class="tm-switch"></b></span></span>
+                      </span>
+                    </span>
+                    <span class="theme-name">Match my system</span>
+                    <span class="theme-note" id="ui-theme-system"></span>
+                  </label>
+                  <label class="theme-tile">
+                    <input type="radio" name="uiTheme" value="light" />
+                    <span class="theme-preview" aria-hidden="true">
+                      <span class="theme-mini is-light">
+                        <span class="tm-side"><i></i><i></i><i></i></span>
+                        <span class="tm-main"><i class="tm-head"></i><i></i><i class="is-short"></i><span class="tm-row"><i></i><b class="tm-switch"></b></span></span>
+                      </span>
+                    </span>
+                    <span class="theme-name">Light</span>
+                    <span class="theme-note">paper</span>
+                  </label>
+                  <label class="theme-tile">
+                    <input type="radio" name="uiTheme" value="dark" />
+                    <span class="theme-preview" aria-hidden="true">
+                      <span class="theme-mini is-dark">
+                        <span class="tm-side"><i></i><i></i><i></i></span>
+                        <span class="tm-main"><i class="tm-head"></i><i></i><i class="is-short"></i><span class="tm-row"><i></i><b class="tm-switch"></b></span></span>
+                      </span>
+                    </span>
+                    <span class="theme-name">Dark</span>
+                    <span class="theme-note">ink</span>
                   </label>
                 </div>
               </div>

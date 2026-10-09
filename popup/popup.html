@@ -6,6 +6,7 @@
     <meta name="color-scheme" content="light dark" />
     <title>Sieve</title>
     <link rel="stylesheet" href="../common/sieve-ui.css" />
+    <script src="../common/theme.js"></script>
     <link rel="stylesheet" href="popup.css" />
   </head>
   <body>
@@ -28,6 +29,28 @@
         <span class="status-meta" id="status-meta"></span>
       </span>
     </div>
+
+    <!-- On this page — what the page tried and what Sieve did about each thing:
+         the Dark Pattern Blocker's findings on the tab you are looking at.
+         Filled in by popup.js → setupReceipt(). -->
+    <section class="block receipt" id="receipt" aria-labelledby="receipt-title">
+      <h2 class="block-title kicker" id="receipt-title">
+        <span>On this page</span>
+        <span class="receipt-count" id="receipt-count" hidden></span>
+      </h2>
+      <p class="receipt-empty" id="receipt-empty">Looking&hellip;</p>
+      <ol class="receipt-list" id="receipt-list" hidden></ol>
+      <button id="receipt-more" class="link-btn receipt-more" type="button" hidden></button>
+      <p class="receipt-sub kicker" id="receipt-watch-title" hidden>Keeping an eye on</p>
+      <ol class="receipt-list is-watch" id="receipt-watch" hidden></ol>
+    </section>
+
+    <!-- Free-trial reminders you have set, from any site — shown only when
+         there is one. Filled in by popup.js → setupReminders(). -->
+    <section class="block reminders" id="reminders" aria-labelledby="reminders-title" hidden>
+      <h2 class="block-title kicker" id="reminders-title">Free-trial reminders</h2>
+      <ol class="reminder-list" id="reminder-list"></ol>
+    </section>
 
     <!-- Core modules — quick on/off; detailed settings live on the options page -->
     <section class="block" id="modules" aria-labelledby="modules-title">
@@ -72,7 +95,7 @@
       <div class="toggle-row">
         <div class="toggle-info">
           <label class="toggle-name" for="dark-patterns-toggle">Dark Pattern Blocker</label>
-          <span class="toggle-desc" id="dark-patterns-count">No dark patterns on this page</span>
+          <span class="toggle-desc" id="dark-patterns-count">No tricks on this page</span>
           <span id="dark-patterns-state" hidden></span>
         </div>
         <label class="switch">

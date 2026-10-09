@@ -185,6 +185,178 @@ body {
   font-variant-numeric: tabular-nums;
 }
 
+/* ---- On this page: what the page tried ------------------------------------ */
+
+.receipt-count {
+  margin-left: auto;
+  text-transform: none;
+  letter-spacing: 0.02em;
+  color: var(--warn);
+  font-variant-numeric: tabular-nums;
+}
+
+.receipt-empty {
+  padding: 10px 0 8px;
+  font-size: 12.5px;
+  color: var(--ink-3);
+}
+
+.receipt-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.receipt-more {
+  margin: 0 0 6px 16px;
+}
+
+.tell {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 9px 0;
+}
+
+.tell + .tell {
+  border-top: 1px solid var(--rule);
+}
+
+/* The ladder, as a row of three holes in the sieve: filled up to the step
+   Sieve took. One for a label, two for a fix, three for a cover. */
+.tell-meter {
+  display: inline-flex;
+  flex-direction: column;
+  gap: 3px;
+  flex-shrink: 0;
+  margin-top: 4px;
+}
+
+.tell-meter i {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  border: 1.25px solid var(--ink-3);
+}
+
+.tell-meter[data-level="1"] i:nth-child(3),
+.tell-meter[data-level="2"] i:nth-child(n + 2),
+.tell-meter[data-level="3"] i {
+  background: var(--ink);
+  border-color: var(--ink);
+}
+
+.tell-main {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+}
+
+.tell-title {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--ink);
+}
+
+.tell-detail {
+  font-size: 12px;
+  line-height: 1.4;
+  color: var(--ink-2);
+}
+
+.tell-foot {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 2px 14px;
+  margin-top: 3px;
+}
+
+.tell-done {
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+}
+
+.tell.is-undone .tell-title,
+.tell.is-undone .tell-detail {
+  color: var(--ink-3);
+}
+
+.receipt-sub {
+  margin-top: 6px;
+  padding: 6px 0 2px;
+  border-top: 1px solid var(--rule);
+}
+
+/* Not tricks — claims Sieve is checking — so set quieter, and no meter. */
+.receipt-list.is-watch .tell {
+  padding: 6px 0;
+}
+
+.receipt-list.is-watch .tell-meter {
+  display: none;
+}
+
+.receipt-list.is-watch .tell-title {
+  font-weight: 400;
+  color: var(--ink-2);
+}
+
+.receipt-list.is-watch .tell-detail {
+  color: var(--ink-3);
+}
+
+.tell-foot .link-btn:disabled {
+  color: var(--ink-3);
+  text-decoration: none;
+  cursor: default;
+}
+
+/* ---- Free-trial reminders -------------------------------------------------- */
+
+.reminder-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.reminder {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 8px 0;
+}
+
+.reminder + .reminder {
+  border-top: 1px solid var(--rule);
+}
+
+.reminder-info {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+}
+
+.reminder-host {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--ink);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.reminder-when {
+  font-size: 11.5px;
+  color: var(--ink-3);
+}
+
 /* ---- Popup & click hijack: per-site recovery ------------------------------ */
 
 .ph-allow-site {
