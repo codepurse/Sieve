@@ -15,7 +15,7 @@
 const SIEVE_CHANGELOG = [
   {
     version: "1.4.0",
-    date: "September 2026",
+    date: "October 2026",
     items: [
       "New Ad & Trackers section, with one switch that turns the whole thing on. It is off until you switch it on. Behind it are several separate parts, and the rest of these notes explain each one, because they work in different ways and fail in different ways.",
       "Two of them are domain blockers. One stops the analytics, fingerprinting and behaviour-tracking services that pages load in the background. The other stops the ad exchanges and delivery networks themselves.",
@@ -78,6 +78,7 @@ const SIEVE_CHANGELOG = [
       "Two limits, stated plainly. The pause screen's “15 more minutes” is not covered, because a wait measured in hours would outlast a daily limit. And like the PIN, the cool-off is kept in this browser: it is there to outlast an impulse, not someone set on getting round it.",
       "New Appearance setting, under Advanced: Match my system, Light or Dark. Sieve used to follow your system's setting with no say in it. Now the choice is yours, and it reaches everything Sieve shows you: the settings, the toolbar popup, the blocked page, and the pause screen and lock prompts it puts over a site. It changes nothing about the sites themselves.",
       "The settings, onboarding, release-notes and blocked pages have a little texture now: a paper grain you feel more than see, and a plate of a sieve's holes behind each title. Both sit behind the words, never in front of them. The toolbar popup and the screens Sieve puts over a site stay plain.",
+      "A new icon. The shield is gone: Sieve's mark is now a sieve, which is what it does — the web goes in, the junk stays in the bowl, and the good falls through. It is the same mark in your toolbar, the popup, the settings, the blocked page and beside search results, and at the toolbar's smallest size it is drawn by hand, pixel by pixel, so it stays sharp.",
       "The Dark Pattern Blocker now shows its work. Open the toolbar popup on any page and the new “On this page” lists what that page tried — a countdown, a guilt-trip button, a box ticked for you — with one plain sentence about each and what Sieve did about it. “Show me” scrolls to it and rings it; “Undo” puts it back exactly as the site had it. The toolbar badge counts the tricks on the page you are on, and only tricks: never trackers, which are on every page.",
       "It also remembers, so it can prove a fake rather than guess. A countdown is a promise about one moment, so Sieve writes down the moment and checks it when you come back: a countdown that restarted is fake, and Sieve says so, with the times. One that kept its end time is behaving like a real one, and is now left alone instead of hidden. An “only 3 left” that has not moved in a week means there is no rush; one that went up within the hour, or is the same number on every product, is made up. And a sale that “ends today” on two days running is caught too.",
       "What it remembers is a few numbers — the time a countdown gave, a stock count, the day a sale “ended today” — for 30 days, on this device only, filed under scrambled codes rather than page addresses. Nothing from a private window is kept. Settings → Browsing → What Sieve remembers says how much it holds, and one button forgets it all.",
