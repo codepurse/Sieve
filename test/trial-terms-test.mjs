@@ -55,6 +55,35 @@ test("the common ways a trial and its price are written", () => {
   }
 });
 
+test("prices in other currencies, written the ways shops write them", () => {
+  const cases = [
+    ["Free for 30 days then ₱129/month", "₱129", "month"],
+    ["30 days free, then ₩9,900 a month", "₩9,900", "month"],
+    ["1 month free, then R$ 19,90 per month", "R$19,90", "month"],
+    ["Free trial, then A$12.99/mo", "A$12.99", "month"],
+    ["7 days free, then PHP 1,299 per year", "PHP 1,299", "year"],
+    ["Gratis trial, then Rp 49.000/bulan or Rp 499.000 per year", "Rp 499.000", "year"],
+    ["Free trial, then 99 kr/month", "99 kr", "month"],
+    ["Free trial, then 29,99 zł miesięcznie or 29,99 zł/month", "29,99 zł", "month"],
+    ["Free trial, then 199 ₽ per month", "199 ₽", "month"],
+    ["14 days free, then 9.99 usd monthly", "9.99 USD", "month"],
+    ["Free trial, then ₺49,99/month", "₺49,99", "month"],
+  ];
+  for (const [text, amount, interval] of cases) {
+    assert.deepEqual(plain(parseTerms(text).price), { amount, interval }, text);
+  }
+});
+
+test("'try' is a word, not Turkish lira", () => {
+  assert.equal(parseTerms("Try 1 month free").price, null);
+});
+
+test("'then' followed by any currency is renewal wording", () => {
+  for (const text of ["then ₱129", "then R$ 19,90", "then PHP 129", "then ₩9,900"]) {
+    assert.equal(parseTerms(text).renews, true, text);
+  }
+});
+
 test("'$0 today' is the trial, not the price that follows it", () => {
   const t = plain(parseTerms("7 days free — $0.00/month today, then $19.99/month"));
   assert.deepEqual(t.price, { amount: "$19.99", interval: "month" });

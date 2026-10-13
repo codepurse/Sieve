@@ -40,10 +40,27 @@
   const MAX_LENGTH = { day: 365, week: 52, month: 24, year: 2 };
 
   // A price, and the interval written after it: "$14.99/month", "€9 per month",
-  // "£79.99 a year", "14,99 € monthly".
-  // (A symbol written AFTER the amount, "12,99 €", is not followed by a word
-  // boundary — "€" is not a word character — so only the letter codes get \b.)
-  const PRICE_RE = /(?:([$€£¥₹])\s?(\d{1,5}(?:[.,]\d{2})?)|(\d{1,5}(?:[.,]\d{2})?)\s?(€|£|(?:usd|eur|gbp|cad|aud)\b))\s*(?:\/\s*|per\s+|a\s+|an\s+|each\s+|every\s+)?(month|mo|year|yr|annum|week|wk|monthly|annually|yearly|weekly)\b/gi;
+  // "£79.99 a year", "14,99 € monthly", "₱129/month", "R$ 19,90 a month",
+  // "PHP 1,299 per year", "99 kr/month".
+  //
+  // The currency is any currency sign (\p{Sc}: $ € £ ¥ ₹ ₱ ₩ ₽ ₺ ฿ ₫ …), a
+  // dollar with its country in front ("A$", "NZ$", "R$"), an ISO code, or a
+  // local abbreviation ("Rp", "RM", "kr", "zł"). Letters are never followed by
+  // \b here — "zł" ends in a letter \b does not count as one — but by "not
+  // another letter". "TRY" is left out of the codes on purpose: "try 1 month
+  // free" is not a price in Turkish lira.
+  const ISO_CODES =
+    "usd|eur|gbp|cad|aud|nzd|php|inr|jpy|cny|krw|sgd|hkd|myr|idr|thb|vnd|brl|mxn|zar|rub|pln|sek|nok|dkk|chf|czk|huf|ils|aed|sar";
+  const ISO_RE = new RegExp(`^(?:${ISO_CODES})$`, "i");
+  const CURRENCY_BEFORE = `(?<!\\p{L})[a-z]{1,3}\\$|\\p{Sc}|(?<!\\p{L})(?:${ISO_CODES}|rp|rm|kr)\\.?(?=\\s?\\d)`;
+  const CURRENCY_AFTER = `\\p{Sc}|(?:${ISO_CODES}|kr|zł|kč|lei|tl)(?!\\p{L})`;
+  // "1,299" and "49.000" (thousands), "14.99" and "12,99" (cents).
+  const AMOUNT = "(\\d{1,3}(?:[.,\\u00a0\\u202f]\\d{3})+(?:[.,]\\d{1,2})?|\\d{1,6}(?:[.,]\\d{1,2})?)";
+  const PRICE_RE = new RegExp(
+    `(?:(${CURRENCY_BEFORE})\\s?${AMOUNT}|${AMOUNT}\\s?(${CURRENCY_AFTER}))` +
+      "\\s*(?:\\/\\s*|per\\s+|a\\s+|an\\s+|each\\s+|every\\s+)?(month|mo|year|yr|annum|week|wk|monthly|annually|yearly|weekly)\\b",
+    "giu"
+  );
   const INTERVALS = {
     month: "month", mo: "month", monthly: "month",
     year: "year", yr: "year", annum: "year", annually: "year", yearly: "year",
@@ -51,7 +68,11 @@
   };
 
   // Wording that says the trial charges by itself when it ends.
-  const RENEW_RE = /\b(?:then|thereafter|afterwards?)\s+(?:only\s+|just\s+)?(?:[$€£¥₹]|\d)|\bafter\s+(?:the|your)\s+(?:free\s+)?trial\b|\bauto(?:matically)?[\s-]?(?:renew|charge|bill)|\brenews?\b|\brecurring\b|\bbilled\b|\bwill\s+be\s+charged\b|\buntil\s+(?:you\s+)?cancel|\bcancel\s+any\s?time\b/i;
+  const RENEW_RE = new RegExp(
+    `\\b(?:then|thereafter|afterwards?)\\s+(?:only\\s+|just\\s+)?(?:${CURRENCY_BEFORE}|\\d)|` +
+      /\bafter\s+(?:the|your)\s+(?:free\s+)?trial\b|\bauto(?:matically)?[\s-]?(?:renew|charge|bill)|\brenews?\b|\brecurring\b|\bbilled\b|\bwill\s+be\s+charged\b|\buntil\s+(?:you\s+)?cancel|\bcancel\s+any\s?time\b/.source,
+    "iu"
+  );
 
   // ...and wording that says it does not.
   const NO_CARD_RE = /\bno\s+(?:credit\s+)?card\s+(?:required|needed)\b|\bno\s+payment\s+(?:details?\s+|info(?:rmation)?\s+)?(?:required|needed)\b|\bwithout\s+(?:a\s+)?(?:credit\s+)?card\b|\bno\s+credit\s+card\b/i;
@@ -79,11 +100,15 @@
     PRICE_RE.lastIndex = 0;
     let m;
     while ((m = PRICE_RE.exec(text))) {
-      const symbol = m[1] || "";
+      const before = m[1] || "";
       const amount = m[2] || m[3];
-      const code = m[4] || "";
-      if (parseFloat(amount.replace(",", ".")) <= 0) continue;
-      const shown = symbol ? `${symbol}${amount}` : `${amount} ${code.length === 1 ? code : code.toUpperCase()}`;
+      const after = m[4] || "";
+      if (parseFloat(amount.replace(/[^\d.,]/g, "").replace(",", ".")) <= 0) continue;
+      const code = (c) => (ISO_RE.test(c) ? c.toUpperCase() : c);
+      // "$14.99", "₱129", "R$19,90" — but "PHP 129", "Rp 49.000".
+      const shown = before
+        ? /[\p{L}.]$/u.test(before) ? `${code(before)} ${amount}` : `${before}${amount}`
+        : `${amount} ${code(after)}`;
       return { amount: shown, interval: INTERVALS[m[5].toLowerCase()] };
     }
     return null;
@@ -208,7 +233,42 @@
     if (!hasPaymentForm() && !(t.renews && hasSignupButton())) return null;
     // ...and there has to be something to say: how long, or how much.
     if (!t.length && !t.price) return null;
+    best.anchor = anchorFor(best.block, t);
     return best;
+  }
+
+  // Where the note goes: right under the line that states the terms — the
+  // price if the page gives one, else the length — so it is read before the
+  // button rather than after the whole card. That line is the smallest
+  // element in the block whose words still say it, widened to a whole line.
+  function anchorFor(block, terms) {
+    const says = terms.price ? parsePrice : parseLength;
+    let found = null;
+    let shortest = Infinity;
+    const all = block.querySelectorAll("*");
+    for (let i = 0; i < all.length && i < 400; i++) {
+      const text = blockText(all[i]).replace(/\s+/g, " ");
+      if (text.length < shortest && says(text)) {
+        found = all[i];
+        shortest = text.length;
+      }
+    }
+    return found ? wholeLine(found, block) : block;
+  }
+
+  // A note after an inline element, a link, or one item of a row or grid
+  // would land mid-line or squeeze into a column; climb until it would not.
+  function wholeLine(el, block) {
+    while (el !== block && el.parentElement) {
+      const own = getComputedStyle(el).display;
+      const parent = getComputedStyle(el.parentElement);
+      const inRow =
+        /grid/.test(parent.display) || (/flex/.test(parent.display) && !/column/.test(parent.flexDirection));
+      const inline = /^(inline|contents|table|ruby)/.test(own) || /^(A|BUTTON|LABEL|LI|DT|DD)$/.test(el.tagName);
+      if (!inRow && !inline) return el;
+      el = el.parentElement;
+    }
+    return block;
   }
 
   // ---------------------------------------------------------------------------

@@ -77,7 +77,8 @@
     ctx.loadPart("trials").then((ready) => {
       if (!ready) return;
       const best = window.SieveTrials.judge(blocks);
-      if (best && best.block.isConnected) ctx.tell(best.block, window.SieveTrials.describe(best.terms, ctx, ask));
+      const el = best && (best.anchor || best.block);
+      if (el && el.isConnected) ctx.tell(el, window.SieveTrials.describe(best.terms, ctx, ask));
     });
   }
 
