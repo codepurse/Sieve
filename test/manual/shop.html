@@ -1,0 +1,82 @@
+<!doctype html>
+<!-- A fake shop for trying the Dark Pattern Blocker by hand. Serve it with
+     `node test/manual/serve.mjs` and open http://localhost:8080 with the
+     unpacked extension loaded. Every trick on this page is deliberate. -->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Kettle Co — Brushed steel kettle</title>
+<script type="application/ld+json">{"@context":"https://schema.org","@type":"Product","name":"Brushed steel kettle"}</script>
+<style>
+  body { font: 15px/1.5 system-ui, sans-serif; max-width: 680px; margin: 24px auto; padding: 0 16px; color: #222; }
+  .banner { background: #c81e1e; color: #fff; padding: 10px 14px; font-weight: 700; border-radius: 4px; }
+  .price { font-size: 28px; font-weight: 700; margin: 4px 0; }
+  .timer { color: #c81e1e; font-weight: 700; font-size: 18px; }
+  .hot { color: #c81e1e; font-weight: 600; }
+  .box { margin-top: 20px; padding: 14px; border: 1px solid #ccc; border-radius: 6px; }
+  button { font: inherit; padding: 8px 14px; margin: 6px 6px 0 0; }
+  input[type=text] { font: inherit; padding: 6px; width: 260px; }
+  .fomo { position: fixed; left: 16px; bottom: 16px; width: 300px; padding: 10px 12px; background: #fff;
+    border: 1px solid #ddd; border-radius: 8px; box-shadow: 0 4px 18px rgba(0,0,0,.15); font-size: 13px; }
+</style>
+</head>
+<body>
+  <!-- "Ends today": caught if you open this page again on another day. -->
+  <div class="banner">Summer sale ends tonight!</div>
+
+  <h1>Brushed steel kettle</h1>
+  <p class="price">$39.99 <s style="font-size:18px;color:#888">$79.99</s></p>
+
+  <!-- Countdown: starts at 15:00 on every load. Hidden on the first visit;
+       reload after 2+ minutes and it is caught as restarted and covered. -->
+  <div class="timer" id="countdown">Hurry, offer ends in 15:00</div>
+
+  <!-- Stock: noted on the first visit, dimmed on the next (same number). -->
+  <p class="hot">Only 3 left in stock - order soon</p>
+
+  <!-- Viewer count: stamped "unverified"; dimmed if it still says 23 when you
+       come back 10+ minutes later. -->
+  <p class="hot">23 people are viewing this right now</p>
+
+  <p><label><input type="checkbox" checked> Send me marketing emails and special offers</label></p>
+  <button>Add to cart</button>
+
+  <div class="box">
+    <p>Get 10% off your first order!</p>
+    <button>Yes please</button><button>No thanks, I don't want to save money</button>
+  </div>
+
+  <!-- Free trial: the note appears under this box, with "Remind me". -->
+  <div class="box">
+    <h2 style="margin:0">Kettle Club — 7-day free trial</h2>
+    <p>Free descaling tablets every month. Then $14.99/month. Cancels anytime.</p>
+    <label>Card number <input type="text" autocomplete="cc-number" placeholder="1234 5678 9012 3456"></label>
+    <div><button>Start free trial</button></div>
+  </div>
+
+  <script>
+    // The countdown, restarting from 15:00 on every page load (the fake).
+    let left = 15 * 60;
+    const el = document.getElementById("countdown");
+    setInterval(() => {
+      left -= 1;
+      el.textContent = "Hurry, offer ends in " + Math.floor(left / 60) + ":" + String(left % 60).padStart(2, "0");
+    }, 1000);
+
+    // The "just bought" pop-up, cycling every few seconds.
+    const people = [["Sarah", "Ohio", 12], ["Tom", "Leeds", 4], ["Mia", "Perth", 27]];
+    let i = 0;
+    setTimeout(() => {
+      const box = document.createElement("div");
+      box.className = "fomo";
+      document.body.appendChild(box);
+      const show = () => {
+        const [name, place, mins] = people[i++ % people.length];
+        box.innerHTML = "<b>" + name + " from " + place + "</b> purchased <i>Brushed steel kettle</i><br><small>" + mins + " minutes ago</small>";
+      };
+      show();
+      setInterval(show, 4000);
+    }, 1500);
+  </script>
+</body>
+</html>
