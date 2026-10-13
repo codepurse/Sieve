@@ -93,6 +93,8 @@ const REPORTER = `
   out.report = await window.__ask({ type: "sieve:tells-list" });
   out.notes = document.querySelectorAll('sieve-tell[data-sieve-dp="note"]').length;
   out.banner = !!document.querySelector('sieve-tell[data-sieve-dp="banner"]');
+  const note = document.querySelector('sieve-tell[data-sieve-dp="note"]');
+  out.noteAfter = note && note.previousElementSibling ? note.previousElementSibling.textContent.trim() : null;
   const trial = out.report.tells.find((t) => t.type === "trials");
   if (trial && trial.actions.length) {
     const after = await window.__ask({ type: "sieve:tells-action", id: trial.id, action: trial.actions[0].id });
@@ -218,6 +220,11 @@ test("a trial that charges by itself is explained beside the offer", { skip }, a
   assert.match(t.detail, /After 7 days, this becomes \$14\.99 a month\./);
   assert.match(t.detail, /first payment is due/);
   assert.equal(r.notes, 1, "one note on the page, beside the offer");
+});
+
+test("the note sits right under the line with the price, before the button", { skip }, async () => {
+  const r = (await results())["/signup"];
+  assert.equal(r.noteAfter, "Then $14.99/month. Cancel anytime.");
 });
 
 test("'Remind me' reaches the service worker with the trial's dates", { skip }, async () => {
