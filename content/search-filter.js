@@ -35,20 +35,24 @@
   const MARKER_CLASS = "sv-sf-why";    // the per-result "why?" button
   const POPOVER_ID = "sv-sf-pop";      // the panel it opens
   // Sieve's ink and paper (common/sieve-ui.css). The marker is the toolbar
-  // icon in miniature — the paper shield on an ink tile — so it is plainly
+  // icon in miniature — the paper sieve on an ink tile — so it is plainly
   // Sieve's on a light results page and a dark one alike.
   const INK = "#1a1916";
   const PAPER = "#f2efe7";
+  const GOLD = "#e8b54f";
   const HIDE_COLOR = "#c0563b";        // "this was hidden": Sieve's brick, mid-tone for light and dark pages
   const NO_COLOR = "#8c877c";          // a rule whose palette colour has since been removed
-  // The shield kept angular, with the mark's diagonal cut, as the 16px toolbar
-  // icon is: a rounded shield collapses into a blob at this size, and the
-  // diagonal is what still reads. The cut is painted in the tile's ink, so it
-  // reads as a gap.
-  const SHIELD_SVG =
+  // The sieve with fewer, larger holes (src/icons/mark-small.svg): at 16px
+  // the full mesh clogs into a grey bowl. Paper on the tile's ink, the drops
+  // in gold, as on the toolbar icon.
+  const hole = (x, y) => `M${x} ${y}a1.05 1.05 0 1 0 2.1 0a1.05 1.05 0 1 0-2.1 0z`;
+  const SIEVE_SVG =
     '<svg viewBox="0 0 24 24" aria-hidden="true">' +
-    '<path d="M12 1.8l8.2 3.6V12L12 22.2 3.8 12V5.4z" fill="' + PAPER + '"/>' +
-    '<path d="M15.4 0h2.5L9.1 24H6.6z" fill="' + INK + '"/>' +
+    `<path fill="${PAPER}" d="M4.75 5.3H21.45a1.05 1.05 0 0 1 0 2.1H4.75a1.05 1.05 0 0 1 0-2.1zM4.5 6.4H21.7A8.6 8.4 0 0 1 4.5 6.4Z` +
+    [[7.1, 9.5], [10.4, 9.5], [13.7, 9.5], [17, 9.5], [8.75, 12.6], [12.05, 12.6], [15.35, 12.6]].map(([x, y]) => hole(x, y)).join("") +
+    '"/>' +
+    `<path d="M5.1 6.3 2.4 3.6" fill="none" stroke="${PAPER}" stroke-width="2" stroke-linecap="round"/>` +
+    `<path fill="${GOLD}" d="M10.75 18.2a1.05 1.05 0 1 0 2.1 0a1.05 1.05 0 1 0-2.1 0zM13.8 20.7a.8 .8 0 1 0 1.6 0a.8 .8 0 1 0-1.6 0z"/>` +
     "</svg>";
   const MONO = 'ui-monospace,"SF Mono","Cascadia Mono",Consolas,monospace';
   const POPOVER_DARK =
@@ -531,7 +535,7 @@
     // --- header: who is talking, about what, and what happened --------------
     const head = el("header", "sv-sf-head");
     const brand = el("span", "sv-sf-brand");
-    brand.innerHTML = SHIELD_SVG;
+    brand.innerHTML = SIEVE_SVG;
     const titles = el("div", "sv-sf-titles");
     titles.append(el("div", "sv-sf-host", verdict.host));
     // The exact string the rules were tested against — a path-scoped or regex
@@ -633,10 +637,10 @@
     const marker = document.createElement("button");
     marker.type = "button";
     marker.className = MARKER_CLASS;
-    // Sieve's own shield, drawn inline rather than loaded from the extension:
+    // Sieve's own mark, drawn inline rather than loaded from the extension:
     // an <img> would mean adding the icon to web_accessible_resources, which
     // hands every page a reliable way to detect that Sieve is installed.
-    marker.innerHTML = SHIELD_SVG;
+    marker.innerHTML = SIEVE_SVG;
     marker.title = "Why did Sieve change this result?";
     marker.setAttribute("aria-label", "Why did Sieve change this result?");
     block.insertBefore(marker, block.firstChild);
