@@ -14,6 +14,29 @@
 
 const SIEVE_CHANGELOG = [
   {
+    version: "1.5.1",
+    date: "October 2026",
+    items: [
+      "A correction to the Doomscroll Stopper's daily limits: they counted only the time you spent scrolling, so a video site went straight through. Fifteen minutes on YouTube could become three hours of watching before the pause screen appeared. Time now counts while the site is on screen and you are using it, or something on it is playing. A tab in the background counts nothing, and neither does a page left open with nobody there for a minute.",
+      "The pause screen says how long you have spent on the site today, rather than how long you have been scrolling, since that is now what it counts.",
+      "New: a countdown on every site you have given a daily limit. A small pill in a corner says what is left of today's limit, and says “paused” while the clock is stopped, so you can always see whether the limit is running. It turns red in the last minute, and says how far over you are if you carry on past the pause screen. It never takes a click, follows your Appearance setting, and stays in view in fullscreen video.",
+      "The countdown is on by default. Focus → Doomscroll Stopper has a switch to turn it off, and lets you choose its corner and size.",
+      "A fix for sites you added to the Doomscroll Stopper yourself: their pause screen ignored your Appearance setting, because two of the pieces the built-in sites get were missing from them.",
+      "The Search Result Filter now works on DuckDuckGo's Images and Videos tabs as well as its web results. A site you hide is hidden there too, and a site you colour gets a ring around its picture.",
+      "It also follows you between DuckDuckGo's tabs. DuckDuckGo changes tab without loading a new page, so searching first and then clicking Images used to leave the filter behind.",
+      "And a site on your Blocked list now disappears whole from DuckDuckGo's image results, picture and all. DuckDuckGo had changed its layout, and Sieve was hiding only the caption under the picture.",
+      "New: subscribed lists in the Search Result Filter. Paste the address of a list someone else keeps, or one of your own: a uBlacklist ruleset, a plain list of sites, a hosts file, or AdGuard and uBlock Origin domain rules all work. Choose Hide or one of your colours, and Sieve keeps the list up to date, checking once a day. Large lists work: Super SEO Spam Suppressor, about 416,000 sites, is one of them.",
+      "A subscribed list can hide or colour results, and nothing else. Its allow rules are skipped, so a list someone else edits can never bring back a result your own rules hide. A list that fails to update keeps working from the copy it had, and the “?” beside a result names the list that hid it.",
+      "Unsubscribing, switching a list off, or turning a list from Hide into a colour asks for your lock, like every other change that weakens your protection. Subscribing does not.",
+      "Subscribing means Sieve downloads that list from the address you gave, and checks it again about once a day. Nothing about you is sent with the request, and the privacy policy now says so.",
+      "New Hide the count switch for the Search Result Filter. Hidden results are normally counted, with a link to show them. With this on there is no count and no link, for when the way back is the temptation. Turning the count back on asks for your lock.",
+      "And while the count is shown, “By site” lists which sites were hidden and how many results each, without showing any of them. A rule catching more than you meant is easy to spot.",
+      "A fix for that count on dark results pages: on DuckDuckGo's dark theme it came out dark grey on black and could not be read. It now checks that it can be read against whatever is behind it, and takes a colour of its own when the page's would not do.",
+      "New in Clean up YouTube: Restricted Mode, YouTube's own filter for mature videos, turned on and locked, signed in or out. Sieve sends the same signal schools and offices use, so YouTube's menu says your network administrator turned it on, and its own switch cannot be used. “Make it strict” picks Google's stricter level. YouTube hides comments while it is on.",
+      "Restricted Mode holds even with YouTube on your Allowlist. Allowing a site means not blocking it, and should not quietly switch off a setting you chose.",
+    ],
+  },
+  {
     version: "1.5.0",
     date: "October 2026",
     items: [
