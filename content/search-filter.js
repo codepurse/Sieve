@@ -881,6 +881,58 @@
     bySite.textContent = sites.hidden ? "By site" : "Hide the list";
     bySite.setAttribute("aria-expanded", String(!sites.hidden));
     if (!sites.hidden) renderSites(sites);
+    fitNoticeColor(notice);
+  }
+
+  // --- the notice's colour --------------------------------------------------
+  //
+  // The notice takes the results page's own text colour, which blends in on
+  // almost every page. DuckDuckGo's dark theme is the exception found so far:
+  // it colours each piece of its text and not the list the notice sits in, so
+  // the notice inherited the browser's default black on a near-black page and
+  // could not be read. So the inherited colour is checked against what is
+  // actually behind the notice, and only when the two are too close does the
+  // notice take a light or dark colour of its own. Checked on every update,
+  // because a page can change theme without reloading.
+
+  function parseRgb(value) {
+    const m = /^rgba?\(\s*([\d.]+)[,\s]+([\d.]+)[,\s]+([\d.]+)(?:\s*[,/]\s*([\d.]+%?))?\s*\)$/.exec(String(value || ""));
+    if (!m) return null;
+    let a = m[4] === undefined ? 1 : parseFloat(m[4]);
+    if (m[4] && m[4].endsWith("%")) a /= 100;
+    return { r: +m[1], g: +m[2], b: +m[3], a };
+  }
+
+  // WCAG relative luminance, 0 (black) to 1 (white).
+  function luminance({ r, g, b }) {
+    const channel = (v) => {
+      const s = v / 255;
+      return s <= 0.03928 ? s / 12.92 : Math.pow((s + 0.055) / 1.055, 2.4);
+    };
+    return 0.2126 * channel(r) + 0.7152 * channel(g) + 0.0722 * channel(b);
+  }
+
+  // The first solid background at or above the element. A page that paints
+  // none anywhere shows the browser's white.
+  function backgroundBehind(el) {
+    for (let node = el; node && node.nodeType === 1; node = node.parentElement) {
+      const color = parseRgb(getComputedStyle(node).backgroundColor);
+      if (color && color.a >= 0.5) return color;
+    }
+    return { r: 255, g: 255, b: 255, a: 1 };
+  }
+
+  function fitNoticeColor(notice) {
+    notice.style.removeProperty("color");
+    const text = parseRgb(getComputedStyle(notice).color);
+    if (!text) return; // a colour format this cannot read: leave the page's
+    const back = backgroundBehind(notice);
+    const lighter = Math.max(luminance(text), luminance(back));
+    const darker = Math.min(luminance(text), luminance(back));
+    // 4.5:1 is WCAG's floor for text this size; the notice is also drawn at
+    // 80% opacity, so it needs that much to stay readable.
+    if ((lighter + 0.05) / (darker + 0.05) >= 4.5) return;
+    notice.style.setProperty("color", luminance(back) < 0.35 ? "#e8e6e1" : "#202124", "important");
   }
 
   function noticeButton(className, onClick) {

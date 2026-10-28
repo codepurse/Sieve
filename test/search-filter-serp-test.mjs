@@ -91,6 +91,9 @@ const REPORTER = (titleSelector, settleMs = 400) => `
     out.noticeParentTag = notice ? notice.parentElement.tagName : null;
     out.noticeIn = notice ? notice.parentElement.getAttribute("data-testid") : null;
     out.notices = document.querySelectorAll("#sv-sf-notice").length;
+    // The colour the notice is drawn in, and whether Sieve had to set one
+    // (an inline colour) rather than take the page's.
+    out.noticeStyle = notice ? { color: getComputedStyle(notice).color, inline: notice.style.color } : null;
     // "By site": opened here and left open, so it can be read again after a
     // result is shown on the page further down.
     const sitesRows = () => [...document.querySelectorAll("#sv-sf-sites li")]
@@ -377,6 +380,25 @@ const BLOCKLIST_PAGE = (body, titleSelector) => `<!doctype html><html><head><met
 })();
 </script></body></html>`;
 
+// WCAG contrast between two computed colours, "rgb(r, g, b)".
+function contrast(a, b) {
+  const lum = (value) => {
+    const [r, g, b] = value.match(/[\d.]+/g).slice(0, 3).map(Number);
+    const ch = (v) => ((v /= 255) <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4);
+    return 0.2126 * ch(r) + 0.7152 * ch(g) + 0.0722 * ch(b);
+  };
+  const [hi, lo] = [lum(a), lum(b)].sort((x, y) => y - x);
+  return (hi + 0.05) / (lo + 0.05);
+}
+
+// DuckDuckGo's results, on a dark page. "Unthemed" is DuckDuckGo's own dark
+// theme as it really is: the page is dark, but nothing sets a text colour on
+// the list the notice sits in, so it inherits the browser's black. "Themed"
+// is a dark page that does colour its text, which the notice should simply use.
+const DDG_DARK = (themed) =>
+  `<style>html,body{background:#1c1c1c}${themed ? "ol.react-results--main{color:#e3e3e3}" : ""}</style>` +
+  DDG.match(/<ol class="react-results--main">[\s\S]*?<\/ol>/)[0];
+
 // What every tile case asserts beyond the shared checks.
 function checkTiles(id, r) {
   eq(r.marked, 5, `${id}: one mark per tile, none on the grid's rows`);
@@ -423,6 +445,27 @@ const CASES = [
       eq(r.notices, 1, "duckduckgo-tab-switch: one notice, not one per tab");
       eq(r.noticeIn, "zci-images", "duckduckgo-tab-switch: and it is the Images tab's");
       eq(r.notice, "Sieve hid 2 results", "duckduckgo-tab-switch: counting this tab, not the web results left behind");
+    },
+  },
+  {
+    // The reported bug: the notice was near-black on DuckDuckGo's dark theme.
+    id: "duckduckgo-dark", host: "duckduckgo.com", url: "/?q=test&dark=1",
+    body: page("example at DuckDuckGo", DDG_DARK(false), "h2"),
+    check: (r) => {
+      eq(r.threw, undefined, `duckduckgo-dark: page threw: ${r.threw}`);
+      eq(r.notice, "Sieve hid 2 results", "duckduckgo-dark: the notice is there");
+      eq(r.noticeStyle.inline !== "", true, "duckduckgo-dark: unreadable inherited text gets a colour of its own");
+      const ratio = contrast(r.noticeStyle.color, "rgb(28, 28, 28)");
+      eq(ratio >= 4.5, true, `duckduckgo-dark: the notice is readable on the dark page (contrast ${ratio.toFixed(1)}:1)`);
+    },
+  },
+  {
+    id: "duckduckgo-dark-themed", host: "duckduckgo.com", url: "/?q=test&dark=2",
+    body: page("example at DuckDuckGo", DDG_DARK(true), "h2"),
+    check: (r) => {
+      eq(r.threw, undefined, `duckduckgo-dark-themed: page threw: ${r.threw}`);
+      eq(r.noticeStyle.inline, "", "duckduckgo-dark-themed: a dark page that colours its text keeps its own colour");
+      eq(r.noticeStyle.color, "rgb(227, 227, 227)", "duckduckgo-dark-themed: which is the page's");
     },
   },
   {
@@ -611,6 +654,7 @@ server.listen(0, "127.0.0.1", async () => {
       eq(r.afterShowMark, "seen", `${kase.id}: "Show on this page" un-hides the result`);
       eq(r.afterShowDisplay !== "none", true, `${kase.id}: the un-hidden result is actually visible`);
       eq(r.afterShowNotice, "Sieve hid 1 resultShow them", `${kase.id}: the count drops when one is shown`);
+      eq(r.noticeStyle.inline, "", `${kase.id}: on a readable page the notice keeps the page's own colour`);
 
       // "By site": closed until asked for, then the hidden results by site,
       // in a list that scrolls, and that follows a result shown on the page.
