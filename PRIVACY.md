@@ -46,7 +46,7 @@ third party.
 
 Sieve also reads the content of web pages you visit **in the page itself** — for
 example, to mask profanity, hide toxic comments, remove dark patterns, or count
-how long you have been scrolling. This processing is momentary and local: the
+how long you spend on a site you set a daily limit for. This processing is momentary and local: the
 page content is **never copied or transmitted** anywhere, and it is not stored,
 apart from the few numbers described next.
 

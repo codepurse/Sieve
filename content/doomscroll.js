@@ -1,12 +1,18 @@
 // content/doomscroll.js
-// Sieve — Doomscroll Stopper (Module 2A): the scroll tracker.
+// Sieve — Doomscroll Stopper (Module 2A): the time tracker.
 //  - Detects which supported social site we're on (from data/site-configs.json).
 //  - Measures, FOR THE WHOLE DAY (cumulative across reloads, tabs, sessions),
-//    the time spent ACTIVELY scrolling.
+//    the time spent ON the site: while its tab is on screen and the user is
+//    either using it (scrolling, typing, pointing) or something on it is playing.
 //  - Reads the user's per-site DAILY time limit from chrome.storage.local.
 //  - When the daily time limit is reached, asks the pause overlay to appear.
 //  - Because totals are persisted per day, a refresh or a new tab no longer
 //    resets progress — only midnight does (handled by the service worker).
+//
+// It used to count only time spent actively scrolling, which let a video site
+// straight through: a user set 15 minutes on YouTube and watched for three
+// hours before the pause appeared, because three hours of watching is a few
+// minutes of scrolling. Watching is time on the site, so it counts.
 
 (() => {
   "use strict";
@@ -16,7 +22,9 @@
   window.__sieveDoomscrollActive = true;
 
   // --- tuning constants ---------------------------------------------------
-  const IDLE_GAP_MS = 2000;          // a gap longer than this = the user paused; don't count it
+  const TICK_MS = 1000;              // how often the clock checks whether the user is here
+  const IDLE_AFTER_MS = 60 * 1000;   // no input for this long, and nothing playing = away
+  const MAX_TICK_MS = 5000;          // a longer gap between ticks (sleep, a throttled timer) counts only this much
   const FLUSH_INTERVAL_MS = 5000;    // how often we persist the running total
   const SNOOZE_MS = 5 * 60 * 1000;   // "Snooze 5 min" wall-clock grace
   const REMIND_AFTER_MS = 5 * 60 * 1000; // after Dismiss, nag again only after this much more time
@@ -33,9 +41,10 @@
   let stoppedToday = false;              // user chose "Stop for today"
 
   let statsDate = "";      // the date the in-memory total belongs to
-  let todayMs = 0;         // cumulative active-scroll time today (ms)
+  let todayMs = 0;         // cumulative time on the site today (ms)
   let unflushedMs = 0;     // time accrued since the last write to storage
-  let lastActivityTs = 0;  // timestamp of the previous scroll activity
+  let lastInputTs = 0;     // when the user last scrolled, typed or pointed here
+  let lastTickTs = 0;      // when the clock last ran
 
   let snoozeUntil = 0;     // wall-clock suppression (Snooze)
   let overrideUntil = 0;   // wall-clock suppression (PIN-granted extra time)
@@ -43,7 +52,15 @@
   let overlayShown = false;
   let tracking = false;
   let guardianMode = false; // a Guardian PIN is set
+  let tickTimer = null;
   let flushTimer = null;
+
+  // Anything that says the user is here. Listened for on window in the capture
+  // phase, so a site that stops an event bubbling cannot hide it. Scroll does
+  // not bubble at all, so it gets a capture listener on document instead, which
+  // is what catches inner feed containers.
+  const INPUT_EVENTS = ["wheel", "touchmove", "keydown", "pointerdown", "pointermove"];
+  const LISTEN = { passive: true, capture: true };
 
   // --- small helpers ------------------------------------------------------
 
@@ -120,30 +137,42 @@
     overrideUntil = 0;
   }
 
-  // --- scroll accounting --------------------------------------------------
+  // --- time accounting ----------------------------------------------------
 
-  // Count the time since the last activity, if the gap was short enough to
-  // count as continuous scrolling. Always runs on scroll/wheel/touch.
-  function recordActivity() {
-    rolloverIfNewDay();
-    const now = Date.now();
-    if (isSnoozed()) {
-      lastActivityTs = now; // ignore time spent during the snooze window
-      return;
-    }
-    if (lastActivityTs && now - lastActivityTs < IDLE_GAP_MS) {
-      const delta = now - lastActivityTs;
-      todayMs += delta;
-      unflushedMs += delta;
-    }
-    lastActivityTs = now;
+  // Any input: the user is here. Only a timestamp, because pointermove fires
+  // constantly; the clock below does the counting.
+  function onActivity() {
+    lastInputTs = Date.now();
   }
 
-  // Any scroll/wheel/touch activity: count active time, then check the limit.
-  // Works on virtualized feeds (e.g. TikTok) where window scrollY may not move,
-  // and — registered in the capture phase — on inner feed containers too.
-  function onActivity() {
-    recordActivity();
+  // Is anything on the page playing? Watching is the one way to spend an hour
+  // on a site without touching it.
+  function mediaPlaying() {
+    for (const el of document.querySelectorAll("video, audio")) {
+      if (!el.paused && !el.ended) return true;
+    }
+    return false;
+  }
+
+  // Is the user on this site right now? The tab has to be on screen, and then
+  // either they used it in the last minute or something is playing. Reading a
+  // post without touching anything for over a minute stops the clock; a video
+  // left playing in a tab nobody can see does not count either.
+  function present(now) {
+    if (document.hidden) return false;
+    return now - lastInputTs < IDLE_AFTER_MS || mediaPlaying();
+  }
+
+  // One tick of the clock: credit the time since the last tick if the user was
+  // here for it. The pause screen and a snooze are breaks, so they never count.
+  function tick() {
+    rolloverIfNewDay();
+    const now = Date.now();
+    const delta = Math.min(now - lastTickTs, MAX_TICK_MS);
+    lastTickTs = now;
+    if (delta <= 0 || overlayShown || isSnoozed() || !present(now)) return;
+    todayMs += delta;
+    unflushedMs += delta;
     checkLimits();
   }
 
@@ -254,11 +283,11 @@
   function startTracking() {
     if (tracking) return;
     tracking = true;
-    lastActivityTs = 0;
-    // Capture-phase scroll on document catches inner-container scrolls too.
-    document.addEventListener("scroll", onActivity, { passive: true, capture: true });
-    window.addEventListener("wheel", onActivity, { passive: true });
-    window.addEventListener("touchmove", onActivity, { passive: true });
+    // Opening the page is being here.
+    lastInputTs = lastTickTs = Date.now();
+    document.addEventListener("scroll", onActivity, LISTEN);
+    for (const type of INPUT_EVENTS) window.addEventListener(type, onActivity, LISTEN);
+    tickTimer = setInterval(tick, TICK_MS);
     flushTimer = setInterval(() => {
       flushStats();
       checkLimits();
@@ -268,9 +297,12 @@
   function stopTracking() {
     if (!tracking) return;
     tracking = false;
-    document.removeEventListener("scroll", onActivity, { capture: true });
-    window.removeEventListener("wheel", onActivity);
-    window.removeEventListener("touchmove", onActivity);
+    document.removeEventListener("scroll", onActivity, LISTEN);
+    for (const type of INPUT_EVENTS) window.removeEventListener(type, onActivity, LISTEN);
+    if (tickTimer) {
+      clearInterval(tickTimer);
+      tickTimer = null;
+    }
     if (flushTimer) {
       clearInterval(flushTimer);
       flushTimer = null;
@@ -326,9 +358,12 @@
     });
 
     // Don't lose the last few seconds of progress when the page goes away.
+    // Coming back to the tab is being here, and the stretch it spent hidden is
+    // not credited: the hidden tab's timer may not have run for a minute.
     window.addEventListener("pagehide", flushStats);
     document.addEventListener("visibilitychange", () => {
       if (document.hidden) flushStats();
+      else lastInputTs = lastTickTs = Date.now();
     });
   }
 
