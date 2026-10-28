@@ -38,17 +38,14 @@ const CHROME = [
   "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
 ].find((p) => fs.existsSync(p));
 
-// The Doomscroll entry in manifest.json, in its order.
-const TRACKER_FILES = [
-  "common/guardian.js",
-  "common/doomscroll-sites.js",
-  "common/access-code.js",
-  "common/cooloff.js",
-  "common/theme.js",
-  "common/guardian-prompt.js",
-  "content/pause-overlay.js",
-  "content/doomscroll.js",
-];
+// The Doomscroll entry in a manifest: the content script whose files include
+// the tracker. The page below loads exactly that list, read from the manifest
+// itself, so a file added there is tested without anyone updating this test.
+function doomscrollEntry(manifestFile) {
+  const manifest = JSON.parse(fs.readFileSync(path.join(ROOT, manifestFile), "utf8"));
+  return manifest.content_scripts.find((cs) => (cs.js || []).includes("content/doomscroll.js")).js;
+}
+const TRACKER_FILES = doomscrollEntry("manifest.json");
 
 // The test page is tracked as a custom site, which is how a user-added domain
 // is matched; 127.0.0.1 is the host the page is served from.
@@ -62,11 +59,18 @@ const SITE_ID = "custom:127.0.0.1";
 //   hidden  the tab is in the background the whole time
 //   scroll  a wheel event every second
 //   wait    how long the page lives, in virtual milliseconds
+//   snaps   moments (virtual ms) to read the countdown bubble at
+//   store   extra settings, for the bubble's own switch, corner and size
 const CASES = {
-  watching: { limit: 2, video: true, wait: 150000 },
-  idle: { limit: 10, wait: 150000 },
-  hidden: { limit: 2, video: true, hidden: true, wait: 150000 },
+  watching: { limit: 2, video: true, wait: 150000, snaps: [30000] },
+  idle: { limit: 10, wait: 150000, snaps: [30000, 100000] },
+  hidden: { limit: 2, video: true, hidden: true, wait: 150000, snaps: [30000] },
   scrolling: { limit: 10, scroll: true, wait: 120000 },
+  placed: {
+    limit: 10, wait: 5000, snaps: [3000],
+    store: { doomscrollCountdownCorner: "top-right", doomscrollCountdownSize: "large" },
+  },
+  countdownOff: { limit: 10, wait: 5000, snaps: [3000], store: { doomscrollCountdown: false } },
 };
 
 // --- the page under test ----------------------------------------------------
@@ -78,6 +82,7 @@ function page(c) {
     doomscrollEnabled: true,
     doomscrollCustomSites: ["127.0.0.1"],
     doomscrollSites: { ${JSON.stringify(SITE_ID)}: { enabled: true, timeLimitMinutes: ${c.limit} } },
+    ...${JSON.stringify(c.store || {})},
   };
   const pick = (keys) => {
     const o = {};
@@ -116,8 +121,27 @@ ${c.video ? `<video id="v" muted playsinline width="160" height="90"></video>
 <pre id="RESULTS"></pre>
 <script src="/__tracker.js"></script>
 <script>
+// The countdown bubble as a user would see it, or null when there is none.
+function bubble() {
+  const host = document.getElementById("sieve-countdown");
+  const pill = host && host.shadowRoot && host.shadowRoot.querySelector(".pill");
+  if (!pill) return null;
+  const cs = getComputedStyle(pill);
+  return {
+    time: pill.querySelector(".time").textContent,
+    word: pill.querySelector(".word").textContent,
+    paused: pill.classList.contains("is-paused"),
+    corner: pill.dataset.corner,
+    top: cs.top, right: cs.right, bottom: cs.bottom, left: cs.left,
+    fontSize: cs.fontSize,
+    visible: pill.getBoundingClientRect().width > 0,
+  };
+}
+
 (async () => {
   const startedPlaying = ${c.video ? `!document.getElementById("v").paused` : "null"};
+  const snaps = [];
+  for (const at of ${JSON.stringify(c.snaps || [])}) setTimeout(() => snaps.push(bubble()), at);
   ${c.scroll ? `const scroller = setInterval(() => window.dispatchEvent(new WheelEvent("wheel", { deltaY: 120 })), 1000);` : ""}
   await new Promise((r) => setTimeout(r, ${c.wait}));
   ${c.scroll ? "clearInterval(scroller);" : ""}
@@ -132,6 +156,11 @@ ${c.video ? `<video id="v" muted playsinline width="160" height="90"></video>
     startedPlaying,
     endedPaused: ${c.video ? `document.getElementById("v").paused` : "null"},
     playError: window.__playError || null,
+    snaps,
+    bubbleAtEnd: bubble(),
+    formats: window.SieveCountdown
+      ? [59000, 754000, 3912000, 400].map((ms) => window.SieveCountdown.format(ms))
+      : null,
   };
   document.getElementById("RESULTS").textContent = "<<<" + JSON.stringify(out) + ">>>";
 })();
@@ -274,4 +303,83 @@ test("a hidden tab counts nothing, even with a video playing", { skip: !CHROME &
 test("scrolling still counts", { skip: !CHROME && "Chrome not found" }, async () => {
   const r = (await results()).scrolling;
   assert.ok(r.minutes >= 1.85 && r.minutes <= 2.1, `${r.minutes.toFixed(2)} min counted, expected about 2`);
+});
+
+// --- the countdown bubble (content/countdown.js) ----------------------------
+
+const seconds = (snap) => snap.time.split(":").reduce((total, part) => total * 60 + Number(part), 0);
+
+// Its whole job: a limit that is running can be seen running. Thirty seconds
+// into a two-minute limit, with a video playing, about a minute and a half is
+// left.
+test("the countdown shows what is left while the clock runs", { skip: !CHROME && "Chrome not found" }, async () => {
+  const [mid] = (await results()).watching.snaps;
+  assert.ok(mid, "no countdown on a tracked site");
+  assert.equal(mid.visible, true);
+  assert.equal(mid.word, "left");
+  assert.equal(mid.paused, false);
+  assert.ok(seconds(mid) >= 86 && seconds(mid) <= 92, `${mid.time} left at 30s into a 2-minute limit`);
+});
+
+// And a limit that is NOT running can be seen not running, which is what the
+// supporter who asked for this had no way to tell.
+test("the countdown says paused once the clock stops", { skip: !CHROME && "Chrome not found" }, async () => {
+  const [running, stopped] = (await results()).idle.snaps;
+  assert.equal(running.word, "left");
+  assert.equal(stopped.word, "paused");
+  assert.equal(stopped.paused, true);
+  // Ten minutes, less the one minute that counted before the page went idle.
+  assert.ok(seconds(stopped) >= 536 && seconds(stopped) <= 542, `${stopped.time} left, expected about 9:00`);
+});
+
+test("the countdown gives way to the pause screen", { skip: !CHROME && "Chrome not found" }, async () => {
+  const r = (await results()).watching;
+  assert.equal(r.overlay, true);
+  assert.equal(r.bubbleAtEnd, null, "the countdown stayed up over the pause screen");
+});
+
+test("a hidden tab draws no countdown", { skip: !CHROME && "Chrome not found" }, async () => {
+  assert.equal((await results()).hidden.snaps[0], null);
+});
+
+// Read back from the real layout, so a corner that the stylesheet does not
+// actually move is caught.
+test("the countdown sits in the corner and at the size chosen", { skip: !CHROME && "Chrome not found" }, async () => {
+  const r = await results();
+  const [standard] = r.idle.snaps;
+  assert.equal(standard.corner, "bottom-left");
+  assert.equal(standard.bottom, "16px");
+  assert.equal(standard.left, "16px");
+  assert.equal(standard.fontSize, "14px");
+
+  const [placed] = r.placed.snaps;
+  assert.equal(placed.corner, "top-right");
+  assert.equal(placed.top, "16px");
+  assert.equal(placed.right, "16px");
+  assert.equal(placed.fontSize, "18px");
+});
+
+test("switching the countdown off removes it", { skip: !CHROME && "Chrome not found" }, async () => {
+  const r = (await results()).countdownOff;
+  assert.equal(r.snaps[0], null);
+  assert.equal(r.bubbleAtEnd, null);
+});
+
+test("times read as m:ss, and h:mm:ss past an hour", { skip: !CHROME && "Chrome not found" }, async () => {
+  // A part of a second still counts as a second left, so 0:00 means done.
+  assert.deepEqual((await results()).idle.formats, ["0:59", "12:34", "1:05:12", "0:01"]);
+});
+
+// --- the script list ---------------------------------------------------------
+
+// A user-added site gets the tracker by a dynamic registration in the service
+// worker, from its own copy of the manifest's list. The two had drifted once:
+// user-added sites ran without cooloff.js and theme.js.
+test("user-added sites get the same scripts as the built-in ones", () => {
+  const sw = fs.readFileSync(path.join(ROOT, "background/service-worker.js"), "utf8");
+  const found = /const DOOMSCROLL_CS_FILES = \[([\s\S]*?)\];/.exec(sw);
+  assert.ok(found, "DOOMSCROLL_CS_FILES not found in the service worker");
+  const list = [...found[1].matchAll(/"([^"]+)"/g)].map((m) => m[1]);
+  assert.deepEqual(list, TRACKER_FILES);
+  assert.deepEqual(doomscrollEntry("manifest.firefox.json"), TRACKER_FILES);
 });

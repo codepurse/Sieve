@@ -98,6 +98,7 @@
         "common/theme.js",
         "common/guardian-prompt.js",
         "content/pause-overlay.js",
+        "content/countdown.js",
         "content/doomscroll.js"
       ],
       "run_at": "document_idle"

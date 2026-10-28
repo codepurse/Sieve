@@ -1606,23 +1606,28 @@ html.preload .loading-veil {
 
 /* ---- Usage controls --------------------------------------------------------------- */
 
-.usage-controls {
+/* The Doomscroll countdown's corner and size share this row layout. */
+.usage-controls,
+.ds-countdown-controls {
   display: flex;
   flex-wrap: wrap;
   align-items: flex-end;
   gap: 16px 24px;
 }
 
-.usage-control {
+.usage-control,
+.ds-countdown-control {
   display: flex;
   flex-direction: column;
 }
 
-.usage-control .sub-label {
+.usage-control .sub-label,
+.ds-countdown-control .sub-label {
   margin-top: 0;
 }
 
-.usage-control select.input {
+.usage-control select.input,
+.ds-countdown-control select.input {
   width: auto;
   min-width: 10rem;
 }
