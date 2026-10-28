@@ -329,7 +329,7 @@ test("the shipped list keeps consent, payments and sign-in clean", async () => {
   // features fight each other.
   const { readFile } = await import("node:fs/promises");
   const data = JSON.parse(await readFile(new URL("../data/tracker-domains.json", import.meta.url)));
-  const hits = auditFragileSurfaces(data.trackers);
+  const hits = auditFragileSurfaces(data.ads);
   for (const surface of Object.keys(hits)) {
     assert.ok(
       !/consent|payments|sign-in|player|comments/.test(surface),
@@ -497,7 +497,10 @@ test("the REAL additions file passes every check", () => {
   // Run the file that actually ships through the same merge, so a bad hand edit
   // fails `npm test` rather than the release build.
   const real = JSON.parse(fs.readFileSync(new URL("../data/tracker-additions.json", import.meta.url), "utf8"));
-  for (const name of ["trackers", "ads"]) {
+  // Only the ad group is converted since tracker blocking left in 1.5.1, so a
+  // "trackers" entry here would be silently ignored rather than shipped.
+  assert.equal(real.trackers, undefined, "tracker additions have nowhere to go");
+  for (const name of ["ads"]) {
     const g = group();
     const r = applyAdditions(name, g, real, "data/tracker-additions.json"); // throws on a bad entry
     for (const a of r.added) {

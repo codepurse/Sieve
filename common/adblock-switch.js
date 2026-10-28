@@ -1,5 +1,5 @@
 // common/adblock-switch.js
-// Sieve — the shared "adopt the Ad & Trackers switch" rule.
+// Sieve — the shared "adopt the Ads switch" rule.
 //
 // ---------------------------------------------------------------------------
 // WHAT THIS SOLVES
@@ -40,14 +40,18 @@
 // (ADBLOCK_KEYS.some, options/options.js) — the only definition of "on" a user
 // can actually see, and so the only one worth adopting from.
 
-// Every key behind the single Ad & Trackers switch. Must stay in step with
+// Every key behind the single Ads switch. Must stay in step with
 // ADBLOCK_KEYS in options/options.js.
 //
 // ssFloatVideoEnabled is deliberately NOT here. It sits in the same section of
 // the settings page but has its own switch, so there is no shared state for it
 // to adopt and it must not be read as evidence that the shared one is on.
+//
+// ssAdTrackerEnabled was here until tracker blocking was removed in 1.5.1. It is
+// out because its feature is gone, and must stay out: a profile whose only
+// enabled key was the tracker group would otherwise read as "the switch is on"
+// and switch every ad mechanism on behind it.
 export const ADBLOCK_SWITCH_KEYS = [
-  "ssAdTrackerEnabled",
   "ssAdNetworkEnabled",
   "ssYouTubeAdsEnabled",
   "ssFacebookAdsEnabled",
@@ -56,7 +60,7 @@ export const ADBLOCK_SWITCH_KEYS = [
 ];
 
 /**
- * Turn `key` on once, and only once, if the user has the Ad & Trackers switch
+ * Turn `key` on once, and only once, if the user has the Ads switch
  * on but has never been asked about this particular key.
  *
  * @param {string} key    the storage key this module owns
@@ -74,6 +78,6 @@ export async function adoptAdblockSwitchState(key, label) {
   // The write fires storage.onChanged, which runs each module's own reconcile.
   // This deliberately registers nothing itself.
   await chrome.storage.local.set({ [key]: true });
-  console.log(`[Sieve] ${label} adopted the existing Ad & Trackers switch state.`);
+  console.log(`[Sieve] ${label} adopted the existing Ads switch state.`);
   return true;
 }

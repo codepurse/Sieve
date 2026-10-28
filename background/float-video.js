@@ -5,8 +5,8 @@
 // read the script's header for what they do and why the stylesheet carries most
 // of the weight.
 //
-// It has its own switch in the settings page rather than sharing the Ad &
-// Trackers one, because it is not ad blocking: the floating player is the site's
+// It has its own switch in the settings page rather than sharing the Ads
+// one, because it is not ad blocking: the floating player is the site's
 // own furniture, served from the site's own address, and there is no advertising
 // request to block that would not also block the article.
 //
@@ -212,7 +212,7 @@ async function register(specs) {
 // DELIBERATELY NO adoptSwitchState here, unlike its neighbours in this section.
 //
 // background/anti-adblock.js and background/ad-slot-collapse.js each adopt the
-// state of the single Ad & Trackers switch on upgrade, because they are behind
+// state of the single Ads switch on upgrade, because they are behind
 // that switch: a profile with it on would otherwise read as on while a
 // newly-added mechanism never ran. This one has its OWN switch in the settings
 // page, so there is nothing to inherit and inheriting would be wrong — turning

@@ -36,19 +36,20 @@ globalThis.chrome = {
   },
 };
 
-const {
-  buildTrackerRules,
-  allowlistInitiators,
-  AD_TRACKER_ENABLED_KEY,
-  AD_NETWORK_ENABLED_KEY,
-  AD_TRACKER_GROUPS,
-} = await import("../background/ad-tracker-blocker.js");
+const blocker = await import("../background/ad-tracker-blocker.js");
+const { buildTrackerRules, allowlistInitiators, AD_NETWORK_ENABLED_KEY, AD_TRACKER_GROUPS } = blocker;
 
-const ID_START = 180000;
-const ID_END = 190000;
+// The ad-network band. Until 1.5.1 a tracker group (EasyPrivacy) sat below it at
+// 180000-189999, and these shape tests were written against that group; they
+// moved here unchanged when it was removed, because the shapes are the same.
+const ID_START = 190000;
+const ID_END = 200000;
 
+// The ads group always adds its neutered stubs (shape 6, tested at the bottom of
+// this file). The shape tests are about shapes 1-5, so they set the stubs aside.
+const isStub = (r) => r.action.type === "redirect" && /noop/.test(r.action.redirect.extensionPath);
 const build = (always = [], thirdParty = [], allow = [], spared = [], scoped = [], typed = []) =>
-  buildTrackerRules({ always, thirdParty, spared, scoped, typed }, allow);
+  buildTrackerRules({ always, thirdParty, spared, scoped, typed }, allow).filter((r) => !isStub(r));
 
 const pages = (rules) => rules.filter((r) => r.condition.resourceTypes.includes("main_frame"));
 const subresource = (rules) => rules.filter((r) => !r.condition.resourceTypes.includes("main_frame"));
@@ -66,7 +67,7 @@ test("an `always` domain yields one page redirect and one subresource block", ()
 
   const [page] = pages(rules);
   assert.equal(page.action.type, "redirect");
-  assert.match(page.action.redirect.extensionPath, /category=trackers/);
+  assert.match(page.action.redirect.extensionPath, /category=ads/);
   assert.deepEqual(page.condition.requestDomains, ["tracker.com"]);
 
   const [sub] = subresource(rules);
@@ -75,7 +76,7 @@ test("an `always` domain yields one page redirect and one subresource block", ()
   assert.ok(sub.condition.resourceTypes.includes("xmlhttprequest"));
 });
 
-test("no subresource rule may ever redirect", () => {
+test("no subresource rule may ever redirect (the stubs aside, which are tested below)", () => {
   const rules = build(["a.com"], ["b.com"]);
   for (const r of subresource(rules)) {
     assert.equal(r.action.type, "block", `subresource rule ${r.id} must block, not redirect`);
@@ -110,7 +111,7 @@ test("allowlisted sites are excluded as INITIATORS from every block rule", () =>
 
 test("the page redirect is NOT initiator-scoped — the shared allow rule covers it", () => {
   // Excluding initiators on a main_frame rule would key off the page the user
-  // clicked FROM, which is not what allowlisting a tracker domain means. The
+  // clicked FROM, which is not what allowlisting an ad domain means. The
   // shared priority-2 allow rule (id 20000) is what lets that navigation through.
   const [page] = pages(build(["tracker.com"], [], ["mybank.com"]));
   assert.equal(page.condition.excludedInitiatorDomains, undefined);
@@ -180,14 +181,14 @@ test("spared and allowlist carve-outs coexist on one condition", () => {
 test("the shipped list carries its carve-outs into the bulk rules", async () => {
   const { readFile } = await import("node:fs/promises");
   const data = JSON.parse(await readFile(new URL("../data/tracker-domains.json", import.meta.url)));
-  assert.ok(data.trackers.spared.length > 0, "the shipped list should have carve-outs");
-  const rules = buildTrackerRules(data.trackers, []);
+  assert.ok(data.ads.spared.length > 0, "the shipped list should have carve-outs");
+  const rules = buildTrackerRules(data.ads, []);
   // The bulk rules pack many domains and carry the shared carve-out list; the
   // per-host `scoped` rules target one domain each and carry their own site list.
-  const bulk = rules.filter((r) => r.condition.requestDomains.length > 1);
+  const bulk = rules.filter((r) => r.condition.requestDomains && r.condition.requestDomains.length > 1);
   assert.ok(bulk.length > 0);
   for (const r of bulk) {
-    assert.deepEqual(r.condition.excludedRequestDomains, data.trackers.spared);
+    assert.deepEqual(r.condition.excludedRequestDomains, data.ads.spared);
   }
 });
 
@@ -210,14 +211,22 @@ test("a scoped rule merges the user's allowlist with upstream's site list", () =
   assert.equal(rules[0].condition.domainType, "thirdParty");
 });
 
-test("the shipped list's flagship trackers are actually blocked", async () => {
-  // Guards the regression this whole shape exists to fix: these are the most-used
-  // trackers on the web, and a too-blunt exception rule silently unblocked them.
+test("the shipped list's flagship ad networks are actually blocked", async () => {
+  // Guards the regression the scoped shape exists to fix: most of these are
+  // carved out by upstream on a few named sites, and a too-blunt exception rule
+  // once unblocked hosts like them everywhere instead.
   const { readFile } = await import("node:fs/promises");
   const data = JSON.parse(await readFile(new URL("../data/tracker-domains.json", import.meta.url)));
-  const t = data.trackers;
-  const blocked = new Set([...t.always, ...t.thirdParty, ...t.scoped.map((e) => e.domain)]);
-  for (const d of ["googletagmanager.com", "criteo.com", "clarity.ms", "hotjar.com"]) {
+  const a = data.ads;
+  const blocked = new Set([...a.always, ...a.thirdParty, ...a.scoped.map((e) => e.domain)]);
+  for (const d of [
+    "pagead2.googlesyndication.com",
+    "g.doubleclick.net",
+    "adnxs.com",
+    "amazon-adsystem.com",
+    "pubmatic.com",
+    "rubiconproject.com",
+  ]) {
     assert.ok(blocked.has(d), `${d} must be blocked`);
   }
 });
@@ -233,7 +242,7 @@ test("domains are packed 10,000 to a rule, not one rule each", () => {
   assert.equal(pages(rules)[2].condition.requestDomains.length, 5000);
 });
 
-test("every rule stays inside the 180000-189999 band and at priority 1", () => {
+test("every rule stays inside the 190000-199999 band and at priority 1", () => {
   const many = Array.from({ length: 25000 }, (_, i) => `d${i}.example`);
   const rules = build(many, many.slice(0, 15000), ["a.example"]);
   const ids = rules.map((r) => r.id);
@@ -247,26 +256,35 @@ test("every rule stays inside the 180000-189999 band and at priority 1", () => {
 test("the real shipped list fits the band with room to spare", async () => {
   const { readFile } = await import("node:fs/promises");
   const data = JSON.parse(await readFile(new URL("../data/tracker-domains.json", import.meta.url)));
-  const rules = buildTrackerRules(data.trackers, []);
+  const rules = buildTrackerRules(data.ads, []);
   assert.ok(rules.length < 1000, `${rules.length} rules is far below the band's 10,000`);
   for (const r of rules) assert.ok(r.id >= ID_START && r.id < ID_END);
 });
 
 // --- the toggle ------------------------------------------------------------
 
-test("both toggle keys are in the ss… namespace", () => {
-  assert.equal(AD_TRACKER_ENABLED_KEY, "ssAdTrackerEnabled");
+test("the toggle key is in the ss… namespace", () => {
   assert.equal(AD_NETWORK_ENABLED_KEY, "ssAdNetworkEnabled");
 });
 
-test("the two groups own separate, non-overlapping id bands", () => {
-  const { trackers, ads } = AD_TRACKER_GROUPS;
-  assert.equal(trackers.idStart, 180000);
-  assert.equal(trackers.idEnd, 190000);
+test("only the ad group is left, in its own band; the tracker band is no one's", () => {
+  // Tracker blocking was removed in 1.5.1. Its band, 180000-189999, is cleared
+  // on update by background/retired-tracker-blocker.js, so nothing here may
+  // build into it — the clean-up would delete those rules on the next update.
+  assert.deepEqual(Object.keys(AD_TRACKER_GROUPS), ["ads"]);
+  const { ads } = AD_TRACKER_GROUPS;
   assert.equal(ads.idStart, 190000);
   assert.equal(ads.idEnd, 200000);
-  assert.ok(trackers.idEnd <= ads.idStart, "bands must not overlap");
-  assert.notEqual(trackers.category, ads.category);
+  assert.equal(ads.key, AD_NETWORK_ENABLED_KEY);
+  assert.equal("AD_TRACKER_ENABLED_KEY" in blocker, false, "the tracker key is not exported any more");
+});
+
+test("the shipped list carries no tracker group", async () => {
+  const { readFile } = await import("node:fs/promises");
+  const data = JSON.parse(await readFile(new URL("../data/tracker-domains.json", import.meta.url)));
+  assert.equal(data.trackers, undefined);
+  assert.deepEqual(Object.keys(data._upstream), ["ads"]);
+  assert.match(data._license.work, /^EasyList$/);
 });
 
 test("each shipped group builds inside its own band", async () => {
@@ -302,14 +320,16 @@ test("a typed bucket naming an unknown resource type is skipped, not shipped bro
   assert.deepEqual(rules, [], "main_frame/popup are not subresource types this tier builds");
 });
 
-test("google-analytics.com is actually blocked by the shipped list", async () => {
-  // It only appears upstream as "$script,third-party,xmlhttprequest". Dropping
-  // type-scoped rules meant the most-loaded tracker on the web went unblocked.
+test("the shipped list's type-scoped buckets all build", async () => {
+  // Type-scoped rules exist because some hosts appear upstream only as, say,
+  // "$script,third-party" — dropping them once left google-analytics.com
+  // unblocked, back when trackers were converted too. Every bucket the ad list
+  // ships must still turn into a rule rather than being skipped.
   const { readFile } = await import("node:fs/promises");
   const data = JSON.parse(await readFile(new URL("../data/tracker-domains.json", import.meta.url)));
-  const bucket = data.trackers.typed.find((b) => b.domains.includes("google-analytics.com"));
-  assert.ok(bucket, "google-analytics.com must be in a type-scoped bucket");
-  assert.ok(bucket.resourceTypes.includes("script"));
+  assert.ok(data.ads.typed.length > 0, "the ad list ships type-scoped buckets");
+  const rules = buildTrackerRules({ typed: data.ads.typed }, []).filter((r) => !isStub(r));
+  assert.equal(rules.length, data.ads.typed.length);
 });
 
 // ===========================================================================
@@ -421,7 +441,7 @@ test("every stub names a host this tier actually blocks", () => {
   // stub host against the list Sieve really ships, for the group that builds it.
   const shipped = JSON.parse(fs.readFileSync(new URL("../data/tracker-domains.json", import.meta.url), "utf8"));
 
-  for (const group of ["trackers", "ads"]) {
+  for (const group of Object.keys(AD_TRACKER_GROUPS)) {
     const listed = new Set();
     for (const key of ["always", "thirdParty", "scoped", "typed", "spared"]) {
       for (const entry of shipped[group][key] || []) {
@@ -434,8 +454,8 @@ test("every stub names a host this tier actually blocks", () => {
     const rules = buildTrackerRules(
       { always: ["placeholder.example"], thirdParty: [], scoped: [], typed: [], spared: [] },
       [],
-      group === "ads" ? 190000 : 180000,
-      group
+      AD_TRACKER_GROUPS[group].idStart,
+      AD_TRACKER_GROUPS[group].category
     );
     for (const stub of stubsOf(rules)) {
       assert.ok(
@@ -446,12 +466,13 @@ test("every stub names a host this tier actually blocks", () => {
   }
 });
 
-test("the tracker group builds no stubs — the probe host is not in its list", () => {
+test("any other category builds no stubs — a stub belongs to the ads group alone", () => {
+  // The filter that kept stubs out of the tracker group while there was one.
   const rules = buildTrackerRules(
-    { always: ["example-tracker.com"], thirdParty: [], scoped: [], typed: [], spared: [] },
+    { always: ["example.com"], thirdParty: [], scoped: [], typed: [], spared: [] },
     [],
-    180000,
-    "trackers"
+    190000,
+    "other"
   );
   assert.deepEqual(stubsOf(rules), [], "a stub belongs only to the group that blocks its host");
 });

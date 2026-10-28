@@ -1,9 +1,9 @@
 // test/ad-tracker-youtube-test.mjs
-// Sieve — the ad & tracker domain tier always stands down on YouTube.
+// Sieve — the ad-network domain tier always stands down on YouTube.
 //
 //   node --test test/
 //
-// On YouTube the ad and tracking domains are Google's, and Google is the site,
+// On YouTube the ad domains are Google's, and Google is the site,
 // so blocking them protects nobody — but it does refuse the ad's activity and
 // viewability reports, and an ad that never reports being seen looks exactly
 // like an ad that was blocked. Measured in October 2026: with only this tier on,
@@ -21,7 +21,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 
 let installed = [];
-const stored = { ssAdTrackerEnabled: true, ssAdNetworkEnabled: true, allowlist: ["mybank.example"] };
+const stored = { ssAdNetworkEnabled: true, allowlist: ["mybank.example"] };
 
 globalThis.chrome = {
   runtime: { onInstalled: { addListener() {} }, onStartup: { addListener() {} }, getURL: (p) => p },
@@ -47,7 +47,6 @@ globalThis.fetch = async () => ({
       typed: [{ resourceTypes: ["script"], domains: ["adnxs.com"], thirdParty: true }],
       spared: [],
     },
-    trackers: { always: ["google-analytics.com"], thirdParty: [], scoped: [], typed: [], spared: [] },
   }),
 });
 
@@ -56,7 +55,6 @@ const { applyAdTrackerRules, ALWAYS_SPARED_INITIATORS } = await import("../backg
 test("YouTube is spared by every rule that could fire on a page", async () => {
   installed = [];
   await applyAdTrackerRules("ads");
-  await applyAdTrackerRules("trackers");
   // Everything but the main_frame redirect — someone navigating straight to an
   // ad domain — has an initiator to spare.
   const firing = installed.filter((r) => !r.condition.resourceTypes.includes("main_frame"));
@@ -82,4 +80,10 @@ test("the spare is only YouTube's own domains", () => {
   // Widening it to google.com or googlevideo.com would stand this tier down on
   // Google Search and every page that embeds a Google service.
   assert.deepEqual([...ALWAYS_SPARED_INITIATORS].sort(), ["youtube-nocookie.com", "youtube.com"]);
+});
+
+test("the retired tracker group cannot be applied", async () => {
+  // Removed in 1.5.1. Asking for it must fail loudly rather than quietly
+  // rebuilding rules in the band background/retired-tracker-blocker.js clears.
+  await assert.rejects(applyAdTrackerRules("trackers"), /Unknown ad\/tracker group: trackers/);
 });
