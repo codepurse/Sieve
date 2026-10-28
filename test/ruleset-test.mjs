@@ -115,11 +115,27 @@ test("a regex that could hang a page is refused", () => {
   assert.equal(parsed.skipped, 2);
 });
 
+// Counted by calls to the validator, not by how many regexes it accepted:
+// validation times each regex against a 10 ms budget, so under a busy machine
+// (the whole suite runs in parallel, with headless Chromes) a good regex can
+// occasionally be refused, and a count of accepted ones would be a coin toss.
 test("regexes past the cap are counted as skipped, not validated", () => {
-  const lines = Array.from({ length: MAX_REGEX_ENTRIES + 50 }, (_, i) => `/spam${i}\\.example/`);
-  const parsed = parseRuleset(lines.join("\n"));
-  assert.equal(parsed.patterns.length, MAX_REGEX_ENTRIES);
-  assert.equal(parsed.skipped, 50);
+  const KP = globalThis.KeywordPattern;
+  const validate = KP.validateListEntry;
+  let validated = 0;
+  KP.validateListEntry = (entry) => {
+    validated++;
+    return validate(entry);
+  };
+  try {
+    const lines = Array.from({ length: MAX_REGEX_ENTRIES + 50 }, (_, i) => `/spam${i}\\.example/`);
+    const parsed = parseRuleset(lines.join("\n"));
+    assert.equal(validated, MAX_REGEX_ENTRIES, "regexes past the cap were validated");
+    assert.ok(parsed.patterns.length <= MAX_REGEX_ENTRIES);
+    assert.equal(parsed.patterns.length + parsed.skipped, MAX_REGEX_ENTRIES + 50, "every line is either a rule or counted");
+  } finally {
+    KP.validateListEntry = validate;
+  }
 });
 
 test("duplicates count once, names are lower case, IDNs become punycode", () => {
