@@ -1,5 +1,6 @@
 // content/site-cleanup.js
-// Sieve — Site Cleanup driver (currently YouTube only).
+// Sieve — Site Cleanup driver for YouTube. (Google Search has its own, smaller
+// one in content/google-clean.js; none of the script work below applies there.)
 //
 // Runs at document_start and does as little as possible: it reads the user's
 // per-site toggles and puts one class per enabled toggle on <html>. All of the

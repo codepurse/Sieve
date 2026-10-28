@@ -1191,13 +1191,14 @@ function svEl(tag, className, text) {
 
 // ===========================================================================
 // Site Cleanup — hide parts of a site you still want to use. Each site is a
-// card of grouped switches; content/site-cleanup.js turns them into classes on
-// <html> and content/youtube-clean.css does the hiding.
+// card of grouped switches; a per-site content script turns them into classes
+// on <html> and that site's stylesheet does the hiding (content/site-cleanup.js
+// + youtube-clean.css, content/google-clean.js + google-clean.css).
 //
 // Everything defaults to OFF: switching one on strengthens protection (free),
 // switching it off weakens it (Guardian PIN gate), same as every other module.
 // Settings live under ONE nested key so more sites don't mean dozens of new
-// storage keys: siteCleanup: { youtube: { enabled, hideShorts, … } }
+// storage keys: siteCleanup: { youtube: { enabled, hideShorts, … }, google: { … } }
 // ===========================================================================
 
 const SITE_CLEANUP_SITES = [
@@ -1262,6 +1263,43 @@ const SITE_CLEANUP_SITES = [
           { key: "hideTopBar", label: "Hide the top bar", desc: "Removes the masthead, including the search box" },
           { key: "hideNotificationBell", label: "Hide the notification bell", desc: "Keeps the top bar but drops the bell and its red dot", shadowedBy: "hideTopBar" },
           { key: "blackAndWhite", label: "Black & white", desc: "Drains the colour from every YouTube page, the video included" },
+        ],
+      },
+    ],
+  },
+  {
+    // content/google-clean.js + content/google-clean.css; "webOnly" is the one
+    // switch that is not a class — background/google-web-only.js redirects to
+    // Google's Web tab instead. Everything under it is a box the Web tab never
+    // shows, hence shadowedBy.
+    id: "google",
+    name: "Google Search",
+    masterLabel: "Clean up Google Search",
+    masterDesc: "Master switch for everything below",
+    groups: [
+      {
+        title: "Results",
+        items: [
+          { key: "webOnly", label: "Show web results only", desc: "Opens every search on Google's Web tab: a plain list of links, without the AI Overview or any of the boxes below. Images, News and the other tabs still work" },
+        ],
+      },
+      {
+        title: "AI",
+        items: [
+          { key: "hideAiOverview", label: "Hide AI Overviews", desc: "Removes the AI-written answer above the results, and the ones Google puts further down. The results themselves are untouched", shadowedBy: "webOnly" },
+          { key: "hideAiMode", label: "Hide AI Mode", desc: "Removes the AI Mode tab and the AI Mode button in the search box. A link into AI Mode from somewhere else still opens it" },
+        ],
+      },
+      {
+        title: "Boxes in the results",
+        items: [
+          { key: "hidePeopleAlsoAsk", label: "Hide “People also ask”", desc: "Removes the list of questions that keeps growing as you open it", shadowedBy: "webOnly" },
+          { key: "hideForums", label: "Hide “Discussions and forums”", desc: "Removes the box of Reddit and forum threads. A thread that ranks on its own still shows as a normal result", shadowedBy: "webOnly" },
+          { key: "hideShortVideos", label: "Hide short videos", desc: "Removes the row of TikToks, Shorts and Reels", shadowedBy: "webOnly" },
+          { key: "hideVideos", label: "Hide the video row", desc: "Removes the row of videos. The Videos tab still works", shadowedBy: "webOnly" },
+          { key: "hideTopStories", label: "Hide Top stories", desc: "Removes the news row. The News tab still has it all", shadowedBy: "webOnly" },
+          { key: "hideProducts", label: "Hide product grids", desc: "Removes the grids of products, prices and nearby shops. The Shopping tab still works", shadowedBy: "webOnly" },
+          { key: "hideRelatedSearches", label: "Hide “People also search for”", desc: "Removes the related searches in and under the results", shadowedBy: "webOnly" },
         ],
       },
     ],

@@ -144,6 +144,21 @@
     },
     {
       "matches": [
+        "*://*/*"
+      ],
+      "include_globs": [
+        "*://www.google.*/*"
+      ],
+      "js": [
+        "content/google-clean.js"
+      ],
+      "css": [
+        "content/google-clean.css"
+      ],
+      "run_at": "document_start"
+    },
+    {
+      "matches": [
         "<all_urls>"
       ],
       "js": [
@@ -213,6 +228,11 @@
         "id": "youtube_restrict_strict_ruleset",
         "enabled": false,
         "path": "rules/youtube-restrict-strict-rules.json"
+      },
+      {
+        "id": "google_web_only_ruleset",
+        "enabled": false,
+        "path": "rules/google-web-only-rules.json"
       }
     ]
   },

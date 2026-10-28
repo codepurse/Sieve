@@ -20,6 +20,7 @@ import "./url-shortener-resolver.js"; // URL Shortener Resolver — expand short
 import "./usage-tracker.js"; // Usage Insights — opt-in local screen-time tracker
 import "./youtube-suggest.js"; // Site Cleanup — stops YouTube asking for search suggestions
 import "./youtube-restrict.js"; // Site Cleanup — YouTube's Restricted Mode, locked on by request header
+import "./google-web-only.js"; // Site Cleanup — sends Google searches to the Web tab (udm=14)
 import "./search-filter-subscriptions.js"; // Search Result Filter — subscribed lists, fetched and refreshed
 import "./tells.js"; // Dark Pattern Blocker — the Claim Ledger's storage, and the toolbar badge
 import "./trial-reminders.js"; // Dark Pattern Blocker — the free-trial reminders you ask for
