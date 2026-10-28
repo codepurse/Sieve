@@ -66,6 +66,8 @@ $RequiredAssets = @(
     "rules\gambling-rules.json",
     "rules\prediction-market-rules.json",
     "rules\youtube-suggest-rules.json",
+    "rules\youtube-restrict-moderate-rules.json",
+    "rules\youtube-restrict-strict-rules.json",
     "popup\popup.html",
     "options\options.html"
 )

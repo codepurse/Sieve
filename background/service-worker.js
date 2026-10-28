@@ -18,6 +18,7 @@ import "./cookie-autoreject.js"; // Cookie auto-reject — registers the consent
 import "./url-shortener-resolver.js"; // URL Shortener Resolver — expand shortened links before blocker checks
 import "./usage-tracker.js"; // Usage Insights — opt-in local screen-time tracker
 import "./youtube-suggest.js"; // Site Cleanup — stops YouTube asking for search suggestions
+import "./youtube-restrict.js"; // Site Cleanup — YouTube's Restricted Mode, locked on by request header
 import "./tells.js"; // Dark Pattern Blocker — the Claim Ledger's storage, and the toolbar badge
 import "./trial-reminders.js"; // Dark Pattern Blocker — the free-trial reminders you ask for
 // A plain script, not an ES module: importing it for its side effect is what

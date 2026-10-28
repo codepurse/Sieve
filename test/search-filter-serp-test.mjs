@@ -181,9 +181,10 @@ const REPORTER = (titleSelector, settleMs = 400) => `
 })();
 </script>`;
 
-const page = (title, body, titleSelector, settleMs) =>
+// `extra` overrides the shared settings for one page.
+const page = (title, body, titleSelector, settleMs, extra) =>
   `<!doctype html><html><head><meta charset="utf-8"><title>${title}</title>
-<script>${SETTINGS}</script></head><body>${body}${REPORTER(titleSelector, settleMs)}</body></html>`;
+<script>${SETTINGS}${extra ? `Object.assign(store, ${JSON.stringify(extra)});` : ""}</script></head><body>${body}${REPORTER(titleSelector, settleMs)}</body></html>`;
 
 // --- Google -----------------------------------------------------------------
 // Every result sits inside ONE outer data-hveid wrapper, which is what made a
@@ -392,6 +393,20 @@ const CASES = [
       eq(r.notices, 1, "duckduckgo-tab-switch: one notice, not one per tab");
       eq(r.noticeIn, "zci-images", "duckduckgo-tab-switch: and it is the Images tab's");
       eq(r.notice, "Sieve hid 2 results", "duckduckgo-tab-switch: counting this tab, not the web results left behind");
+    },
+  },
+  {
+    // "Hide the count": the same results hidden, and no line saying so — which
+    // also means no Show them, the point of the setting.
+    id: "duckduckgo-no-count", host: "duckduckgo.com", url: "/?q=test&nc=1",
+    body: page("example at DuckDuckGo", DDG.match(/<ol class="react-results--main">[\s\S]*?<\/ol>/)[0], "h2", undefined, { searchFilterHideCount: true }),
+    check: (r) => {
+      const t = r.byTitle || {};
+      eq(r.threw, undefined, `duckduckgo-no-count: page threw: ${r.threw}`);
+      eq(t["Cheap Deals"], "hidden", "duckduckgo-no-count: results are still hidden");
+      eq(t["Blocked Site"], "hidden", "duckduckgo-no-count: including the Blocked list's");
+      eq(t.Harvard, "c1", "duckduckgo-no-count: colours still apply");
+      eq(r.notices, 0, "duckduckgo-no-count: no count on the page");
     },
   },
   {
