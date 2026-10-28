@@ -577,6 +577,7 @@ function optionsDefaults() {
     searchFilterRules: [],
     searchFilterColors: [],
     searchFilterHideBlocked: true,
+    searchFilterHideCount: false,
     // Dark Pattern Blocker — master + cookie-autoreject tally (per-type keys added below)
     darkPatternsEnabled: true,
     cookieAutoRejectStats: null,
@@ -1213,6 +1214,13 @@ const SITE_CLEANUP_SITES = [
           { key: "hideMixes", label: "Hide mixes & radio playlists", desc: "Drops the auto-generated endless playlists from results and recommendations" },
           { key: "hideSearchExtras", label: "Hide search filler", desc: "Removes “People also search for” and “Related to your search” from results" },
           { key: "hideSearchSuggestions", label: "Hide search suggestions", desc: "Drops the dropdown under the search box, and stops YouTube being asked for it — nothing you type is sent off to have a list built from your history. Typing and searching work as normal" },
+        ],
+      },
+      {
+        title: "Restricted Mode",
+        items: [
+          { key: "restrictedMode", label: "Turn on Restricted Mode", desc: "YouTube's own filter for mature videos, signed in or out, and locked: YouTube's menu says your network administrator turned it on, and its switch there can't be used. Comments are hidden while it's on", shadowedBy: "restrictedModeStrict" },
+          { key: "restrictedModeStrict", label: "Make it strict", desc: "Google's stricter level: fewer videos get through. Covers the switch above" },
         ],
       },
       {
@@ -2412,6 +2420,7 @@ function setupSearchFilter(store) {
   const master = document.getElementById("search-filter-toggle");
   if (!master) return;
   const hideBlocked = document.getElementById("search-filter-hide-blocked-toggle");
+  const hideCount = document.getElementById("search-filter-hide-count-toggle");
   const paletteEl = document.getElementById("search-filter-palette");
   const paletteError = document.getElementById("search-filter-palette-error");
   const addColorBtn = document.getElementById("search-filter-add-color");
@@ -2431,6 +2440,7 @@ function setupSearchFilter(store) {
 
   master.checked = store.searchFilterEnabled;
   hideBlocked.checked = store.searchFilterHideBlocked;
+  hideCount.checked = store.searchFilterHideCount;
 
   master.addEventListener("change", async () => {
     if (!(await SieveGuardian.gateToggleOff(master, "Turn off the Search Result Filter"))) return;
@@ -2439,6 +2449,12 @@ function setupSearchFilter(store) {
   hideBlocked.addEventListener("change", async () => {
     if (!(await SieveGuardian.gateToggleOff(hideBlocked, "Show blocked sites in search results again"))) return;
     chrome.runtime.sendMessage({ type: SET_MODULE_STATE, key: "searchFilterHideBlocked", enabled: hideBlocked.checked });
+  });
+  // Hiding the count takes away the way back to a hidden result, so it is the
+  // stronger setting: on is free, and bringing the count back asks for the lock.
+  hideCount.addEventListener("change", async () => {
+    if (!(await SieveGuardian.gateToggleOff(hideCount, "Show the count of hidden results again"))) return;
+    chrome.runtime.sendMessage({ type: SET_MODULE_STATE, key: "searchFilterHideCount", enabled: hideCount.checked });
   });
 
   // --- palette ------------------------------------------------------------
@@ -2610,6 +2626,7 @@ function setupSearchFilter(store) {
     }
     if (changes.searchFilterEnabled) master.checked = !!changes.searchFilterEnabled.newValue;
     if (changes.searchFilterHideBlocked) hideBlocked.checked = !!changes.searchFilterHideBlocked.newValue;
+    if (changes.searchFilterHideCount) hideCount.checked = !!changes.searchFilterHideCount.newValue;
   });
 
   // A first run has no stored palette; persist the default so the content

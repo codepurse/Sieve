@@ -184,7 +184,13 @@ async function load({ settings = {}, path = "/watch", toggle = null, clock = mak
 
 // --- 1. wiring ----------------------------------------------------------------
 
-const SCRIPT_ONLY = new Set(["disableAutoplay"]); // a click in the player, not a class
+const SCRIPT_ONLY = new Set([
+  "disableAutoplay", // a click in the player, not a class
+  // A request header, sent by a static ruleset (background/youtube-restrict.js,
+  // pinned by test/youtube-restrict-test.mjs); nothing on the page to style.
+  "restrictedMode",
+  "restrictedModeStrict",
+]);
 
 test("every YouTube switch on the settings page becomes a class the stylesheet uses", async () => {
   const keys = settingsKeys();

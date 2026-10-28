@@ -202,6 +202,16 @@
         "id": "youtube_suggest_ruleset",
         "enabled": false,
         "path": "rules/youtube-suggest-rules.json"
+      },
+      {
+        "id": "youtube_restrict_moderate_ruleset",
+        "enabled": false,
+        "path": "rules/youtube-restrict-moderate-rules.json"
+      },
+      {
+        "id": "youtube_restrict_strict_ruleset",
+        "enabled": false,
+        "path": "rules/youtube-restrict-strict-rules.json"
       }
     ]
   },

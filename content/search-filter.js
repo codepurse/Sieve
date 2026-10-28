@@ -223,6 +223,7 @@
 
   // --- state --------------------------------------------------------------
   let enabled = false;
+  let hideCount = false; // the user chose no count, and so no way back to what is hidden
   let compiled = [];
   let palette = [];
   // Sieve's Appearance choice: "auto", "light" or "dark". Read here with the
@@ -790,9 +791,10 @@
   }
 
   // A count with a way back. Silently eating results is how a filter loses the
-  // user's trust the first time it gets one wrong.
+  // user's trust the first time it gets one wrong. So no count is the user's
+  // choice to make, never the default: for some, the way back is the problem.
   function updateNotice() {
-    if (!hiddenCount) {
+    if (!hiddenCount || hideCount) {
       const existing = document.getElementById(NOTICE_ID);
       if (existing) existing.remove();
       return;
@@ -864,10 +866,12 @@
       searchFilterRules: [],
       searchFilterColors: [],
       searchFilterHideBlocked: true,
+      searchFilterHideCount: false,
       customBlocks: [],
       uiTheme: "auto",
     });
     enabled = stored.searchFilterEnabled;
+    hideCount = stored.searchFilterHideCount;
     uiTheme = stored.uiTheme;
     palette = stored.searchFilterColors;
 
@@ -915,6 +919,7 @@
       changes.searchFilterRules ||
       changes.searchFilterColors ||
       changes.searchFilterHideBlocked ||
+      changes.searchFilterHideCount ||
       changes.customBlocks
     ) {
       apply();
