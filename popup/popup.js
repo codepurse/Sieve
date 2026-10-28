@@ -306,7 +306,8 @@ function reminderDay(ms) {
 async function refreshReminders() {
   let list = [];
   try {
-    list = (await chrome.runtime.sendMessage({ type: "sieve:trial-list" })) || [];
+    const reply = await chrome.runtime.sendMessage({ type: "sieve:trial-list" });
+    list = Array.isArray(reply) ? reply : [];
   } catch {
     list = [];
   }

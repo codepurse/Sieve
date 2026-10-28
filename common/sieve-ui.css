@@ -282,13 +282,15 @@ code {
    Identity
    ========================================================================== */
 
-/* The mark: the shield with its diagonal cut, drawn in whatever colour the
-   text around it is, so it sits on paper and on ink without a second file. */
+/* The mark: a sieve, side on, drawn in whatever colour the text around it
+   is, so it sits on paper and on ink without a second file. It is wider than
+   it is tall, so its box is a little larger than the wordmark's cap height.
+   The inline SVG is a copy of src/icons/mark.svg (see build-icons.mjs). */
 .mark {
   display: inline-block;
   flex-shrink: 0;
-  width: 22px;
-  height: 22px;
+  width: 26px;
+  height: 26px;
   color: var(--ink);
 }
 
