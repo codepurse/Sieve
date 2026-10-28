@@ -91,6 +91,28 @@ const REPORTER = (titleSelector, settleMs = 400) => `
     out.noticeParentTag = notice ? notice.parentElement.tagName : null;
     out.noticeIn = notice ? notice.parentElement.getAttribute("data-testid") : null;
     out.notices = document.querySelectorAll("#sv-sf-notice").length;
+    // "By site": opened here and left open, so it can be read again after a
+    // result is shown on the page further down.
+    const sitesRows = () => [...document.querySelectorAll("#sv-sf-sites li")]
+      .map((li) => li.querySelector(".sv-sf-site").textContent + " " + li.querySelector(".sv-sf-n").textContent);
+    const bySiteButton = notice && notice.querySelector(".sv-sf-by-site");
+    if (bySiteButton) {
+      out.bySiteClosed = { label: bySiteButton.textContent, expanded: bySiteButton.getAttribute("aria-expanded"), rows: sitesRows().length };
+      bySiteButton.click();
+      await new Promise((r) => setTimeout(r, 20));
+      const list = document.getElementById("sv-sf-sites");
+      out.bySite = {
+        label: bySiteButton.textContent,
+        expanded: bySiteButton.getAttribute("aria-expanded"),
+        rows: sitesRows(),
+        scrolls: getComputedStyle(list).overflowY,
+        visible: list.getBoundingClientRect().height > 0,
+      };
+    }
+    const noticeText = () => {
+      const n = document.getElementById("sv-sf-notice");
+      return n ? n.querySelector(".sv-sf-label").textContent + n.querySelector(".sv-sf-reveal").textContent : null;
+    };
     // How a colour is drawn: a bar made of padding on a row of text, a ring on
     // a tile in a grid.
     const coloured = document.querySelector('[data-sv-sf="c1"]');
@@ -179,7 +201,8 @@ const REPORTER = (titleSelector, settleMs = 400) => `
           await new Promise((r) => setTimeout(r, 40));
           out.afterShowMark = hiddenBlock.getAttribute("data-sv-sf");
           out.afterShowDisplay = getComputedStyle(hiddenBlock).display;
-          out.afterShowNotice = (document.getElementById("sv-sf-notice") || {}).textContent || null;
+          out.afterShowNotice = noticeText();
+          out.bySiteAfterShow = sitesRows();
         }
       }
     }
@@ -422,7 +445,9 @@ const CASES = [
     // subdomain of the listed mozilla.org, so the index's parent lookup is what
     // catches it.
     id: "duckduckgo-subscribed-list", host: "duckduckgo.com", url: "/?q=test&sub=1",
-    body: page("example at DuckDuckGo", DDG.match(/<ol class="react-results--main">[\s\S]*?<\/ol>/)[0], "h2", undefined, {
+    // A second junk.cyou result, so "By site" has a count above one to sort by.
+    body: page("example at DuckDuckGo", DDG.match(/<ol class="react-results--main">[\s\S]*?<\/ol>/)[0]
+      .replace("</ol>", dResult("https://junk.cyou/more", "More Deals") + "</ol>"), "h2", undefined, {
       searchFilterSubscriptions: [
         { id: "sub_1", name: "Spam list", color: 0, enabled: true, updatedAt: 1 },
         { id: "sub_2", name: "Switched off", color: 0, enabled: false, updatedAt: 1 },
@@ -435,7 +460,11 @@ const CASES = [
       eq(r.threw, undefined, `duckduckgo-subscribed-list: page threw: ${r.threw}`);
       eq(t.MDN, "hidden", "duckduckgo-subscribed-list: a site on the list is hidden, subdomains included");
       eq(t.Harvard, "c1", "duckduckgo-subscribed-list: a list that is switched off does nothing");
-      eq(r.notice, "Sieve hid 3 results", "duckduckgo-subscribed-list: the count includes what the list hid");
+      eq(r.notice, "Sieve hid 4 results", "duckduckgo-subscribed-list: the count includes what the list hid");
+      // By the result's own site, not the list entry that caught it; the
+      // most-hidden site first, then by name.
+      eq(r.bySite.rows.join(" | "), "junk.cyou 2 | blocked-example.com 1 | developer.mozilla.org 1",
+        "duckduckgo-subscribed-list: By site counts each site and puts the most first");
       eq(r.fromSubscription.rules.join(","), "mozilla.org", "duckduckgo-subscribed-list: the popover names the entry");
       eq(r.fromSubscription.effects.join(","), "Domain · Hide · List: Spam list",
         "duckduckgo-subscribed-list: and the list it came from");
@@ -582,6 +611,17 @@ server.listen(0, "127.0.0.1", async () => {
       eq(r.afterShowMark, "seen", `${kase.id}: "Show on this page" un-hides the result`);
       eq(r.afterShowDisplay !== "none", true, `${kase.id}: the un-hidden result is actually visible`);
       eq(r.afterShowNotice, "Sieve hid 1 resultShow them", `${kase.id}: the count drops when one is shown`);
+
+      // "By site": closed until asked for, then the hidden results by site,
+      // in a list that scrolls, and that follows a result shown on the page.
+      eq(r.bySiteClosed.label, "By site", `${kase.id}: the notice offers the list by site`);
+      eq(r.bySiteClosed.expanded, "false", `${kase.id}: closed to begin with`);
+      eq(r.bySite.expanded, "true", `${kase.id}: opened by its button`);
+      eq(r.bySite.label, "Hide the list", `${kase.id}: which then offers to close it`);
+      eq(r.bySite.visible, true, `${kase.id}: the list is on the page`);
+      eq(r.bySite.scrolls, "auto", `${kase.id}: a long list scrolls instead of pushing the results down`);
+      eq(r.bySite.rows.join(" | "), "blocked-example.com 1 | junk.cyou 1", `${kase.id}: each hidden site and its count`);
+      eq(r.bySiteAfterShow.join(" | "), "blocked-example.com 1", `${kase.id}: a site shown on the page leaves the list`);
 
       // Two rules on one result: both are listed, and the popover says which
       // one actually decided the outcome.
