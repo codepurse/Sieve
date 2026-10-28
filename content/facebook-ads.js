@@ -7,7 +7,7 @@
 // WHY THIS FILE EXISTS, AND WHY IT IS NOT A BLOCK RULE
 //
 // This is the same wall the YouTube filter ran into, for the same reason. The
-// Ad & Tracker Blocker stops requests to third-party ad and tracker DOMAINS —
+// Ad Blocker stops requests to third-party ad-network DOMAINS —
 // doubleclick, criteo, the exchanges. A sponsored post in the Facebook feed
 // involves none of them:
 //

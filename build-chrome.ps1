@@ -48,6 +48,7 @@ $RuntimeFiles   = @(
 $RequiredAssets = @(
     "background\service-worker.js",
     "background\ad-tracker-stats.js",
+    "background\retired-tracker-blocker.js",
     "content\cookie-engine.bundle.js",
     "content\toxic-model.bundle.js",
     "content\youtube-ads.js",

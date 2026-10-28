@@ -532,8 +532,7 @@ function optionsDefaults() {
     ssAiChatbotsEnabled: false,
     ssAiWritingEnabled: false,
     ssAiCompanionsEnabled: false,
-    // Ad & Tracker Blocker (BETA) — independent opt-in groups behind one switch
-    ssAdTrackerEnabled: false,
+    // Ad Blocker (BETA) — independent opt-in mechanisms behind one switch
     ssAdNetworkEnabled: false,
     ssYouTubeAdsEnabled: false,
     // Set by content/youtube-ads-bridge.js while YouTube's video ads are being
@@ -711,7 +710,7 @@ async function applyStoredSettings(store) {
   setupSafetyShield(store);        // piracy + malware/phishing + … opt-in toggles
   setupGameBlocker(store);         // game portals/stores/platforms/streaming toggles
   setupAiBlocker(store);           // AI chatbots / writing & homework / companions toggles
-  setupAdTrackerBlocker(store);    // Ad & Trackers (BETA) — bundled tracker-domain tier
+  setupAdTrackerBlocker(store);    // Ads (BETA) — bundled ad-network tier + page clean-up
 
   // URL Shortener Resolver — advanced setting, default ON. Turning it OFF
   // weakens protection, so it goes through the Guardian PIN gate like other
@@ -1721,25 +1720,25 @@ async function renderSafetyShieldUpdated(store) {
 }
 
 // ===========================================================================
-// Ad & Tracker Blocker (BETA) — two independent opt-in groups over the bundled
-// domain list in data/tracker-domains.json: trackers (EasyPrivacy) and ad
-// networks (EasyList). Separate because they carry different breakage risk — a
-// user can take analytics blocking without ad blocking. Writes ssAdTrackerEnabled
-// and ssAdNetworkEnabled;
-// background/ad-tracker-blocker.js watches that key and rebuilds its own DNR
-// band. A static list, so there is no "last updated" line to render — same as
-// the gore/shock, dating and game tiers.
+// Ad Blocker (BETA) — the ad-network domain list in data/tracker-domains.json
+// (EasyList), plus the in-page mechanisms below, behind one switch. Writes
+// ssAdNetworkEnabled; background/ad-tracker-blocker.js watches that key and
+// rebuilds its own DNR band. A static list, so there is no "last updated" line
+// to render — same as the gore/shock, dating and game tiers.
+//
+// There was a tracker group (EasyPrivacy, ssAdTrackerEnabled) beside it until
+// 1.5.1. It went because tracking is privacy work done out of sight, not mess
+// on the page; background/retired-tracker-blocker.js clears what it left.
 //
 // Turning it OFF weakens protection the user set for themselves, so it goes
 // through the Guardian PIN gate exactly like every other protection toggle.
 // Turning it ON is free.
 // ===========================================================================
 
-// The six keys the one switch drives. Order is cosmetic; they are written
-// together in a single storage.set so the six background modules react to one
-// change event rather than six.
+// The five keys the one switch drives. Order is cosmetic; they are written
+// together in a single storage.set so the five background modules react to one
+// change event rather than five.
 //
-//   ssAdTrackerEnabled    tracker domains (EasyPrivacy)  → ad-tracker-blocker.js
 //   ssAdNetworkEnabled    ad-network domains (EasyList)  → ad-tracker-blocker.js
 //   ssYouTubeAdsEnabled   the MAIN-world scriptlet       → youtube-ads.js
 //   ssFacebookAdsEnabled  the scripts and stylesheet     → facebook-ads.js
@@ -1750,7 +1749,9 @@ async function renderSafetyShieldUpdated(store) {
 // its own and knows nothing about the others, so merging the UI needed no
 // migration, cannot half-apply, and can be split back into separate switches
 // later by editing markup alone — which is also how a fifth mechanism was added
-// here without touching any of the first four.
+// here without touching any of the first four, and how the tracker group left
+// in 1.5.1 without touching the rest. Keep this list in step with
+// ADBLOCK_SWITCH_KEYS in common/adblock-switch.js.
 //
 // NOT in this list, though it sits in the same section: ssFloatVideoEnabled.
 // The floating-video un-sticker has its own card and its own switch, because it
@@ -1759,7 +1760,6 @@ async function renderSafetyShieldUpdated(store) {
 // without their video players rearranged, or the other way round. Splitting it
 // out cost exactly the markup this comment predicted it would.
 const ADBLOCK_KEYS = [
-  "ssAdTrackerEnabled",
   "ssAdNetworkEnabled",
   "ssYouTubeAdsEnabled",
   "ssFacebookAdsEnabled",
@@ -1786,7 +1786,7 @@ function setupAdTrackerBlocker(store) {
       // goes through the Guardian PIN gate like every other protection toggle.
       // gateToggleOff waves through the ON direction itself, and reverts the
       // checkbox for us when the PIN is refused.
-      if (!(await SieveGuardian.gateToggleOff(master, "Turn off ad & tracker blocking"))) return;
+      if (!(await SieveGuardian.gateToggleOff(master, "Turn off ad blocking"))) return;
       const on = master.checked;
       const patch = {};
       for (const k of ADBLOCK_KEYS) patch[k] = on;
@@ -1796,7 +1796,7 @@ function setupAdTrackerBlocker(store) {
 
   // The blocked-request counters read declarativeNetRequest.getMatchedRules,
   // which Firefox keeps behind the extensions.dnr.feedback pref — so on Firefox
-  // the two request rows in the Protection Dashboard never move. The blocking is
+  // the ad-network request row in the Protection Dashboard never moves. The blocking is
   // unaffected; only the tally is unreadable. Reveal the explanation rather than
   // leave someone reading a zero as a broken blocker.
   // (See the header of background/ad-tracker-stats.js.)
@@ -3004,7 +3004,7 @@ const DASHBOARD_GROUPS = [
       { key: "popupHijacks", label: "Popup & click hijacks" },
       { key: "badLanguage", label: "Bad language", combine: ["badLanguage"] },
       { key: "cookieAutoReject", label: "Cookie banners auto-rejected", combine: ["cookieAutoReject"] },
-      // Here rather than in "Ads & trackers", and the group comment below is
+      // Here rather than in "Ads", and the group comment below is
       // the reason: meters scale against the busiest row in their OWN section.
       // A page yields one or two floating players against thousands of blocked
       // requests, so sharing a section with the request counters would draw
@@ -3017,9 +3017,10 @@ const DASHBOARD_GROUPS = [
     // for tidiness: meters scale against the busiest row in their OWN section,
     // and a tier that stops thousands of requests a day would flatten every
     // other meter on the page to nothing if it shared one.
-    title: "Ads & trackers",
+    // (A "Tracking requests" row, adTrackers, was here until tracker blocking
+    // was removed in 1.5.1.)
+    title: "Ads",
     rows: [
-      { key: "adTrackers", label: "Tracking requests" },
       { key: "adNetworks", label: "Ad-network requests" },
       { key: "youtubeAds", label: "YouTube ads" },
       { key: "facebookAds", label: "Facebook ads" },

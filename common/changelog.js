@@ -17,6 +17,8 @@ const SIEVE_CHANGELOG = [
     version: "1.5.1",
     date: "October 2026",
     items: [
+      "Tracker blocking is gone. It arrived in 1.5.0 alongside ad blocking, and looking at it again, it did not belong in Sieve. Sieve is here to clear the mess off the pages you use: the ads, the pop-ups, the tricks, the comment sections. Trackers never put anything on the page. Blocking them is privacy work, done out of sight, and a tool built for it, such as uBlock Origin Lite, does it better.",
+      "Ad blocking stays, in a section now called Ads. If you had tracker blocking on, Sieve removes its rules as it updates and your ad blocking carries on as before. The “Tracking requests” row leaves the Protection Dashboard with it.",
       "A correction to the Doomscroll Stopper's daily limits: they counted only the time you spent scrolling, so a video site went straight through. Fifteen minutes on YouTube could become three hours of watching before the pause screen appeared. Time now counts while the site is on screen and you are using it, or something on it is playing. A tab in the background counts nothing, and neither does a page left open with nobody there for a minute.",
       "The pause screen says how long you have spent on the site today, rather than how long you have been scrolling, since that is now what it counts.",
       "New: a countdown on every site you have given a daily limit. A small pill in a corner says what is left of today's limit, and says “paused” while the clock is stopped, so you can always see whether the limit is running. It turns red in the last minute, and says how far over you are if you carry on past the pause screen. It never takes a click, follows your Appearance setting, and stays in view in fullscreen video.",

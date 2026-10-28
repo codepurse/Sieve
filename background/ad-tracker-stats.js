@@ -1,5 +1,5 @@
 // background/ad-tracker-stats.js
-// Sieve — how many ad & tracker requests the blocker actually stopped.
+// Sieve — how many ad-network requests the blocker actually stopped.
 //
 // Every other counter in Sieve is recorded by the code that does the blocking:
 // a content script hides a comment and calls recordBlock, pages/blocked.js loads
@@ -10,8 +10,8 @@
 // rules. DNR matching happens inside the browser, on the network path — no
 // script of ours runs, nothing is notified, and the request that was stopped
 // leaves no trace anywhere an extension can see it. The blocked page that counts
-// every other tier is never loaded, because these are SUBRESOURCES: the tracker
-// was a pixel or a script inside a page, not somewhere the user navigated. So a
+// every other tier is never loaded, because these are SUBRESOURCES: the ad
+// was a script or an image inside a page, not somewhere the user navigated. So a
 // tier that blocks thousands of requests a day would report zero.
 //
 // The only way to see them is to ask the browser afterwards:
@@ -67,11 +67,11 @@ import { AD_TRACKER_GROUPS, isAdTrackerEnabled } from "./ad-tracker-blocker.js";
 import { recordBlock, flushStatsNow } from "../common/stats.js";
 
 // Dashboard stats keys, one per rule band. Deliberately NOT the same strings as
-// the blocker's own `category` values ("trackers" / "ads"): those are what
-// pages/blocked.html reads out of its query string, and the two would drift into
-// each other the first time either was renamed.
+// the blocker's own `category` values ("ads"): those are what pages/blocked.html
+// reads out of its query string, and the two would drift into each other the
+// first time either was renamed. ("adTrackers" counted the tracker group until it
+// was removed in 1.5.1; background/retired-tracker-blocker.js clears its history.)
 export const STATS_KEY_BY_GROUP = {
-  trackers: "adTrackers",
   ads: "adNetworks",
 };
 
@@ -125,7 +125,7 @@ export function statsKeyForRuleId(ruleId) {
 //
 // A cursor of "the newest timestamp I have counted" gets that almost right, and
 // is wrong in exactly the case that matters most: a page load blocks thirty
-// trackers inside the same millisecond, and if a poll lands on that millisecond
+// ad requests inside the same millisecond, and if a poll lands on that millisecond
 // the rest are never counted. Timestamps are milliseconds and these arrive in
 // bursts, so ties are the normal case here, not an edge case.
 //
@@ -271,7 +271,7 @@ export async function pollAdTrackerMatches() {
     consecutiveFailures++;
     if (consecutiveFailures === MAX_FAILURES) {
       console.debug(
-        "[Sieve] Ad & Tracker counts unavailable in this browser — no longer polling.",
+        "[Sieve] Ad counts unavailable in this browser — no longer polling.",
         err
       );
       await stopPolling();
@@ -344,7 +344,7 @@ chrome.runtime.onStartup.addListener(() => {
 chrome.alarms.onAlarm.addListener((alarm) => {
   if (alarm.name !== ALARM) return;
   pollAdTrackerMatches().catch((err) => {
-    console.error("[Sieve] Ad & Tracker stats poll failed:", err);
+    console.error("[Sieve] Ad stats poll failed:", err);
   });
 });
 

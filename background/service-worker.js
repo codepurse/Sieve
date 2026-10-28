@@ -6,8 +6,9 @@
 
 import "./financial-protection.js"; // Phase 5 — Financial Protection (scam + trading + mlm tiers)
 import "./safety-shield.js"; // Safety Shield — piracy + safety/malware blockers
-import "./ad-tracker-blocker.js"; // Ad & Tracker Blocker (BETA) — bundled tracker-domain tier
+import "./ad-tracker-blocker.js"; // Ad Blocker (BETA) — bundled ad-network domain tier
 import "./ad-tracker-stats.js"; // Counts what that tier blocks (DNR blocks leave no other trace)
+import "./retired-tracker-blocker.js"; // Removed in 1.5.1 — clears the rules and setting tracker blocking left behind
 import "./youtube-ads.js"; // YouTube video-ad filter (BETA) — registers the MAIN-world scriptlet
 import "./facebook-ads.js"; // Facebook feed-ad filter (BETA) — registers the MAIN-world scriptlet
 import "./anti-adblock.js"; // Anti-adblock defeat (BETA) — answers "you seem to be using an ad blocker"

@@ -1,13 +1,13 @@
 {
   "_comment": [
-    "Sieve — Ad & Tracker Blocker: HAND-MAINTAINED additions.",
+    "Sieve — Ad Blocker: HAND-MAINTAINED additions.",
     "",
     "This is the ONE file in this path you are meant to edit by hand.",
     "data/tracker-domains.json is generated and any manual edit to it is",
     "destroyed by the next `node build-tracker-list.mjs`; entries here survive,",
     "because the converter merges them in after conversion.",
     "",
-    "WHAT BELONGS HERE: an ad or tracking domain that EasyList and EasyPrivacy",
+    "WHAT BELONGS HERE: an ad-network domain that EasyList",
     "genuinely do not carry, found by using the web. Nothing else. This is not a",
     "place to widen a rule the converter deliberately refused — if the converter",
     "dropped something as path-scoped, it dropped it because blocking the whole",
@@ -20,7 +20,7 @@
     "BUILD rather than being skipped quietly — a domain you meant to block and",
     "which silently is not blocked is the worst outcome of the three.",
     "",
-    "GROUPS: 'ads' for ad delivery, 'trackers' for analytics and fingerprinting.",
+    "GROUP: 'ads', for ad delivery. (A 'trackers' group existed until 1.5.1.)",
     "'always' blocks in every context; 'thirdParty' blocks only cross-site, for a",
     "domain that also serves legitimate first-party content.",
     "",
@@ -31,12 +31,6 @@
     "LICENCE: the entries in THIS file are Sieve's own work, MIT, unlike the",
     "generated list they are merged into. See data/ATTRIBUTION-easylist.md."
   ],
-
-  "trackers": {
-    "always": [],
-    "thirdParty": []
-  },
-
   "ads": {
     "always": [
       {

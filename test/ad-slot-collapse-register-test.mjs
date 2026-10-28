@@ -140,7 +140,7 @@ test("editing the allowlist re-pushes the spec even though the id is present", a
 });
 
 test("a profile with the switch already on adopts this mechanism", async () => {
-  const { store, written } = makeStoreChrome({ ssAdTrackerEnabled: true });
+  const { store, written } = makeStoreChrome({ ssAdNetworkEnabled: true });
   assert.equal(await adoptSwitchState(), true);
   assert.equal(store.ssAdSlotCollapseEnabled, true);
   assert.deepEqual(written, [{ ssAdSlotCollapseEnabled: true }]);
@@ -156,7 +156,7 @@ test("the anti-adblock key counts as a sibling too", async () => {
 
 test("a stored false is a decision and is left alone", async () => {
   const { store, written } = makeStoreChrome({
-    ssAdTrackerEnabled: true,
+    ssAdNetworkEnabled: true,
     ssAdSlotCollapseEnabled: false,
   });
   assert.equal(await adoptSwitchState(), false);

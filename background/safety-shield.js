@@ -1076,9 +1076,10 @@ globalThis.sieveSafety = Object.assign(globalThis.sieveSafety || {}, {
 // daily scheduler never touches it.
 //
 // ID ranges — three groups, one 10000-wide band each, matching the convention
-// every other group here follows. Games own 140000-179999 and the Ad & Tracker
-// tier owns 180000-199999 (trackers 180000, ad networks 190000), so the AI
-// groups take the next three free bands:
+// every other group here follows. Games own 140000-179999 and the Ad tier
+// owns 190000-199999 (180000-189999 was trackers until 1.5.1, and is still
+// kept clear by background/retired-tracker-blocker.js), so the AI groups take
+// the next three free bands:
 //   chatbots 200000-209999 · writing 210000-219999 · companions 220000-229999
 // Each group's domains pack into 1 chunk => 2 rules (1 redirect + 1 block), a
 // rounding error against Chrome's 30000-rule ceiling. Each band is cleared only

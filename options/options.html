@@ -61,7 +61,7 @@
 
           <p class="nav-group">Filters</p>
           <a class="nav-link" href="#section-blocking" data-target="section-blocking"><span class="nav-num">03</span><span class="nav-name">Site blocking</span></a>
-          <a class="nav-link" href="#section-adblock" data-target="section-adblock"><span class="nav-num">04</span><span class="nav-name">Ads &amp; trackers</span></a>
+          <a class="nav-link" href="#section-adblock" data-target="section-adblock"><span class="nav-num">04</span><span class="nav-name">Ads</span></a>
           <a class="nav-link" href="#section-comments" data-target="section-comments"><span class="nav-num">05</span><span class="nav-name">Language &amp; comments</span></a>
           <a class="nav-link" href="#section-browsing" data-target="section-browsing"><span class="nav-num">06</span><span class="nav-name">Browsing</span></a>
           <a class="nav-link" href="#section-site-cleanup" data-target="section-site-cleanup"><span class="nav-num">07</span><span class="nav-name">Site cleanup</span></a>
@@ -635,7 +635,7 @@
               <h2 class="group-title">Allowlist</h2>
               <p class="group-desc">
                 Sites here are <strong>never blocked</strong>, even when a list includes them.
-                It applies to every blocker, and to ad &amp; tracker blocking.
+                It applies to every blocker, and to ad blocking.
               </p>
             </div>
             <div class="group-body">
@@ -656,46 +656,48 @@
           </section>
         </section>
 
-        <!-- ======================== 04 Ads & trackers ====================== -->
+        <!-- ============================ 04 Ads ============================= -->
         <!-- TWO groups here, and the split is the point.
-             The first is ONE switch over SIX independent mechanisms, which is a
-             deliberate simplification. The six storage keys are unchanged —
-             ssAdTrackerEnabled, ssAdNetworkEnabled, ssYouTubeAdsEnabled,
-             ssFacebookAdsEnabled, ssAntiAdblockEnabled and
-             ssAdSlotCollapseEnabled — and the six background modules still
-             watch their own key and know nothing about each other. Only the UI
-             is merged: the master checkbox writes all six together, so this is
-             a presentation change with no migration, and splitting the switches
-             again later costs nothing but markup.
+             The first is ONE switch over FIVE independent mechanisms, which is a
+             deliberate simplification. The five storage keys are unchanged —
+             ssAdNetworkEnabled, ssYouTubeAdsEnabled, ssFacebookAdsEnabled,
+             ssAntiAdblockEnabled and ssAdSlotCollapseEnabled — and the five
+             background modules still watch their own key and know nothing about
+             each other. Only the UI is merged: the master checkbox writes all
+             five together, so this is a presentation change with no migration,
+             and splitting the switches again later costs nothing but markup.
+             There was a sixth, ssAdTrackerEnabled, until tracker blocking was
+             removed in 1.5.1: ads are clutter on the page, which is Sieve's job;
+             trackers are not (background/retired-tracker-blocker.js).
              The floating-video group below is the demonstration: built behind
              the master switch, moved out to its own by editing markup. It is
              separate because it is not ad blocking — the player it moves is the
              site's own furniture.
              The copy is deliberately short; the caveats live in a collapsed
-             panel. What could NOT be dropped is the EasyList / EasyPrivacy
-             attribution — a CC BY-SA 3.0 licence condition, not editorial. -->
+             panel. What could NOT be dropped is the EasyList attribution — a
+             CC BY-SA 3.0 licence condition, not editorial. -->
         <section class="section" id="section-adblock" aria-labelledby="h-adblock">
           <header class="section-head">
             <p class="section-num kicker">04 &middot; Filters</p>
-            <h1 class="section-title" id="h-adblock">Ads &amp; trackers</h1>
-            <p class="section-desc">Block ads, and the companies that follow you from site to site.</p>
+            <h1 class="section-title" id="h-adblock">Ads</h1>
+            <p class="section-desc">Clear the ads out of the pages you read.</p>
           </header>
 
           <section class="group">
             <div class="group-head">
-              <h2 class="group-title">Ad &amp; tracker blocker <span class="badge badge-beta">Beta</span></h2>
+              <h2 class="group-title">Ad blocker <span class="badge badge-beta">Beta</span></h2>
               <p class="group-desc">
-                One switch for all of it — ad and tracking domains, YouTube video ads, Facebook
-                sponsored posts, and the &ldquo;turn off your ad blocker&rdquo; walls.
+                One switch for all of it — ad networks, YouTube video ads, Facebook sponsored
+                posts, and the &ldquo;turn off your ad blocker&rdquo; walls.
               </p>
             </div>
             <div class="group-body">
               <div class="field">
                 <div class="switch-row is-master">
                   <div class="switch-label">
-                    <span class="label">Block ads &amp; trackers</span>
-                    <span class="description">Blocks ad and tracking domains, skips YouTube ads, hides Facebook sponsored posts, clears &ldquo;disable your ad blocker&rdquo; messages, and tidies up the empty gaps left behind.</span>
-                    <span class="credit">Domain lists derived from <a href="https://easylist.to/" target="_blank" rel="noopener noreferrer">EasyList and EasyPrivacy</a> — © The EasyList authors, used under <a href="https://creativecommons.org/licenses/by-sa/3.0/" target="_blank" rel="noopener noreferrer">CC BY-SA 3.0</a>.</span>
+                    <span class="label">Block ads</span>
+                    <span class="description">Blocks ad networks, skips YouTube ads, hides Facebook sponsored posts, clears &ldquo;disable your ad blocker&rdquo; messages, and tidies up the empty gaps left behind.</span>
+                    <span class="credit">Ad-network list derived from <a href="https://easylist.to/" target="_blank" rel="noopener noreferrer">EasyList</a> — © The EasyList authors, used under <a href="https://creativecommons.org/licenses/by-sa/3.0/" target="_blank" rel="noopener noreferrer">CC BY-SA 3.0</a>.</span>
                   </div>
                   <label class="switch"><input type="checkbox" id="adblock-master-toggle" /><span class="slider"></span></label>
                 </div>
@@ -731,7 +733,13 @@
                   <summary>What it can and cannot do</summary>
                   <p class="hint">
                     <strong>Most of it is domain blocking.</strong> Sieve stops the
-                    browser talking to known ad and tracking services.
+                    browser talking to known ad networks.
+                  </p>
+                  <p class="hint">
+                    <strong>It does not block trackers.</strong> Sieve did until
+                    version 1.5.1. Tracking happens out of sight rather than in your
+                    way, so it is a job for a privacy tool, such as uBlock Origin
+                    Lite, rather than for Sieve.
                   </p>
                   <p class="hint">
                     <strong>The empty boxes get tidied up too.</strong> Blocking an
@@ -764,12 +772,11 @@
                   </p>
                   <p class="hint">
                     <strong>On YouTube itself, the domain blocking stands down.</strong>
-                    There the ad and tracking addresses are Google's, and Google is
-                    the site, so blocking them protects you from nothing it cannot
-                    already see. What it does do is stop YouTube's ads reporting that
-                    they were seen — which is exactly what YouTube looks for when it
-                    decides you are using a blocker. YouTube's ads are dealt with
-                    inside the page instead.
+                    There the ad addresses are Google's, and Google is the site, so
+                    blocking them takes no ad off the page. What it does do is stop
+                    YouTube's ads reporting that they were seen — which is exactly
+                    what YouTube looks for when it decides you are using a blocker.
+                    YouTube's ads are dealt with inside the page instead.
                   </p>
                   <p class="hint">
                     <strong>If YouTube notices, Sieve asks again.</strong>
@@ -810,19 +817,14 @@
                     depending on the session.
                   </p>
                   <p class="hint">
-                    <strong>Sites that break tend to break at sign-in or checkout.</strong>
-                    Some run their bot and fraud checks through the same companies that
-                    do the tracking. Allowlist the site and it will work again.
-                  </p>
-                  <p class="hint">
                     It leaves &ldquo;Suggested for you&rdquo;, &ldquo;People you may know&rdquo; and the Reels
                     row alone — that is Facebook promoting Facebook, not advertising.
                   </p>
                   <p class="hint">
                     Every blocked request is counted in the
                     <a href="#section-dashboard">Overview</a>. Expect big
-                    numbers: one page can pull in dozens of trackers. Only the running
-                    total is kept — never which site, never which tracker.
+                    numbers: one page can make dozens of ad requests. Only the running
+                    total is kept — never which site, never which ad network.
                   </p>
                 </details>
               </div>

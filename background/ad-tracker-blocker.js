@@ -1,9 +1,16 @@
 // background/ad-tracker-blocker.js
-// Sieve — Ad & Tracker Blocker (BETA).
+// Sieve — Ad Blocker (BETA): the ad-network domain tier.
 //
-// A single opt-in blocker for third-party AD-NETWORK and TRACKER domains, built
-// from the bundled data/tracker-domains.json (derived from EasyPrivacy — see
+// A single opt-in blocker for third-party AD-NETWORK domains, built from the
+// bundled data/tracker-domains.json (derived from EasyList — see
 // data/ATTRIBUTION-easylist.md for the licence position).
+//
+// It blocked TRACKER domains too, from EasyPrivacy, until 1.5.1. That half was
+// removed: ads are clutter on the page, which is Sieve's business; trackers are
+// invisible privacy work, which is a different job done better by tools built
+// for it. The file and data names still say "tracker" from that time.
+// background/retired-tracker-blocker.js clears the old tracker rules
+// (180000-189999) from profiles that had them on.
 //
 // It invents NO new blocking system: same shape as the STATIC tiers in
 // background/safety-shield.js (gore-shock / dating / games) — bundled JSON, no
@@ -13,7 +20,7 @@
 // sixth Safety Shield tier.
 //
 // SCOPE — this is a DOMAIN blocker, and the UI must keep saying so. It kills
-// third-party ad and tracker traffic. It does NOT kill YouTube ads, anti-adblock
+// third-party ad-network traffic. It does NOT kill YouTube ads, anti-adblock
 // walls, or ads a site serves from its own domain: those need cosmetic filtering
 // and scriptlet injection, which are deliberately out of scope. Nothing here
 // hides elements, injects scripts, or redirects a subresource to a stub.
@@ -41,32 +48,19 @@
 // Guardian PIN gate there (it weakens protection), turning it ON is free.
 // Guardian is enforced in the UI layer, exactly as it is for every other toggle
 // — this module only ever reacts to the stored key.
-export const AD_TRACKER_ENABLED_KEY = "ssAdTrackerEnabled"; // boolean, default false
 export const AD_NETWORK_ENABLED_KEY = "ssAdNetworkEnabled"; // boolean, default false
 
 // DNR id band. Bands below 180000 are all allocated (gambling < 10000, custom
 // blocks 10000, allowlist 20000, Financial Protection 30000-59999, Safety Shield
-// 60000-139999, games 140000-179999), and this module owns 180000-199999:
-// trackers 180000-189999, ad networks 190000-199999 (the second source, EasyList,
-// which the band was reserved for and now holds). Allocation continues above it —
-// the AI Blocker took 200000-229999. This module only ever removes rules inside
-// its own band, so it can never clobber another tier's.
-const AD_TRACKER_ID_START = 180000;
-const AD_TRACKER_ID_END = 190000; // exclusive
-
-// TWO independent groups, one band each, mirroring how safety-shield.js splits
-// the Game Blocker. They are separate because they come from separate upstream
-// lists and carry very different breakage risk: EasyPrivacy (trackers) is
-// conservative, EasyList (ad networks) targets ad delivery and is the one more
-// likely to leave a visible hole or upset a site. A user can take analytics
-// blocking without ad blocking, which is exactly what the split is for.
+// 60000-139999, games 140000-179999). This module owns 190000-199999 for ad
+// networks. 180000-189999 was the tracker group's until 1.5.1 and is left empty;
+// background/retired-tracker-blocker.js clears it on update. Allocation continues
+// above — the AI Blocker took 200000-229999. This module only ever removes rules
+// inside its own band, so it can never clobber another tier's.
+//
+// Still a table of groups, though there is one: everything below (the rule
+// writer, the stats poller, the change listener) is driven by it.
 export const AD_TRACKER_GROUPS = {
-  trackers: {
-    key: AD_TRACKER_ENABLED_KEY,
-    idStart: AD_TRACKER_ID_START,
-    idEnd: AD_TRACKER_ID_END,
-    category: "trackers",
-  },
   ads: {
     key: AD_NETWORK_ENABLED_KEY,
     idStart: 190000,
@@ -163,7 +157,7 @@ const SUBRESOURCE_TYPES = [
 ];
 
 // Is the blocker currently on? (defaults OFF — opt-in)
-export async function isAdTrackerEnabled(name = "trackers") {
+export async function isAdTrackerEnabled(name = "ads") {
   const spec = AD_TRACKER_GROUPS[name];
   if (!spec) throw new Error("Unknown ad/tracker group: " + name);
   const s = await chrome.storage.local.get({ [spec.key]: false });
@@ -180,8 +174,8 @@ function chunk(arr, size) {
 // The bundled list
 // ===========================================================================
 
-// Read the generated, STATIC tracker list shipped inside the extension. Two
-// groups, because the upstream list distinguishes them and DNR can honour the
+// Read the generated, STATIC ad-network list shipped inside the extension. Kept
+// in shapes, because the upstream list distinguishes them and DNR can honour the
 // distinction natively (see buildTrackerRules):
 //   always     — block wherever it appears
 //   thirdParty — block only cross-site
@@ -310,8 +304,8 @@ export function allowlistInitiators(allowlist) {
 // wins for a main_frame hit on an allowlisted domain, with no extra wiring —
 // same as every other tier.
 //
-//   1. main_frame redirect (from `always`) — someone navigated straight to a
-//      tracker domain. Rare, but it should say why, like every other tier.
+//   1. main_frame redirect (from `always`) — someone navigated straight to an
+//      ad-network domain. Rare, but it should say why, like every other tier.
 //   2. subresource block (from `always`).
 //   3. subresource block (from `thirdParty`) with domainType "thirdParty".
 //   4. one rule per `scoped` host, carrying its own site carve-out list.
@@ -323,8 +317,8 @@ export function allowlistInitiators(allowlist) {
 export function buildTrackerRules(
   domains,
   initiatorExclusions,
-  idStart = AD_TRACKER_ID_START,
-  category = "trackers"
+  idStart = AD_TRACKER_GROUPS.ads.idStart,
+  category = AD_TRACKER_GROUPS.ads.category
 ) {
   const always = domains.always || [];
   const thirdParty = domains.thirdParty || [];
@@ -560,13 +554,12 @@ chrome.storage.onChanged.addListener(async (changes, area) => {
 });
 
 // Test hooks — drive this from the service-worker DevTools console, e.g.
-//   await chrome.storage.local.set({ ssAdTrackerEnabled: true, ssAdNetworkEnabled: true })
-//   await sieveAdTracker.applyAdTrackerRules("trackers") // apply one group
-//   await sieveAdTracker.applyAllAdTrackerRules()        // apply both
+//   await chrome.storage.local.set({ ssAdNetworkEnabled: true })
+//   await sieveAdTracker.applyAdTrackerRules("ads")      // apply the group
+//   await sieveAdTracker.applyAllAdTrackerRules()        // apply every group
 //   await sieveAdTracker.loadTrackerDomains("ads")       // inspect the bundled domains
-//   (await chrome.declarativeNetRequest.getDynamicRules()).filter(r => r.id >= 180000 && r.id < 200000)
+//   (await chrome.declarativeNetRequest.getDynamicRules()).filter(r => r.id >= 190000 && r.id < 200000)
 globalThis.sieveAdTracker = {
-  AD_TRACKER_ENABLED_KEY,
   AD_NETWORK_ENABLED_KEY,
   AD_TRACKER_GROUPS,
   isAdTrackerEnabled,

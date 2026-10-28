@@ -29,7 +29,7 @@
 // Toggled the way the Prediction Markets ruleset is: a static ruleset shipped
 // disabled in the manifest and flipped with updateEnabledRulesets, which leaves
 // every dynamic rule (gambling big list, custom blocks, allowlist, the
-// Financial Protection / Safety Shield / tracker bands) completely untouched.
+// Financial Protection / Safety Shield / ad bands) completely untouched.
 //
 // Note there is no allowlist exemption here, and none is wanted: this blocks a
 // request YouTube makes, on YouTube, because the user asked for it on YouTube.

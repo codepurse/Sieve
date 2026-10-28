@@ -14,9 +14,14 @@
 // error anywhere; the dashboard just quietly reports a wrong number.
 //
 // The tie case is the one that motivated the design and is the one to protect: a
-// page load blocks thirty trackers in the same millisecond, so timestamp ties are
-// the NORMAL case here rather than a rare edge, and a naive "newest timestamp I
-// have seen" cursor drops every tied match after the first.
+// page load blocks thirty ad requests in the same millisecond, so timestamp ties
+// are the NORMAL case here rather than a rare edge, and a naive "newest timestamp
+// I have seen" cursor drops every tied match after the first.
+//
+// Until 1.5.1 there were two bands, trackers (180000-189999) and ad networks
+// (190000-199999), and most of these cases were written against the tracker
+// band. Tracker blocking is gone; the cases moved to the ad band unchanged, and
+// the old band is now pinned as NOT counted.
 
 import test from "node:test";
 import assert from "node:assert/strict";
@@ -103,31 +108,39 @@ const {
 // Build a MatchedRuleInfo the way Chrome shapes it.
 const hit = (ruleId, timeStamp) => ({ rule: { ruleId, rulesetId: "_dynamic" }, timeStamp });
 
-const TRACKER_RULE = 180003; // trackers band: 180000–189999
-const AD_RULE = 190007; //     ad networks band: 190000–199999
+const AD_RULE = 190007; //       ad networks band: 190000–199999
+const STUB_RULE = 199901; //     a neutered stub, top of the same band
+const OLD_TRACKER_RULE = 180003; // the retired tracker band: 180000–189999
 
 // ---------------------------------------------------------------------------
 // Band attribution
 // ---------------------------------------------------------------------------
 
 test("rule ids are attributed to the band they were issued from", () => {
-  assert.equal(statsKeyForRuleId(180000), "adTrackers");
-  assert.equal(statsKeyForRuleId(189999), "adTrackers");
   assert.equal(statsKeyForRuleId(190000), "adNetworks");
   assert.equal(statsKeyForRuleId(199999), "adNetworks");
 });
 
-test("the neutered-stub rules sit inside their own group's band", () => {
-  // Stubs take ids from idStart + 9900, at the top of each 10000-wide band. A
+test("the neutered-stub rules sit inside the ad band, and count", () => {
+  // Stubs take ids from idStart + 9900, at the top of the 10000-wide band. A
   // stub is a block by another name — the ad script is replaced with an empty
-  // one — so it must count, and must count for the right group.
-  assert.equal(statsKeyForRuleId(189900), "adTrackers");
+  // one — so it must count.
   assert.equal(statsKeyForRuleId(199900), "adNetworks");
 });
 
+test("the retired tracker band is not counted", () => {
+  // background/retired-tracker-blocker.js removes those rules on update, but
+  // until it has run a leftover rule can still match. It is not ad blocking, and
+  // there is no Dashboard row for it any more.
+  for (const id of [180000, 180003, 185000, 189900, 189999]) {
+    assert.equal(statsKeyForRuleId(id), null, `rule ${id} should not be counted`);
+  }
+});
+
 test("rules belonging to other tiers are not counted", () => {
-  // Every band below 180000 belongs to another blocker, and those already record
-  // their own blocks from pages/blocked.js. Counting them here would double them.
+  // Every band below this one belongs to another blocker, and those already
+  // record their own blocks from pages/blocked.js. Counting them here would
+  // double them.
   for (const id of [0, 9999, 20000, 30000, 59999, 139999, 179999, 200000, 250000]) {
     assert.equal(statsKeyForRuleId(id), null, `rule ${id} should not be ours`);
   }
@@ -136,12 +149,11 @@ test("rules belonging to other tiers are not counted", () => {
 test("a malformed rule id is ignored rather than guessed at", () => {
   assert.equal(statsKeyForRuleId(NaN), null);
   assert.equal(statsKeyForRuleId(undefined), null);
-  assert.equal(statsKeyForRuleId("180001"), null);
+  assert.equal(statsKeyForRuleId("190001"), null);
 });
 
-test("the two groups map to distinct dashboard keys", () => {
-  const keys = Object.values(STATS_KEY_BY_GROUP);
-  assert.equal(new Set(keys).size, keys.length);
+test("the ad group maps to its own dashboard key, and nothing maps to the tracker one", () => {
+  assert.deepEqual(STATS_KEY_BY_GROUP, { ads: "adNetworks" });
 });
 
 // ---------------------------------------------------------------------------
@@ -150,16 +162,16 @@ test("the two groups map to distinct dashboard keys", () => {
 
 test("with no cursor, everything in the batch counts once", () => {
   const { counted, cursor } = countNewMatches(
-    [hit(TRACKER_RULE, 100), hit(TRACKER_RULE, 101), hit(AD_RULE, 101)],
+    [hit(AD_RULE, 100), hit(AD_RULE, 101), hit(STUB_RULE, 101)],
     null
   );
-  assert.deepEqual(counted, { adTrackers: 2, adNetworks: 1 });
+  assert.deepEqual(counted, { adNetworks: 3 });
   assert.equal(cursor.ts, 101);
-  assert.deepEqual(cursor.at, { adTrackers: 1, adNetworks: 1 });
+  assert.deepEqual(cursor.at, { adNetworks: 2 });
 });
 
 test("an empty batch counts nothing and leaves the cursor alone", () => {
-  const cursor = { ts: 500, at: { adTrackers: 2 } };
+  const cursor = { ts: 500, at: { adNetworks: 2 } };
   assert.deepEqual(countNewMatches([], cursor), { counted: {}, cursor });
   assert.deepEqual(countNewMatches(null, cursor), { counted: {}, cursor });
 });
@@ -170,79 +182,83 @@ test("matches from other tiers are dropped before counting", () => {
   assert.equal(cursor, null);
 });
 
+test("a leftover tracker match neither counts nor moves the cursor", () => {
+  // If it moved the cursor, the ad matches tied on the earlier millisecond
+  // would be skipped on the next poll.
+  const { counted, cursor } = countNewMatches([hit(AD_RULE, 700), hit(OLD_TRACKER_RULE, 900)], null);
+  assert.deepEqual(counted, { adNetworks: 1 });
+  assert.deepEqual(cursor, { ts: 700, at: { adNetworks: 1 } });
+});
+
 // ---------------------------------------------------------------------------
 // Overlapping polls — the actual job
 // ---------------------------------------------------------------------------
 
 test("a match already counted is not counted again when it comes back", () => {
-  const first = countNewMatches([hit(TRACKER_RULE, 100)], null);
-  assert.deepEqual(first.counted, { adTrackers: 1 });
+  const first = countNewMatches([hit(AD_RULE, 100)], null);
+  assert.deepEqual(first.counted, { adNetworks: 1 });
 
   // The same match is returned again — its tab is still open.
-  const second = countNewMatches([hit(TRACKER_RULE, 100)], first.cursor);
+  const second = countNewMatches([hit(AD_RULE, 100)], first.cursor);
   assert.deepEqual(second.counted, {});
   assert.equal(second.cursor.ts, 100);
 });
 
 test("only what is newer than the cursor counts", () => {
-  const cursor = { ts: 100, at: { adTrackers: 1 } };
+  const cursor = { ts: 100, at: { adNetworks: 1 } };
   const { counted } = countNewMatches(
-    [hit(TRACKER_RULE, 100), hit(TRACKER_RULE, 140), hit(AD_RULE, 150)],
+    [hit(AD_RULE, 100), hit(AD_RULE, 140), hit(STUB_RULE, 150)],
     cursor
   );
-  assert.deepEqual(counted, { adTrackers: 1, adNetworks: 1 });
+  assert.deepEqual(counted, { adNetworks: 2 });
 });
 
 test("ties on the cursor millisecond are counted, minus what was counted before", () => {
-  // THE case this design exists for. A page load blocks four trackers in the
+  // THE case this design exists for. A page load blocks four ad requests in the
   // same millisecond; the poll lands after the first two are recorded.
-  const first = countNewMatches([hit(TRACKER_RULE, 700), hit(TRACKER_RULE, 700)], null);
-  assert.deepEqual(first.counted, { adTrackers: 2 });
-  assert.deepEqual(first.cursor, { ts: 700, at: { adTrackers: 2 } });
+  const first = countNewMatches([hit(AD_RULE, 700), hit(AD_RULE, 700)], null);
+  assert.deepEqual(first.counted, { adNetworks: 2 });
+  assert.deepEqual(first.cursor, { ts: 700, at: { adNetworks: 2 } });
 
   // Next poll: the same millisecond now holds four. Two are new.
   const second = countNewMatches(
-    [hit(TRACKER_RULE, 700), hit(TRACKER_RULE, 700), hit(TRACKER_RULE, 700), hit(TRACKER_RULE, 700)],
+    [hit(AD_RULE, 700), hit(AD_RULE, 700), hit(AD_RULE, 700), hit(AD_RULE, 700)],
     first.cursor
   );
-  assert.deepEqual(second.counted, { adTrackers: 2 });
-  assert.deepEqual(second.cursor, { ts: 700, at: { adTrackers: 4 } });
-});
-
-test("the boundary tally is kept per group, so one group cannot mask the other", () => {
-  const first = countNewMatches([hit(TRACKER_RULE, 700), hit(AD_RULE, 700)], null);
-  assert.deepEqual(first.counted, { adTrackers: 1, adNetworks: 1 });
-
-  // Same millisecond, one more of each.
-  const second = countNewMatches(
-    [hit(TRACKER_RULE, 700), hit(TRACKER_RULE, 700), hit(AD_RULE, 700), hit(AD_RULE, 700)],
-    first.cursor
-  );
-  assert.deepEqual(second.counted, { adTrackers: 1, adNetworks: 1 });
+  assert.deepEqual(second.counted, { adNetworks: 2 });
+  assert.deepEqual(second.cursor, { ts: 700, at: { adNetworks: 4 } });
 });
 
 test("a boundary tally is not lost when the batch stays on the same millisecond", () => {
   // Three polls all landing on one millisecond. If the cursor took only the
   // latest batch's tally instead of the running total, poll three would re-count
   // everything poll two had already recorded.
-  let cur = countNewMatches([hit(TRACKER_RULE, 700)], null).cursor;
-  const second = countNewMatches([hit(TRACKER_RULE, 700), hit(TRACKER_RULE, 700)], cur);
-  assert.deepEqual(second.counted, { adTrackers: 1 });
-  const third = countNewMatches([hit(TRACKER_RULE, 700), hit(TRACKER_RULE, 700)], second.cursor);
+  let cur = countNewMatches([hit(AD_RULE, 700)], null).cursor;
+  const second = countNewMatches([hit(AD_RULE, 700), hit(AD_RULE, 700)], cur);
+  assert.deepEqual(second.counted, { adNetworks: 1 });
+  const third = countNewMatches([hit(AD_RULE, 700), hit(AD_RULE, 700)], second.cursor);
   assert.deepEqual(third.counted, {}, "nothing new on the third look");
+});
+
+test("a cursor left by 1.5.0, still tallying trackers, does not upset the count", () => {
+  // The cursor lives in session storage, so one written before the update can
+  // still be there after it, with an adTrackers tally on its millisecond.
+  const old = { ts: 700, at: { adTrackers: 5, adNetworks: 1 } };
+  const { counted } = countNewMatches([hit(AD_RULE, 700), hit(AD_RULE, 700), hit(AD_RULE, 800)], old);
+  assert.deepEqual(counted, { adNetworks: 2 });
 });
 
 test("works whether or not the browser's minTimeStamp filter is inclusive", () => {
   // Chrome trims the batch with minTimeStamp; the counter must not depend on
   // whether that trim keeps the boundary millisecond or drops it.
-  const cursor = { ts: 700, at: { adTrackers: 2 } };
+  const cursor = { ts: 700, at: { adNetworks: 2 } };
   const inclusive = countNewMatches(
-    [hit(TRACKER_RULE, 700), hit(TRACKER_RULE, 700), hit(TRACKER_RULE, 900)],
+    [hit(AD_RULE, 700), hit(AD_RULE, 700), hit(AD_RULE, 900)],
     cursor
   );
-  const exclusive = countNewMatches([hit(TRACKER_RULE, 900)], cursor);
-  assert.deepEqual(inclusive.counted, { adTrackers: 1 });
-  assert.deepEqual(exclusive.counted, { adTrackers: 1 });
+  const exclusive = countNewMatches([hit(AD_RULE, 900)], cursor);
+  assert.deepEqual(inclusive.counted, { adNetworks: 1 });
+  assert.deepEqual(exclusive.counted, { adNetworks: 1 });
   assert.equal(inclusive.cursor.ts, 900);
   assert.equal(exclusive.cursor.ts, 900);
 });
@@ -254,7 +270,7 @@ test("a burst spread over several polls is counted exactly once in total", () =>
   // polls deliberately land MID-millisecond, which is the arrangement that
   // breaks a cursor carrying only a timestamp.
   const all = [];
-  for (let i = 0; i < 1000; i++) all.push(hit(TRACKER_RULE, 1000 + Math.floor(i / 200)));
+  for (let i = 0; i < 1000; i++) all.push(hit(AD_RULE, 1000 + Math.floor(i / 200)));
 
   let cursor = null;
   let total = 0;
@@ -262,7 +278,7 @@ test("a burst spread over several polls is counted exactly once in total", () =>
     const existsNow = all.slice(0, historyLength);
     const batch = existsNow.filter((h) => cursor === null || h.timeStamp >= cursor.ts);
     const res = countNewMatches(batch, cursor);
-    total += res.counted.adTrackers || 0;
+    total += res.counted.adNetworks || 0;
     cursor = res.cursor;
   }
   assert.equal(total, 1000, "every match counted, none counted twice");
@@ -271,14 +287,14 @@ test("a burst spread over several polls is counted exactly once in total", () =>
 test("a poll that finds nothing new does not disturb the next one", () => {
   // The common case in real life: the alarm fires on an idle browser. An empty
   // (or unchanged) batch must leave the cursor able to keep counting ties.
-  const first = countNewMatches([hit(TRACKER_RULE, 300), hit(TRACKER_RULE, 300)], null);
-  const idle = countNewMatches([hit(TRACKER_RULE, 300), hit(TRACKER_RULE, 300)], first.cursor);
+  const first = countNewMatches([hit(AD_RULE, 300), hit(AD_RULE, 300)], null);
+  const idle = countNewMatches([hit(AD_RULE, 300), hit(AD_RULE, 300)], first.cursor);
   assert.deepEqual(idle.counted, {});
   const later = countNewMatches(
-    [hit(TRACKER_RULE, 300), hit(TRACKER_RULE, 300), hit(TRACKER_RULE, 300)],
+    [hit(AD_RULE, 300), hit(AD_RULE, 300), hit(AD_RULE, 300)],
     idle.cursor
   );
-  assert.deepEqual(later.counted, { adTrackers: 1 });
+  assert.deepEqual(later.counted, { adNetworks: 1 });
 });
 
 // ---------------------------------------------------------------------------
@@ -288,8 +304,8 @@ test("a poll that finds nothing new does not disturb the next one", () => {
 test("a batch entirely older than the cursor leaves the cursor where it is", () => {
   // A clock adjustment, or a stale window. Moving the cursor backwards here would
   // re-count the boundary on the next poll.
-  const cursor = { ts: 900, at: { adTrackers: 3 } };
-  const res = countNewMatches([hit(TRACKER_RULE, 100), hit(TRACKER_RULE, 200)], cursor);
+  const cursor = { ts: 900, at: { adNetworks: 3 } };
+  const res = countNewMatches([hit(AD_RULE, 100), hit(AD_RULE, 200)], cursor);
   assert.deepEqual(res.counted, {});
   assert.deepEqual(res.cursor, cursor);
 });
@@ -297,22 +313,22 @@ test("a batch entirely older than the cursor leaves the cursor where it is", () 
 test("entries without a usable timestamp are skipped", () => {
   const { counted } = countNewMatches(
     [
-      hit(TRACKER_RULE, undefined),
-      hit(TRACKER_RULE, NaN),
-      { rule: { ruleId: TRACKER_RULE } },
+      hit(AD_RULE, undefined),
+      hit(AD_RULE, NaN),
+      { rule: { ruleId: AD_RULE } },
       { timeStamp: 5 },
       null,
-      hit(TRACKER_RULE, 10),
+      hit(AD_RULE, 10),
     ],
     null
   );
-  assert.deepEqual(counted, { adTrackers: 1 });
+  assert.deepEqual(counted, { adNetworks: 1 });
 });
 
 test("a corrupt cursor is treated as no cursor rather than throwing", () => {
   for (const bad of [{}, { ts: NaN, at: {} }, { ts: 5 }, { at: {} }]) {
-    const res = countNewMatches([hit(TRACKER_RULE, 50)], bad);
-    assert.equal(typeof res.counted.adTrackers, "number");
+    const res = countNewMatches([hit(AD_RULE, 50)], bad);
+    assert.equal(typeof res.counted.adNetworks, "number");
   }
 });
 
@@ -326,27 +342,27 @@ test("a corrupt cursor is treated as no cursor rather than throwing", () => {
 
 test("a poll records what it counted into the shared stats store", async () => {
   reset();
-  nextMatches = [hit(TRACKER_RULE, 10), hit(TRACKER_RULE, 11), hit(AD_RULE, 11)];
+  nextMatches = [hit(AD_RULE, 10), hit(AD_RULE, 11), hit(STUB_RULE, 11), hit(OLD_TRACKER_RULE, 11)];
   await pollAdTrackerMatches();
-  assert.deepEqual(todayStats(), { adTrackers: 2, adNetworks: 1 });
+  assert.deepEqual(todayStats(), { adNetworks: 3 });
 });
 
 test("polling repeatedly over the same matches does not double the totals", async () => {
   reset();
-  nextMatches = [hit(TRACKER_RULE, 10), hit(AD_RULE, 10)];
+  nextMatches = [hit(AD_RULE, 10), hit(STUB_RULE, 10)];
   await pollAdTrackerMatches();
   await pollAdTrackerMatches();
   await pollAdTrackerMatches();
-  assert.deepEqual(todayStats(), { adTrackers: 1, adNetworks: 1 });
+  assert.deepEqual(todayStats(), { adNetworks: 2 });
 });
 
 test("the totals accumulate across polls", async () => {
   reset();
-  nextMatches = [hit(TRACKER_RULE, 10)];
+  nextMatches = [hit(AD_RULE, 10)];
   await pollAdTrackerMatches();
-  nextMatches = [hit(TRACKER_RULE, 20), hit(TRACKER_RULE, 21)];
+  nextMatches = [hit(AD_RULE, 20), hit(AD_RULE, 21)];
   await pollAdTrackerMatches();
-  assert.deepEqual(todayStats(), { adTrackers: 3 });
+  assert.deepEqual(todayStats(), { adNetworks: 3 });
 });
 
 test("the cursor is kept in session storage, not alongside the settings", async () => {
@@ -354,7 +370,7 @@ test("the cursor is kept in session storage, not alongside the settings", async 
   // Persisting it to local storage would outlive the thing it points at — and it
   // would sit in the same store as the user's settings, which it is not.
   reset();
-  nextMatches = [hit(TRACKER_RULE, 42)];
+  nextMatches = [hit(AD_RULE, 42)];
   await pollAdTrackerMatches();
   assert.equal(session.adTrackerMatchCursor.ts, 42);
   assert.equal("adTrackerMatchCursor" in local, false);
@@ -362,7 +378,7 @@ test("the cursor is kept in session storage, not alongside the settings", async 
 
 test("nothing is recorded when nothing of ours matched", async () => {
   reset();
-  nextMatches = [hit(1234, 10), hit(60000, 11)]; // other tiers' rules
+  nextMatches = [hit(1234, 10), hit(60000, 11), hit(OLD_TRACKER_RULE, 12)]; // not ours
   await pollAdTrackerMatches();
   assert.equal(local.sieveStats, undefined);
 });
@@ -388,21 +404,27 @@ test("after repeated failures it stops polling instead of retrying forever", asy
 // Arming the alarm
 // ---------------------------------------------------------------------------
 
-test("no alarm exists while both blockers are off", async () => {
+test("no alarm exists while the ad blocker is off", async () => {
   reset();
   await applyAdTrackerStatsAlarm();
   assert.deepEqual(alarmCalls.created, [], "a user who never enables this pays nothing");
   assert.ok(alarmCalls.cleared.includes("sieveAdTrackerStats"));
 });
 
-test("turning either blocker on arms the poll", async () => {
-  for (const key of ["ssAdTrackerEnabled", "ssAdNetworkEnabled"]) {
-    reset();
-    local[key] = true;
-    await applyAdTrackerStatsAlarm();
-    assert.equal(alarmCalls.created.length, 1, `${key} should arm the alarm`);
-    assert.equal(alarmCalls.created[0].name, "sieveAdTrackerStats");
-  }
+test("turning the ad blocker on arms the poll", async () => {
+  reset();
+  local.ssAdNetworkEnabled = true;
+  await applyAdTrackerStatsAlarm();
+  assert.equal(alarmCalls.created.length, 1);
+  assert.equal(alarmCalls.created[0].name, "sieveAdTrackerStats");
+});
+
+test("the retired tracker setting no longer arms the poll", async () => {
+  // A profile whose only leftover is ssAdTrackerEnabled has nothing to count.
+  reset();
+  local.ssAdTrackerEnabled = true;
+  await applyAdTrackerStatsAlarm();
+  assert.deepEqual(alarmCalls.created, []);
 });
 
 test("the poll interval respects both the quota and the retention window", async () => {
@@ -410,21 +432,21 @@ test("the poll interval respects both the quota and the retention window", async
   // minutes. A period outside that band is a silent bug: too fast and the API
   // starts failing outright, too slow and the counts are simply short.
   reset();
-  local.ssAdTrackerEnabled = true;
+  local.ssAdNetworkEnabled = true;
   await applyAdTrackerStatsAlarm();
   const period = alarmCalls.created[0].periodInMinutes;
   assert.ok(period >= 0.5, "faster than two calls a minute exceeds the quota");
   assert.ok(period <= 4, "slower than this and matches age out before they are counted");
 });
 
-test("turning both blockers off clears the cursor along with the alarm", async () => {
+test("turning the blocker off clears the cursor along with the alarm", async () => {
   reset();
-  local.ssAdTrackerEnabled = true;
-  nextMatches = [hit(TRACKER_RULE, 10)];
+  local.ssAdNetworkEnabled = true;
+  nextMatches = [hit(AD_RULE, 10)];
   await pollAdTrackerMatches();
   assert.ok(session.adTrackerMatchCursor, "a cursor exists while polling");
 
-  local.ssAdTrackerEnabled = false;
+  local.ssAdNetworkEnabled = false;
   await applyAdTrackerStatsAlarm();
   assert.equal("adTrackerMatchCursor" in session, false, "a stale cursor must not survive");
 });

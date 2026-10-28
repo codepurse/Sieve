@@ -1,25 +1,30 @@
-# EasyPrivacy + EasyList — attribution and licence election
+# EasyList — attribution and licence election
 
-`data/tracker-domains.json` is a **derived work of EasyPrivacy and EasyList**, used
-by Sieve's Ad & Tracker Blocker: EasyPrivacy feeds the `trackers` group, EasyList
-feeds the `ads` group. This file records the licence position, the attribution that
-has to travel with it, and how to refresh it reproducibly.
+`data/tracker-domains.json` is a **derived work of EasyList**, used by Sieve's Ad
+Blocker as its `ads` group. This file records the licence position, the
+attribution that has to travel with it, and how to refresh it reproducibly.
 
-- **Works:** EasyPrivacy (trackers) and EasyList (ad networks)
+Until 1.5.1 the same file also carried a `trackers` group derived from
+**EasyPrivacy** (same authors, same licence, covered by the same election below).
+It was removed with tracker blocking, which did not fit Sieve: ads are clutter on
+the page, trackers are privacy work done out of sight. Where this document still
+mentions EasyPrivacy, it is describing that history.
+
+- **Work:** EasyList (ad networks)
 - **Author:** The EasyList authors
 - **Homepage:** https://easylist.to/
 - **Upstream licence notice:** https://easylist.to/pages/licence.html
-- **Upstream lists:** https://easylist.to/easylist/easyprivacy.txt and
-  https://easylist.to/easylist/easylist.txt
+- **Upstream list:** https://easylist.to/easylist/easylist.txt
   (mirrors under https://easylist-downloads.adblockplus.org/)
 - **Converter:** `build-tracker-list.mjs` (repo root)
 - **Conversion report:** `tracker-list-report.md` (repo root — committed, not shipped)
 
 ## Licence election
 
-Both lists are **dual-licensed** under the same terms: GNU GPL v3-or-later **or**
-Creative Commons Attribution-ShareAlike 3.0 Unported-or-later, at the user's
-option. They are the same project, so one election covers both.
+EasyList is **dual-licensed**: GNU GPL v3-or-later **or** Creative Commons
+Attribution-ShareAlike 3.0 Unported-or-later, at the user's option. (EasyPrivacy
+carries the same terms from the same project, so this one election covered both
+while both were used.)
 
 **Sieve elects CC BY-SA 3.0.** This is a deliberate choice, recorded here so it is
 unambiguous, and it is not to be changed casually.
@@ -60,7 +65,7 @@ A URI is explicitly sufficient, so all four of these carry it:
    converter. This is the copy that ships inside the extension package, and it
    preserves the upstream `! Licence:` notice verbatim in
    `_license.upstreamLicenceNotice`. **Do not strip it.**
-2. **`options/options.html`** — a `.credit` line on the Ad & Trackers card,
+2. **`options/options.html`** — a `.credit` line on the Ad blocker card,
    matching how the Consent-O-Matic credit is presented on the cookie
    auto-reject toggle.
 3. **`README.md`** — an Acknowledgements entry, plus the mixed-licence note in
@@ -73,7 +78,7 @@ credit there is cheap insurance.
 
 ## What the converter keeps, and what it drops
 
-EasyPrivacy is Adblock-Plus filter syntax. Only rules expressible as a
+EasyList is Adblock-Plus filter syntax. Only rules expressible as a
 declarativeNetRequest `requestDomains` condition survive:
 
 | Upstream form | Outcome |
@@ -96,10 +101,11 @@ Two decisions worth knowing about:
 - **Narrow exceptions spare the whole domain.** When upstream carved out one
   script on a host, we cannot express the carve-out — so the host comes off the
   block list entirely. That under-blocks by design: an exception exists because a
-  human found that blocking it broke a real page. On EasyPrivacy 202609010808
-  this spared 503 domains (~1%), including anti-bot and DDoS-check endpoints such
-  as `check.ddos-guard.net` and `api-js.datadome.co`, where the cost of a false
-  positive is a locked-out user rather than a missed tracker.
+  human found that blocking it broke a real page. On EasyList 202609021306 this
+  spares 29 domains. It mattered most on EasyPrivacy, while that was converted:
+  its 202609010808 build had 503 spared (~1%), including anti-bot and DDoS-check
+  endpoints such as `check.ddos-guard.net` and `api-js.datadome.co`, where the
+  cost of a false positive is a locked-out user rather than a missed tracker.
 
 Every rule the converter reads is accounted for by exactly one outcome, and the
 build **fails** if that tally does not balance — so the shipped domain count is
@@ -113,28 +119,20 @@ into `tracker-list-report.md`. It asks one question: does this list block anythi
 whose failure costs more than an ad — a consent manager, a bot check, a payment
 SDK, a sign-in provider, an embedded player, a comment widget?
 
-A hit is not automatically a bug. EasyPrivacy blocks fingerprinting and
-session-replay vendors on purpose. The audit's job is to make each one a decision
-somebody made rather than an accident, and the survivors are what the settings
-page's known-issues line is written from.
+A hit is not automatically a bug; upstream can block such a vendor on purpose.
+The audit's job is to make each one a decision somebody made rather than an
+accident, and the survivors are what the settings page's known-issues text is
+written from.
 
-As of EasyPrivacy `202609021306`, **sixteen** domains survive, in two groups:
+As of EasyList `202609021306`, **none** survive: the ad list blocks nothing on a
+fragile surface. Every hit the audit ever reported was in the EasyPrivacy group —
+sixteen domains, bot and fraud checks (DataDome, Sift, Forter, FingerprintJS,
+iovation) and error reporting or session replay (Sentry, New Relic, LogRocket,
+FullStory and others) — and they went with it in 1.5.1. That is why the settings
+page no longer warns that sites break at sign-in or checkout.
 
-| group | domains | why it is left in |
-|---|---|---|
-| bot / fraud checks | `datadome.co`, `api-js.datadome.co`, `sift.com`, `siftscience.com`, `forter.com`, `fpjs.io`, `iovation.com` | genuinely fingerprinting; all `thirdParty`-scoped. The Allowlist is the escape hatch |
-| error reporting / session replay | `sentry.io`, `bugsnag.com`, `rollbar.com`, `newrelic.com`, `js-agent.newrelic.com`, `bam.nr-data.net`, `browser-intake-datadoghq.com`, `logrocket.com`, `fullstory.com` | session recording is what this tier exists to stop |
-
-> This table said "nine" until 2026-09-02, listing only the six bot checks plus
-> Sentry, LogRocket and FullStory. That was **stale documentation, not a
-> regression**: the committed `tracker-list-report.md` already had all sixteen,
-> so the six error-reporting vendors and `api-js.datadome.co` had been blocked
-> for some time with this file claiming otherwise. Checked by diffing the
-> generated report before and after a refresh — the two tables were identical.
->
-> Worth knowing when following the refresh procedure below, whose whole premise
-> is comparing against what is written here. Compare against the **report**, and
-> update this table when it moves.
+When following the refresh procedure below, compare against the **report**, and
+update this paragraph when it moves.
 
 Consent/CMP, sign-in, payments, embedded players and comment widgets are **clean** —
 nothing in those categories is blocked. The consent result matters especially,
@@ -155,13 +153,13 @@ in the domain counts or the drop log showed it.
      rule style and the classifier needs a look;
    - **no new `guard:` drops** — a guard hit means upstream now lists shared
      infrastructure, which needs a human decision before it ships;
-   - the kept count is in the expected range (~46,000 domains);
+   - the kept count is in the expected range (~48,000 domains);
    - **the "Blocked on fragile surfaces" table has not grown.** A new entry there
      means the refresh started blocking something load-bearing — decide whether to
-     keep it, and update the known-issues line in `options/options.html` if you do.
+     keep it, and add a known-issues note to `options/options.html` if you do.
 3. `npm test` — the converter tests must pass.
 4. Commit `data/tracker-domains.json` **and** `tracker-list-report.md` together.
-   The report plus `_upstream.trackers.commit` in the JSON pin down exactly which
+   The report plus `_upstream.ads.commit` in the JSON pin down exactly which
    upstream build a shipped list came from.
 
 The converter deliberately does **not** stamp a generation timestamp: it would

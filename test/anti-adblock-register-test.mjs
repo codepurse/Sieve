@@ -298,18 +298,28 @@ test("a profile with the switch already on adopts this mechanism too", async () 
   // release reads as ON while the fifth key sits at its default false. The user
   // sees a switch that says on, gets none of this, and the only way out is to
   // toggle off (which asks for the PIN) and on again.
-  const { store, written } = makeStoreChrome({ ssAdTrackerEnabled: true, ssAdNetworkEnabled: true });
+  const { store, written } = makeStoreChrome({ ssAdNetworkEnabled: true, ssYouTubeAdsEnabled: true });
   assert.equal(await globalThis.sieveAntiAdblock.adoptSwitchState(), true);
   assert.equal(store.ssAntiAdblockEnabled, true);
   assert.deepEqual(written, [{ ssAntiAdblockEnabled: true }]);
 });
 
 test("any one of the four siblings being on is enough", async () => {
-  for (const key of ["ssAdTrackerEnabled", "ssAdNetworkEnabled", "ssYouTubeAdsEnabled", "ssFacebookAdsEnabled"]) {
+  for (const key of ["ssAdNetworkEnabled", "ssYouTubeAdsEnabled", "ssFacebookAdsEnabled", "ssAdSlotCollapseEnabled"]) {
     const { store } = makeStoreChrome({ [key]: true });
     assert.equal(await globalThis.sieveAntiAdblock.adoptSwitchState(), true, key);
     assert.equal(store.ssAntiAdblockEnabled, true, key);
   }
+});
+
+test("the retired tracker key is not a sibling any more", async () => {
+  // Tracker blocking left in 1.5.1. A profile whose only enabled key is its
+  // leftover ssAdTrackerEnabled never asked for ad blocking, so that key must
+  // not read as "the switch is on" and switch this on behind it.
+  const { store, written } = makeStoreChrome({ ssAdTrackerEnabled: true });
+  assert.equal(await globalThis.sieveAntiAdblock.adoptSwitchState(), false);
+  assert.ok(!("ssAntiAdblockEnabled" in store));
+  assert.deepEqual(written, []);
 });
 
 test("a stored false is left alone — that is a decision, not an absence", async () => {
@@ -317,7 +327,7 @@ test("a stored false is left alone — that is a decision, not an absence", asyn
   // switch this back on at every single update, for exactly the person who went
   // looking for the switch to turn it off.
   const { store, written } = makeStoreChrome({
-    ssAdTrackerEnabled: true,
+    ssAdNetworkEnabled: true,
     ssAntiAdblockEnabled: false,
   });
   assert.equal(await globalThis.sieveAntiAdblock.adoptSwitchState(), false);
