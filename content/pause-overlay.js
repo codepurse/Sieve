@@ -160,17 +160,17 @@
       </div>`;
   }
 
-  // Friendly sentence about how long they've been scrolling.
+  // Friendly sentence about how long they've spent on the site today. Not
+  // "scrolling": the total counts watching too.
   function buildMessage(root, opts) {
     const msg = root.getElementById("sieve-msg");
     const where = document.createElement("strong");
     where.textContent = opts.siteName || "this feed";
-    msg.append("You've been scrolling ", where);
-    msg.append(
-      opts.minutes && opts.minutes >= 1
-        ? ` for about ${opts.minutes} min.`
-        : " for a while now."
-    );
+    if (opts.minutes && opts.minutes >= 1) {
+      msg.append(`You've spent about ${opts.minutes} min on `, where, " today.");
+    } else {
+      msg.append("You've been on ", where, " for a while now.");
+    }
   }
 
   // --- scroll locking -----------------------------------------------------
