@@ -182,9 +182,14 @@
       tile: "li.dgControl_list > div, .imgpt, .iuscp",
     },
     {
+      // DuckDuckGo's Images and Videos tabs. A tile is an <li> in the grid
+      // with the data-testid (October 2026; the class names are hashes);
+      // .tile--img is the older markup. Without a tile match the fallback took
+      // the link's parent, which on the current Images grid is the caption, so
+      // the caption went and the picture stayed.
       test: () =>
-        /(^|\.)duckduckgo\.com$/.test(location.hostname) && /[?&]ia?x?=images/.test(location.search),
-      tile: ".tile--img, .tile",
+        /(^|\.)duckduckgo\.com$/.test(location.hostname) && /[?&]iax?=(images|videos)\b/.test(location.search),
+      tile: "[data-testid='zci-images'] li, [data-testid='zci-videos'] li, .tile--img, .tile",
     },
   ];
 
@@ -213,6 +218,9 @@
   function scan() {
     scanScheduled = false;
     if (urlRules.length === 0) return;
+    // DuckDuckGo changes tab without loading a new page, so a page opened on
+    // its web results can become its Images tab under this script.
+    imageSearch = IMAGE_SEARCH.find((engine) => engine.test()) || null;
     const images = document.querySelectorAll(
       'img:not([' + MARK + ']), [style*="background"]:not([' + MARK + '])'
     );
@@ -257,7 +265,6 @@
     if (checkTitle()) return; // navigating away; nothing else is worth doing
     watchTitle();
     if (urlRules.length === 0) return; // nothing in the list can match a picture
-    imageSearch = IMAGE_SEARCH.find((engine) => engine.test()) || null;
     scan();
     watchDocument();
   }
@@ -284,7 +291,6 @@
       if (checkTitle()) return;
       watchTitle();
       if (urlRules.length === 0) return;
-      imageSearch = IMAGE_SEARCH.find((engine) => engine.test()) || null;
       forgetMarks();
       scan();
       watchDocument();
