@@ -63,7 +63,7 @@ const SETTINGS = `
 
 // Reports what the content script did, keyed by result title, plus the few
 // structural facts the assertions care about.
-const REPORTER = (titleSelector) => `
+const REPORTER = (titleSelector, settleMs = 400) => `
 <pre id="RESULTS"></pre>
 <script src="/common/keyword-pattern.js"></script>
 <script src="/common/search-filter.js"></script>
@@ -71,7 +71,7 @@ const REPORTER = (titleSelector) => `
 <script>
 (async () => {
   const out = { byTitle: {} };
-  await new Promise((r) => setTimeout(r, 400));
+  await new Promise((r) => setTimeout(r, ${settleMs}));
   try {
     for (const el of document.querySelectorAll("[data-sv-sf]")) {
       const t = el.querySelector(${JSON.stringify(titleSelector)});
@@ -83,6 +83,15 @@ const REPORTER = (titleSelector) => `
     out.notice = notice ? notice.firstChild.textContent : null;
     out.noticeTag = notice ? notice.tagName : null;
     out.noticeParentTag = notice ? notice.parentElement.tagName : null;
+    out.noticeIn = notice ? notice.parentElement.getAttribute("data-testid") : null;
+    out.notices = document.querySelectorAll("#sv-sf-notice").length;
+    // How a colour is drawn: a bar made of padding on a row of text, a ring on
+    // a tile in a grid.
+    const coloured = document.querySelector('[data-sv-sf="c1"]');
+    if (coloured) {
+      const cs = getComputedStyle(coloured);
+      out.colourStyle = { outline: cs.outlineStyle + " " + cs.outlineWidth, offset: cs.outlineOffset, paddingLeft: cs.paddingLeft };
+    }
     const probe = document.querySelector("[data-probe]");
     out.probe = probe ? probe.getAttribute("data-sv-sf") : "(absent)";
 
@@ -95,6 +104,8 @@ const REPORTER = (titleSelector) => `
     const visibleMarker = [...document.querySelectorAll(".sv-sf-why")]
       .find((m) => m.closest('[data-sv-sf]').getAttribute("data-sv-sf") !== "hidden");
     if (visibleMarker) {
+      const next = visibleMarker.nextElementSibling;
+      out.markerBesideTitle = !!next && next.matches(${JSON.stringify(titleSelector)});
       const b = visibleMarker.getBoundingClientRect();
       out.markerSize = [Math.round(b.width), Math.round(b.height)];
       const top = document.elementFromPoint(b.left + b.width / 2, b.top + b.height / 2);
@@ -170,9 +181,9 @@ const REPORTER = (titleSelector) => `
 })();
 </script>`;
 
-const page = (title, body, titleSelector) =>
+const page = (title, body, titleSelector, settleMs) =>
   `<!doctype html><html><head><meta charset="utf-8"><title>${title}</title>
-<script>${SETTINGS}</script></head><body>${body}${REPORTER(titleSelector)}</body></html>`;
+<script>${SETTINGS}</script></head><body>${body}${REPORTER(titleSelector, settleMs)}</body></html>`;
 
 // --- Google -----------------------------------------------------------------
 // Every result sits inside ONE outer data-hveid wrapper, which is what made a
@@ -246,10 +257,151 @@ const DDG = page(
   "h2"
 );
 
+// --- DuckDuckGo's Images and Videos tabs -------------------------------------
+// Read off the live tabs in October 2026, class names left out because they are
+// hashes. Images: the grid's ROWS are <li>s holding several tiles, so only the
+// inner <li> (exactly one <h3>) is a result; the thumbnail comes from
+// DuckDuckGo's own proxy and names nothing, and the source is the caption's
+// link. Videos: one <li> per video, the whole card a single link, an <h2>.
+const SOURCES = [
+  ["https://www.harvard.edu/admissions", "Harvard"],
+  ["https://github.com/torvalds/linux", "torvalds/linux"],
+  ["https://junk.cyou/spam", "Cheap Deals"],
+  ["https://blocked-example.com/x", "Blocked Site"],
+  ["https://developer.mozilla.org/en-US/", "MDN"],
+];
+
+const imageTile = ([href, title]) =>
+  `<li><figure><div><img alt=""><span>1280 × 720</span><div></div></div>
+     <div><figcaption><a href="${href}" rel="noopener"><h3 title="${title}">${title}</h3>
+       <div><div><img alt="" width="16" height="16"><p>${new URL(href).hostname}</p></div>
+       <div><button type="button" aria-label="Menu">…</button></div></div>
+     </a></figcaption></div></figure></li>`;
+
+const IMAGES_GRID = `<div data-testid="zci-images"><div><section><ol>
+     <li><ol>${SOURCES.slice(0, 3).map(imageTile).join("")}</ol></li>
+     <li><ol>${SOURCES.slice(3).map(imageTile).join("")}</ol></li>
+   </ol></section></div></div>`;
+
+const videoTile = ([href, title]) =>
+  `<li><a href="${href}" rel="noopener"><article>
+     <div><div><img alt=""></div><div><p>0:20</p></div></div>
+     <div><h2 title="${title}"><span>${title}</span></h2></div>
+     <div><div><span><div>1yr</div></span><span>2.9K views</span></div>
+       <div><div><img alt="" width="16" height="16"><span>YouTube</span></div>
+       <div><button type="button" aria-label="Menu">…</button></div></div></div>
+   </article></a></li>`;
+
+const VIDEOS_GRID = `<div data-testid="zci-videos"><div><ol>${SOURCES.map(videoTile).join("")}</ol></div></div>`;
+
+// Opened on the web results, then switched to Images the way DuckDuckGo does
+// it: the address changes by pushState, the web results stay in the page
+// hidden, and the image grid is added beside them. No new page is loaded.
+//
+// The script reacts to a change by queueing a pass for the next animation
+// frame, and under --virtual-time-budget headless Chrome draws ONE frame, about
+// 20ms in, then never another (measured). Everything after load would wait for
+// a frame that never comes, so this page gets a frame clock: 16ms timers, which
+// the virtual clock does drive. Nothing about the page itself is faked.
+const DDG_TAB_SWITCH = page(
+  "example at DuckDuckGo",
+  `${DDG.match(/<ol class="react-results--main">[\s\S]*?<\/ol>/)[0]}
+   <script>
+     window.requestAnimationFrame = (cb) => setTimeout(() => cb(performance.now()), 16);
+     setTimeout(() => {
+       history.pushState({}, "", "/?q=test&ia=images&iax=images");
+       document.querySelector("ol.react-results--main").style.display = "none";
+       document.body.insertAdjacentHTML("afterbegin", ${JSON.stringify(IMAGES_GRID)});
+     }, 500);
+   </script>`,
+  "h3",
+  1400
+);
+
+// The Blocked-sites half (content/custom-block.js), on its own: the Search
+// Result Filter is off, so whatever is hidden here was hidden by the list.
+const BLOCKLIST_PAGE = (body, titleSelector) => `<!doctype html><html><head><meta charset="utf-8">
+<script>
+  const store = { customBlocks: ["blocked-example.com"], allowlist: [] };
+  window.chrome = {
+    storage: {
+      local: { get: (defs) => { const o = {}; for (const k of Object.keys(defs)) o[k] = k in store ? store[k] : defs[k]; return Promise.resolve(o); } },
+      onChanged: { addListener() {} }
+    },
+    runtime: { getURL: (p) => "/" + p }
+  };
+</script></head><body>${body}
+<pre id="RESULTS"></pre>
+<script src="/common/keyword-pattern.js"></script>
+<script src="/content/custom-block.js"></script>
+<script>
+(async () => {
+  await new Promise((r) => setTimeout(r, 800));
+  const out = { shown: {} };
+  for (const h of document.querySelectorAll(${JSON.stringify(titleSelector)})) {
+    out.shown[h.textContent.trim()] = getComputedStyle(h.closest("li")).display !== "none";
+  }
+  out.hiddenTags = [...document.querySelectorAll("[data-sv-cb-hidden]")].map((e) => e.tagName);
+  document.getElementById("RESULTS").textContent = "<<<" + JSON.stringify(out) + ">>>";
+})();
+</script></body></html>`;
+
+// What every tile case asserts beyond the shared checks.
+function checkTiles(id, r) {
+  eq(r.marked, 5, `${id}: one mark per tile, none on the grid's rows`);
+  eq(r.noticeIn, id === "duckduckgo-images" ? "zci-images" : "zci-videos", `${id}: the notice sits at the top of the grid`);
+  eq(r.colourStyle.outline, "solid 3px", `${id}: a colour is a ring around the tile`);
+  // Outside the tile, not inside: on the live Videos tab the card inside is
+  // positioned and opaque, and it painted straight over an inset ring.
+  eq(r.colourStyle.offset, "1px", `${id}: the ring sits just outside the tile`);
+  eq(r.colourStyle.paddingLeft, "0px", `${id}: and never the padding that shifts a row of text`);
+  eq(r.markerBesideTitle, true, `${id}: the marker sits beside the title, not over the thumbnail`);
+}
+
+// The whole tile goes, picture and all; before, only the caption did.
+function checkBlocklist(id, r) {
+  eq(r.shown["Blocked Site"], false, `${id}: the blocked site's tile is hidden`);
+  eq(r.hiddenTags.join(","), "LI", `${id}: the tile itself is what is hidden, not its caption`);
+  for (const title of ["Harvard", "torvalds/linux", "Cheap Deals", "MDN"]) {
+    eq(r.shown[title], true, `${id}: ${title} is left alone`);
+  }
+}
+
 const CASES = [
   { id: "google", host: "www.google.com", url: "/search?q=test", body: GOOGLE },
   { id: "bing", host: "www.bing.com", url: "/search?q=test", body: BING },
   { id: "duckduckgo", host: "duckduckgo.com", url: "/?q=test", body: DDG },
+  {
+    id: "duckduckgo-images", host: "duckduckgo.com", url: "/?q=test&ia=images&iax=images",
+    body: page("example at DuckDuckGo", IMAGES_GRID, "h3"), tiles: true,
+  },
+  {
+    id: "duckduckgo-videos", host: "duckduckgo.com", url: "/?q=test&ia=videos&iax=videos",
+    body: page("example at DuckDuckGo", VIDEOS_GRID, "h2"), tiles: true,
+  },
+  {
+    // Searched first, Images clicked after: the way most people get there.
+    id: "duckduckgo-tab-switch", host: "duckduckgo.com", url: "/?q=test&ia=web", body: DDG_TAB_SWITCH,
+    check: (r) => {
+      const t = r.byTitle || {};
+      eq(r.threw, undefined, `duckduckgo-tab-switch: page threw: ${r.threw}`);
+      eq(t.Harvard, "c1", "duckduckgo-tab-switch: the image grid is filtered after the switch");
+      eq(t["Cheap Deals"], "hidden", "duckduckgo-tab-switch: a hide rule applies to the new tab");
+      eq(t["Blocked Site"], "hidden", "duckduckgo-tab-switch: and so does the Blocked list");
+      eq(t.MDN, "seen", "duckduckgo-tab-switch: an unmatched tile is left alone");
+      eq(r.notices, 1, "duckduckgo-tab-switch: one notice, not one per tab");
+      eq(r.noticeIn, "zci-images", "duckduckgo-tab-switch: and it is the Images tab's");
+      eq(r.notice, "Sieve hid 2 results", "duckduckgo-tab-switch: counting this tab, not the web results left behind");
+    },
+  },
+  {
+    id: "duckduckgo-images-blocklist", host: "duckduckgo.com", url: "/?q=test&ia=images&iax=images&cb=1",
+    body: BLOCKLIST_PAGE(IMAGES_GRID, "h3"), check: (r) => checkBlocklist("duckduckgo-images-blocklist", r),
+  },
+  {
+    id: "duckduckgo-videos-blocklist", host: "duckduckgo.com", url: "/?q=test&ia=videos&iax=videos&cb=1",
+    body: BLOCKLIST_PAGE(VIDEOS_GRID, "h2"), check: (r) => checkBlocklist("duckduckgo-videos-blocklist", r),
+  },
 ];
 
 // www.bing.com is in Chrome's HSTS preload list, so it refuses plain HTTP no
@@ -278,7 +430,8 @@ const SCHEME = tls ? "https" : "http";
 
 const handler = ((req, res) => {
   const host = String(req.headers.host || "").split(":")[0];
-  const match = CASES.find((c) => c.host === host);
+  // Several cases share duckduckgo.com, so the address picks the page.
+  const match = CASES.find((c) => c.host === host && c.url === req.url) || CASES.find((c) => c.host === host);
   const urlPath = req.url.split("?")[0];
   // Anything under /common or /content is a real extension file; everything
   // else on a mapped host is that engine's results page.
@@ -339,10 +492,16 @@ const eq = (actual, expected, message) => {
 server.listen(0, "127.0.0.1", async () => {
   const { port } = server.address();
   try {
-    const running = tls ? CASES : CASES.filter((c) => c.id !== "bing");
+    // SF_ONLY=duckduckgo-images runs one page, for working on one engine.
+    const running = (tls ? CASES : CASES.filter((c) => c.id !== "bing"))
+      .filter((c) => !process.env.SF_ONLY || c.id === process.env.SF_ONLY);
     if (!tls) console.log("search-filter-serp: NOTE — openssl not found, skipping Bing (needs TLS for HSTS)");
     for (const kase of running) {
       const r = await run(kase, port);
+      if (kase.check) {
+        kase.check(r);
+        continue;
+      }
       const t = r.byTitle || {};
       eq(r.threw, undefined, `${kase.id}: page threw: ${r.threw}`);
 
@@ -406,9 +565,11 @@ server.listen(0, "127.0.0.1", async () => {
         // article nested in li: the innermost must win, so 6 results not 12.
         eq(r.marked, 6, "duckduckgo: nested article/li must count once each");
         eq(t.Yale, "c1", "duckduckgo: a /l/?uddg= redirect should be unwrapped");
+        eq(r.colourStyle.paddingLeft, "10px", "duckduckgo: a row of text keeps its colour bar");
       }
+      if (kase.tiles) checkTiles(kase.id, r);
     }
-    console.log(`search-filter-serp: ${checks} checks passed across ${running.length} engines`);
+    console.log(`search-filter-serp: ${checks} checks passed across ${running.length} pages`);
   } catch (err) {
     console.error(err.message);
     process.exitCode = 1;

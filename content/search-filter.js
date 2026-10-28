@@ -11,7 +11,8 @@
 //      Listing google.co.uk, google.de, google.com.au … in the manifest instead
 //      would still miss whichever one the next user happens to use.
 //
-//      Supported engines: Google, Bing, DuckDuckGo.
+//      Supported engines: Google, Bing, DuckDuckGo (web results, and its
+//      Images and Videos tabs).
 //
 //   2. It fails visible. Every unknown case leaves the result alone. A missed
 //      rule is a result you still see; an over-eager one is a result you never
@@ -77,6 +78,19 @@
   //           redirector, so the href is useless until it is unwrapped.
   //   cite    OPTIONAL. The visible source line, used only when `resolve`
   //           cannot recover a URL.
+  //   tiles   OPTIONAL. Results are tiles in a grid (pictures, videos), not
+  //           rows of text: a colour is drawn as a ring instead of a bar that
+  //           shifts the result sideways, and the "why?" marker sits beside
+  //           the title instead of pushing the thumbnail aside.
+
+  // DuckDuckGo keeps every tab at "/" with a ?q=, and says which tab in ia=
+  // (and iax=, once the tab has been opened rather than linked to).
+  function ddgTab(tab) {
+    if (!/^(www\.)?duckduckgo\.com$/.test(location.hostname)) return false;
+    const params = new URLSearchParams(location.search);
+    return params.has("q") && (params.get("iax") === tab || params.get("ia") === tab);
+  }
+
   const ENGINES = [
     {
       id: "google",
@@ -130,7 +144,39 @@
       noticeAnchor: "#b_results",
     },
     {
+      // DuckDuckGo's Images tab (read off the live page, October 2026). A tile
+      // is an <li> holding a <figure>: the thumbnail, which comes from
+      // DuckDuckGo's own image proxy and so names nothing, and a caption whose
+      // link and <h3> are the page the picture is from. The grid's rows are
+      // <li>s as well, but each holds several <h3>s, so only a tile counts as a
+      // result. Every class name is a hash that changes between releases; the
+      // data-testid is the one stable handle.
+      id: "duckduckgo-images",
+      test: () => ddgTab("images"),
+      roots: ["[data-testid='zci-images']"],
+      blocks: "li",
+      anchor: "a[href]",
+      title: "h3",
+      self: /(^|\.)duckduckgo\.com$/,
+      tiles: true,
+      noticeAnchor: "[data-testid='zci-images']",
+    },
+    {
+      // DuckDuckGo's Videos tab: an <li> per video, the whole card one link to
+      // the video's page, and an <h2> for its title.
+      id: "duckduckgo-videos",
+      test: () => ddgTab("videos"),
+      roots: ["[data-testid='zci-videos']"],
+      blocks: "li",
+      anchor: "a[href]",
+      title: "h2",
+      self: /(^|\.)duckduckgo\.com$/,
+      tiles: true,
+      noticeAnchor: "[data-testid='zci-videos']",
+    },
+    {
       // DuckDuckGo serves results from "/" with a ?q=, not from a /search path.
+      // Listed after its Images and Videos tabs, which this test also matches.
       id: "duckduckgo",
       test: () =>
         /^(www\.|html\.|lite\.)?duckduckgo\.com$/.test(location.hostname) &&
@@ -158,13 +204,21 @@
     },
   ];
 
-  const engine = ENGINES.find((e) => {
-    try {
-      return e.test();
-    } catch (_) {
-      return false;
-    }
-  });
+  function pickEngine() {
+    return (
+      ENGINES.find((e) => {
+        try {
+          return e.test();
+        } catch (_) {
+          return false;
+        }
+      }) || null
+    );
+  }
+
+  // `let`, not `const`: DuckDuckGo changes tab without loading a new page, so
+  // the engine can change under a running script. See followTabs().
+  let engine = pickEngine();
   if (!engine) return; // not a search page — the overwhelmingly common case
 
   // --- state --------------------------------------------------------------
@@ -313,6 +367,16 @@
       `#${POPOVER_ID} .sv-sf-primary:hover{opacity:.86}`,
     ];
     palette.forEach((color, i) => {
+      // A tile in a grid gets a ring: the bar below is made with padding and a
+      // negative margin, which in a grid would pull the tile out of line with
+      // its neighbours, and a wash is lost behind a picture anyway. The ring
+      // sits just OUTSIDE the tile, in the gap. Inside it was invisible on the
+      // live Videos tab: the card within is position:relative with an opaque
+      // background, and a positioned child paints over its parent's outline.
+      if (engine.tiles) {
+        rules.push(`[${MARK}="c${i + 1}"]{outline:3px solid ${color} !important;outline-offset:1px;border-radius:8px}`);
+        return;
+      }
       // Each colour is used twice: a faint wash behind the result, and the full
       // strength as a bar down its left edge. Alpha rather than a pale shade of
       // the same colour, because the results page can be light or dark — a
@@ -643,7 +707,10 @@
     marker.innerHTML = SIEVE_SVG;
     marker.title = "Why did Sieve change this result?";
     marker.setAttribute("aria-label", "Why did Sieve change this result?");
-    block.insertBefore(marker, block.firstChild);
+    // On a tile the block's first child is the thumbnail, which a float would
+    // push aside; beside the title it only shortens the caption's lines.
+    if (engine.tiles) titleEl.parentElement.insertBefore(marker, titleEl);
+    else block.insertBefore(marker, block.firstChild);
   }
 
   // Handled at the document, in the CAPTURE phase, so nothing the search engine
@@ -663,8 +730,43 @@
 
   // --- applying -----------------------------------------------------------
 
+  // DuckDuckGo moves between its All, Images and Videos tabs without loading a
+  // new page, and keeps the tab it left in the page, hidden. So the engine is
+  // chosen again whenever the address changes, and the count and its notice
+  // start over for the tab now showing: the old notice lives in the old tab's
+  // results, and updating it would be updating something nobody can see. A
+  // user who searches first and then clicks Images would otherwise get no
+  // filtering at all. Everywhere else the address does not change under a
+  // results page, and this is one string comparison.
+  let engineHref = location.href;
+
+  function followTabs() {
+    if (location.href === engineHref) return;
+    engineHref = location.href;
+    const next = pickEngine();
+    if (!next || next === engine) return;
+    engine = next;
+    const notice = document.getElementById(NOTICE_ID);
+    if (notice) notice.remove();
+    document.documentElement.classList.remove(REVEAL_CLASS);
+    hiddenCount = countHidden(); // a tab visited before keeps what it hid
+    applyStyles();
+  }
+
+  // Results already hidden under the current engine's roots. A Set, because on
+  // Google the roots nest and the same result is reachable from two of them.
+  function countHidden() {
+    const seen = new Set();
+    for (const selector of engine.roots) {
+      const root = document.querySelector(selector);
+      if (root) for (const el of root.querySelectorAll(`[${MARK}="hidden"]`)) seen.add(el);
+    }
+    return seen.size;
+  }
+
   function process() {
     if (!enabled) return;
+    followTabs();
     let changed = false;
     for (const { block, url, title } of collectBlocks()) {
       const verdict = window.SieveSearchFilter.explain(compiled, url, title);
