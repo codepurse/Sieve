@@ -30,6 +30,9 @@
   window.__sieveSearchFilter = true;
 
   const MARK = "data-sv-sf"; // marks a block we've already looked at
+  // Where background/search-filter-subscriptions.js keeps subscribed lists.
+  const SUBS_KEY = "searchFilterSubscriptions";
+  const SUBS_DATA_PREFIX = "searchFilterSub:";
   const STYLE_ID = "sv-sf-style";
   const NOTICE_ID = "sv-sf-notice";
   const REVEAL_CLASS = "sv-sf-reveal"; // on <html> while hidden results are shown
@@ -533,7 +536,20 @@
   // Where the rule came from. A user who never wrote ".cyou" in this list needs
   // to be told it came from their Blocked list, or they will hunt for it here.
   function ruleOrigin(rule) {
+    if (rule.source === "list") return `List: ${rule.listName}`;
     return rule.source === "blocked" ? "Blocked sites" : "Search Result Filter";
+  }
+
+  // "2 of 5": how many of the user's OWN rules matched. A subscribed list adds
+  // thousands of entries the user never wrote, so those are counted apart
+  // rather than swelling the total until the fraction says nothing.
+  function matchCount(matched) {
+    const own = matched.filter((rule) => rule.source !== "list").length;
+    const fromLists = matched.length - own;
+    const ownTotal = compiled.filter((rule) => rule.source !== "list").length;
+    const lists = `${fromLists} from ${fromLists === 1 ? "a list" : "lists"}`;
+    if (!fromLists) return `${own} of ${ownTotal}`;
+    return own ? `${own} of ${ownTotal} · ${lists}` : lists;
   }
 
   // HOW the rule matched. "example.com" and "/example/" both catch the same
@@ -618,7 +634,7 @@
     // --- the rules ----------------------------------------------------------
     const heading = el("div", "sv-sf-heading");
     heading.append(el("span", null, verdict.matched.length === 1 ? "Matching rule" : "Matching rules"));
-    heading.append(el("span", "sv-sf-count", `${verdict.matched.length} of ${compiled.length}`));
+    heading.append(el("span", "sv-sf-count", matchCount(verdict.matched)));
     popover.append(heading);
 
     const list = el("ul", "sv-sf-rules");
@@ -883,7 +899,21 @@
         rules.push({ pattern: domain, color: window.SieveSearchFilter.HIDE, source: "blocked" });
       }
     }
-    compiled = window.SieveSearchFilter.compile(rules);
+    compiled = window.SieveSearchFilter.compile(rules, enabled ? await loadLists() : []);
+  }
+
+  // Subscribed lists (background/search-filter-subscriptions.js): the small
+  // metadata first, then the stored rules of only the lists switched on. Only
+  // ever read here, on a results page, which is why the total is capped there.
+  async function loadLists() {
+    const { [SUBS_KEY]: subs } = await chrome.storage.local.get({ [SUBS_KEY]: [] });
+    const active = (Array.isArray(subs) ? subs : []).filter((s) => s && s.enabled !== false && s.updatedAt);
+    if (!active.length) return [];
+    const data = await chrome.storage.local.get(active.map((s) => SUBS_DATA_PREFIX + s.id));
+    return active.map((s) => {
+      const stored = data[SUBS_DATA_PREFIX + s.id] || {};
+      return { name: s.name, color: s.color, hosts: stored.hosts || "", patterns: stored.patterns || [] };
+    });
   }
 
   async function apply() {
@@ -920,7 +950,9 @@
       changes.searchFilterColors ||
       changes.searchFilterHideBlocked ||
       changes.searchFilterHideCount ||
-      changes.customBlocks
+      changes.customBlocks ||
+      changes[SUBS_KEY] ||
+      Object.keys(changes).some((key) => key.startsWith(SUBS_DATA_PREFIX))
     ) {
       apply();
     }

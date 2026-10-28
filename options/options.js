@@ -578,6 +578,9 @@ function optionsDefaults() {
     searchFilterColors: [],
     searchFilterHideBlocked: true,
     searchFilterHideCount: false,
+    // Subscribed lists' metadata only; each list's rules live under their own
+    // key, which this page never reads (background/search-filter-subscriptions.js).
+    searchFilterSubscriptions: [],
     // Dark Pattern Blocker — master + cookie-autoreject tally (per-type keys added below)
     darkPatternsEnabled: true,
     cookieAutoRejectStats: null,
@@ -2381,6 +2384,36 @@ function setupDsCountdown(store) {
 // against both a light and a dark results page.
 const SF_DEFAULT_COLORS = ["#2ea043", "#3b82f6", "#f59e0b"];
 const SF_HIDE = 0;
+const SF_SUBS_MESSAGE = "SIEVE_SF_SUBS"; // background/search-filter-subscriptions.js
+
+// "3 h ago". Coarse on purpose: a list is checked once a day.
+function sfAgo(timestamp) {
+  const minutes = Math.round((Date.now() - timestamp) / 60000);
+  if (minutes < 1) return "just now";
+  if (minutes < 60) return `${minutes} min ago`;
+  const hours = Math.round(minutes / 60);
+  if (hours < 24) return `${hours} h ago`;
+  const days = Math.round(hours / 24);
+  return `${days} day${days === 1 ? "" : "s"} ago`;
+}
+
+// The line under a list's name: what it holds and how fresh it is, or why the
+// last update failed — and that the rules from before still apply.
+function sfSubStatus(sub) {
+  if (sub.error) {
+    return sub.updatedAt
+      ? `Couldn't update: ${sub.error}. Still using the copy from ${sfAgo(sub.updatedAt)}.`
+      : `Couldn't update: ${sub.error}.`;
+  }
+  const count = (n, one, many) => `${n.toLocaleString("en-US")} ${n === 1 ? one : many}`;
+  const parts = [count(sub.hostCount || 0, "site", "sites")];
+  if (sub.patternCount) parts.push(count(sub.patternCount, "pattern", "patterns"));
+  if (sub.skipped) parts.push(`${count(sub.skipped, "line", "lines")} skipped`);
+  if (sub.truncated) parts.push("cut off at 500,000 entries");
+  if (sub.updatedAt) parts.push(`updated ${sfAgo(sub.updatedAt)}`);
+  if (sub.enabled === false) parts.push("off");
+  return parts.join(" · ");
+}
 
 function sfEl(tag, className, text) {
   const node = document.createElement(tag);
@@ -2475,6 +2508,7 @@ function setupSearchFilter(store) {
         colors[i] = picker.value;
         saveColors();
         renderRules(); // the row swatches use these colours
+        renderSubs();
       });
 
       const removeBtn = sfEl("button", "remove", "✕");
@@ -2488,24 +2522,33 @@ function setupSearchFilter(store) {
     });
     if (!colors.length) paletteEl.append(sfEl("p", "empty", "No colours yet — every rule can only hide."));
     renderAddSelect();
+    renderSubs();
   }
 
-  // Removing a colour that rules still point at would quietly change what those
-  // rules do, so it is refused with the count instead. Renumbering the survivors
-  // would be worse: every rule below the gap would silently change colour.
+  // Removing a colour that rules or lists still point at would quietly change
+  // what they do, so it is refused with the count instead. Renumbering the
+  // survivors would be worse: everything below the gap would change colour.
   function removeColor(index) {
     const colorIndex = index + 1;
-    const inUse = rules.filter((r) => r.color === colorIndex).length;
-    if (inUse > 0) {
+    const rulesUsing = rules.filter((r) => r.color === colorIndex).length;
+    const listsUsing = subs.filter((s) => Number(s.color) === colorIndex).length;
+    if (rulesUsing + listsUsing > 0) {
+      const what = [];
+      if (rulesUsing) what.push(`${rulesUsing} ${rulesUsing === 1 ? "rule" : "rules"}`);
+      if (listsUsing) what.push(`${listsUsing} ${listsUsing === 1 ? "list" : "lists"}`);
       paletteError.textContent =
-        `${sfColorLabel(colorIndex)} is used by ${inUse} ${inUse === 1 ? "rule" : "rules"}. ` +
-        `Change ${inUse === 1 ? "it" : "them"} first.`;
+        `${sfColorLabel(colorIndex)} is used by ${what.join(" and ")}. ` +
+        `Change ${rulesUsing + listsUsing === 1 ? "it" : "them"} first.`;
       return;
     }
     paletteError.textContent = "";
     colors.splice(index, 1);
-    // Rules above the gap shift down with it, so they keep the colour they show.
+    // Rules and lists above the gap shift down with it, so they keep the
+    // colour they show.
     rules = rules.map((r) => (r.color > colorIndex ? { ...r, color: r.color - 1 } : r));
+    for (const sub of subs) {
+      if (Number(sub.color) > colorIndex) askSubs({ action: "update", id: sub.id, changes: { color: Number(sub.color) - 1 } });
+    }
     saveColors();
     saveRules();
     renderPalette();
@@ -2612,9 +2655,138 @@ function setupSearchFilter(store) {
     errorEl.textContent = "";
   });
 
+  // --- subscribed lists ---------------------------------------------------
+  //
+  // The service worker downloads, stores and refreshes them; this page asks it
+  // to and draws what it writes to searchFilterSubscriptions. Subscribing hides
+  // more, so it is free. Unsubscribing, switching a list off, or turning a Hide
+  // list into a colour brings results back, so those ask for the lock.
+  const subUrl = document.getElementById("sf-sub-url");
+  const subColor = document.getElementById("sf-sub-color");
+  const subAdd = document.getElementById("sf-sub-add");
+  const subError = document.getElementById("sf-sub-error");
+  const subList = document.getElementById("sf-sub-list");
+  let subs = Array.isArray(store.searchFilterSubscriptions) ? store.searchFilterSubscriptions : [];
+  const askSubs = (message) => chrome.runtime.sendMessage({ type: SF_SUBS_MESSAGE, ...message });
+
+  function renderSubColor() {
+    const previous = subColor.value;
+    subColor.textContent = "";
+    for (const index of [SF_HIDE, ...colors.map((_, i) => i + 1)]) {
+      const option = document.createElement("option");
+      option.value = String(index);
+      option.textContent = sfColorLabel(index);
+      subColor.append(option);
+    }
+    if (previous && [...subColor.options].some((o) => o.value === previous)) subColor.value = previous;
+  }
+
+  function renderSubs() {
+    if (!subList) return;
+    renderSubColor();
+    subList.textContent = "";
+    if (!subs.length) {
+      subList.append(sfEl("li", "empty", "No lists yet."));
+      return;
+    }
+    for (const sub of subs) {
+      const color = Number(sub.color) || SF_HIDE;
+      const li = sfEl("li", "sf-rule sf-sub");
+      li.classList.toggle("is-off", sub.enabled === false);
+
+      const swatch = sfEl("span", "sf-swatch");
+      sfPaintSwatch(swatch, color, colors);
+
+      const text = sfEl("div", "sf-sub-text");
+      text.append(sfEl("span", "sf-sub-name", sub.name));
+      text.append(sfEl("span", sub.error ? "sf-sub-meta is-error" : "sf-sub-meta", sfSubStatus(sub)));
+      text.append(sfEl("span", "sf-sub-url", sub.url));
+
+      const select = sfBuildSelect(colors, color);
+      select.setAttribute("aria-label", `What to do with results from ${sub.name}`);
+      select.addEventListener("change", async () => {
+        const next = Number(select.value);
+        if (color === SF_HIDE && next !== SF_HIDE) {
+          if (!(await SieveGuardian.confirmUnlock(`Stop hiding results from ${sub.name}`))) {
+            select.value = String(color);
+            return;
+          }
+        }
+        askSubs({ action: "update", id: sub.id, changes: { color: next } });
+      });
+
+      const update = sfEl("button", "btn btn-quiet", "Update");
+      update.type = "button";
+      update.setAttribute("aria-label", `Update ${sub.name} now`);
+      update.addEventListener("click", async () => {
+        update.disabled = true;
+        update.textContent = "Updating…";
+        await askSubs({ action: "refresh", id: sub.id });
+        update.disabled = false;
+        update.textContent = "Update";
+      });
+
+      const toggle = sfEl("label", "switch");
+      const toggleInput = document.createElement("input");
+      toggleInput.type = "checkbox";
+      toggleInput.checked = sub.enabled !== false;
+      toggleInput.setAttribute("aria-label", `Use ${sub.name}`);
+      toggle.append(toggleInput, sfEl("span", "slider"));
+      toggleInput.addEventListener("change", async () => {
+        if (!(await SieveGuardian.gateToggleOff(toggleInput, `Turn off the list ${sub.name}`))) return;
+        askSubs({ action: "update", id: sub.id, changes: { enabled: toggleInput.checked } });
+      });
+
+      const remove = sfEl("button", "remove", "✕");
+      remove.type = "button";
+      remove.title = `Unsubscribe from ${sub.name}`;
+      remove.setAttribute("aria-label", `Unsubscribe from ${sub.name}`);
+      remove.addEventListener("click", async () => {
+        if (!(await SieveGuardian.confirmUnlock(`Unsubscribe from ${sub.name}`))) return;
+        askSubs({ action: "remove", id: sub.id });
+      });
+
+      li.append(swatch, text, select, update, toggle, remove);
+      subList.append(li);
+    }
+  }
+
+  async function subscribe() {
+    const url = subUrl.value.trim();
+    subError.textContent = "";
+    if (!/^https?:\/\/\S+/i.test(url)) {
+      subError.textContent = "Enter the full address of the list, starting with https://";
+      return;
+    }
+    subAdd.disabled = true;
+    subAdd.textContent = "Subscribing…";
+    try {
+      const result = await askSubs({ action: "add", url, color: Number(subColor.value) || SF_HIDE });
+      if (result && result.ok) subUrl.value = "";
+      else subError.textContent = (result && result.error) || "Could not subscribe to that list.";
+    } finally {
+      subAdd.disabled = false;
+      subAdd.textContent = "Subscribe";
+    }
+  }
+
+  if (subAdd) {
+    subAdd.addEventListener("click", subscribe);
+    subUrl.addEventListener("keydown", (e) => {
+      if (e.key === "Enter") subscribe();
+    });
+    subUrl.addEventListener("input", () => {
+      subError.textContent = "";
+    });
+  }
+
   // Keep a second settings tab (and the popup) in step.
   chrome.storage.onChanged.addListener((changes, area) => {
     if (area !== "local") return;
+    if (changes.searchFilterSubscriptions) {
+      subs = changes.searchFilterSubscriptions.newValue || [];
+      renderSubs();
+    }
     if (changes.searchFilterColors) {
       colors = changes.searchFilterColors.newValue || [];
       renderPalette();
@@ -2635,6 +2807,7 @@ function setupSearchFilter(store) {
 
   renderPalette();
   renderRules();
+  renderSubs();
 }
 
 // ===========================================================================

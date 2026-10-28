@@ -23,6 +23,11 @@
 //     /example\.(net|org)/ a regex over the whole URL
 //     title/Example/       a regex over the result's title
 //
+// Subscribed lists arrive alongside the rules (see compile): each list's sites
+// are one packed index (common/host-index.js), looked up per result rather than
+// walked, and its few non-site rules compile like any other, remembering which
+// list they came from.
+//
 // This module is pure: no storage, no DOM. It is loaded in the settings page and
 // in the content script, and both must agree about what a rule means.
 
@@ -109,32 +114,53 @@
   // A rule that no longer compiles is dropped rather than thrown: one bad line
   // in a long list should not stop the other lines working.
   // `source` is carried through untouched so the page can say WHERE a rule came
-  // from — the user's own list, or the global Blocked list, which is the whole
-  // point of being able to ask "why did this disappear?".
-  function compile(rules) {
+  // from — the user's own list, the global Blocked list, or a subscribed list
+  // (with its name), which is the whole point of being able to ask "why did
+  // this disappear?".
+  //
+  // `lists` are subscribed lists: [{ name, color, hosts, patterns }], where
+  // hosts is a packed string (common/host-index.js) and patterns the list's
+  // non-site rules. A list's sites become ONE "hostset" matcher, however many
+  // thousands there are.
+  function compile(rules, lists) {
     const out = [];
     for (const rule of rules || []) {
-      const pattern = String((rule && rule.pattern) || "").trim();
-      if (!pattern) continue;
-      const color = Number(rule.color) || HIDE;
-      const source = (rule && rule.source) || "rule";
-      if (typeof KeywordPattern === "undefined") {
-        out.push({ pattern, source, color, kind: "wildcard", ...parseWildcard(pattern) });
-        continue;
+      const compiled = compileOne(rule && rule.pattern, Number(rule && rule.color) || HIDE, (rule && rule.source) || "rule");
+      if (compiled) out.push(compiled);
+    }
+    for (const list of lists || []) {
+      if (!list) continue;
+      const color = Number(list.color) || HIDE;
+      const listName = String(list.name || "a subscribed list");
+      if (list.hosts && typeof SieveHostIndex !== "undefined") {
+        const index = SieveHostIndex.createHostIndex(list.hosts);
+        if (index.size) out.push({ pattern: listName, source: "list", listName, color, kind: "hostset", index });
       }
-      const compiled = KeywordPattern.compileListEntry(pattern);
-      // "tld" is a wildcard as far as this module is concerned: KeywordPattern
-      // splits ".edu" out as its own kind because a whole domain ending needs
-      // different treatment in the NETWORK rules, where matching every request
-      // on every site would be ruinous. Here there is one hostname per result
-      // to test, and hostMatches() already reads a leading dot as an ending.
-      if (compiled.kind === "wildcard" || compiled.kind === "tld") {
-        out.push({ pattern, source, color, kind: "wildcard", ...parseWildcard(pattern) });
-      } else if (compiled.regex) {
-        out.push({ pattern, source, color, kind: compiled.kind, regex: compiled.regex });
+      for (const pattern of list.patterns || []) {
+        const compiled = compileOne(pattern, color, "list");
+        if (compiled) out.push({ ...compiled, listName });
       }
     }
     return out;
+  }
+
+  function compileOne(rawPattern, color, source) {
+    const pattern = String(rawPattern || "").trim();
+    if (!pattern) return null;
+    if (typeof KeywordPattern === "undefined") {
+      return { pattern, source, color, kind: "wildcard", ...parseWildcard(pattern) };
+    }
+    const compiled = KeywordPattern.compileListEntry(pattern);
+    // "tld" is a wildcard as far as this module is concerned: KeywordPattern
+    // splits ".edu" out as its own kind because a whole domain ending needs
+    // different treatment in the NETWORK rules, where matching every request
+    // on every site would be ruinous. Here there is one hostname per result
+    // to test, and hostMatches() already reads a leading dot as an ending.
+    if (compiled.kind === "wildcard" || compiled.kind === "tld") {
+      return { pattern, source, color, kind: "wildcard", ...parseWildcard(pattern) };
+    }
+    if (compiled.regex) return { pattern, source, color, kind: compiled.kind, regex: compiled.regex };
+    return null;
   }
 
   function ruleMatches(rule, url, host, path, title) {
@@ -172,7 +198,16 @@
 
     const matched = [];
     for (const rule of compiled) {
-      if (ruleMatches(rule, url, host, path, title)) matched.push(rule);
+      if (rule.kind === "hostset") {
+        // Reported as the entry that matched, read like a site rule, so the
+        // page can say "example.com, from <list>" rather than just the list.
+        const hit = rule.index.find(host);
+        if (hit) {
+          matched.push({ pattern: hit, host: hit, path: "", kind: "wildcard", color: rule.color, source: rule.source, listName: rule.listName });
+        }
+      } else if (ruleMatches(rule, url, host, path, title)) {
+        matched.push(rule);
+      }
     }
 
     let winner = null;

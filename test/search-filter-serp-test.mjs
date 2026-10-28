@@ -55,7 +55,12 @@ const SETTINGS = `
   };
   window.chrome = {
     storage: {
-      local: { get: (defs) => { const o = {}; for (const k of Object.keys(defs)) o[k] = k in store ? store[k] : defs[k]; return Promise.resolve(o); } },
+      local: { get: (keys) => {
+        const o = {};
+        if (Array.isArray(keys)) { for (const k of keys) if (k in store) o[k] = store[k]; return Promise.resolve(o); }
+        for (const k of Object.keys(keys)) o[k] = k in store ? store[k] : keys[k];
+        return Promise.resolve(o);
+      } },
       onChanged: { addListener() {} }
     },
     runtime: { getURL: (p) => "/" + p }
@@ -66,6 +71,7 @@ const SETTINGS = `
 const REPORTER = (titleSelector, settleMs = 400) => `
 <pre id="RESULTS"></pre>
 <script src="/common/keyword-pattern.js"></script>
+<script src="/common/host-index.js"></script>
 <script src="/common/search-filter.js"></script>
 <script src="/content/search-filter.js"></script>
 <script>
@@ -141,6 +147,7 @@ const REPORTER = (titleSelector, settleMs = 400) => `
       .find((el) => { const h = el.querySelector(${JSON.stringify(titleSelector)}); return h && h.textContent.trim() === txt; });
     out.multi = await readPopover(titleIs("Harvard"));
     out.fromList = await readPopover(titleIs("Blocked Site"));
+    out.fromSubscription = await readPopover(titleIs("MDN")); // only marked on the list page
 
     const hiddenBlock = document.querySelector('[data-sv-sf="hidden"]');
     const marker = hiddenBlock && hiddenBlock.querySelector(".sv-sf-why");
@@ -407,6 +414,32 @@ const CASES = [
       eq(t["Blocked Site"], "hidden", "duckduckgo-no-count: including the Blocked list's");
       eq(t.Harvard, "c1", "duckduckgo-no-count: colours still apply");
       eq(r.notices, 0, "duckduckgo-no-count: no count on the page");
+    },
+  },
+  {
+    // A subscribed list, as background/search-filter-subscriptions.js stores
+    // one: metadata in one key, the packed sites in another. MDN's host is a
+    // subdomain of the listed mozilla.org, so the index's parent lookup is what
+    // catches it.
+    id: "duckduckgo-subscribed-list", host: "duckduckgo.com", url: "/?q=test&sub=1",
+    body: page("example at DuckDuckGo", DDG.match(/<ol class="react-results--main">[\s\S]*?<\/ol>/)[0], "h2", undefined, {
+      searchFilterSubscriptions: [
+        { id: "sub_1", name: "Spam list", color: 0, enabled: true, updatedAt: 1 },
+        { id: "sub_2", name: "Switched off", color: 0, enabled: false, updatedAt: 1 },
+      ],
+      "searchFilterSub:sub_1": { hosts: "mozilla.org\nspam.example", patterns: [] },
+      "searchFilterSub:sub_2": { hosts: "harvard.edu", patterns: [] },
+    }),
+    check: (r) => {
+      const t = r.byTitle || {};
+      eq(r.threw, undefined, `duckduckgo-subscribed-list: page threw: ${r.threw}`);
+      eq(t.MDN, "hidden", "duckduckgo-subscribed-list: a site on the list is hidden, subdomains included");
+      eq(t.Harvard, "c1", "duckduckgo-subscribed-list: a list that is switched off does nothing");
+      eq(r.notice, "Sieve hid 3 results", "duckduckgo-subscribed-list: the count includes what the list hid");
+      eq(r.fromSubscription.rules.join(","), "mozilla.org", "duckduckgo-subscribed-list: the popover names the entry");
+      eq(r.fromSubscription.effects.join(","), "Domain · Hide · List: Spam list",
+        "duckduckgo-subscribed-list: and the list it came from");
+      eq(r.fromSubscription.count, "1 from a list", "duckduckgo-subscribed-list: counted apart from the user's own rules");
     },
   },
   {
