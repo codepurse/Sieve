@@ -155,7 +155,24 @@ jobs:
           # every page, so an on-demand half would be fetched almost always.
           # The next addition should load on demand, or this becomes a decision
           # again.
-          $TOP_FRAME_BUDGET = 160000
+          #
+          # RAISED from 160,000, as that decision (October 2026). Subscribed
+          # lists for the Search Result Filter added common/host-index.js (2 KB)
+          # and the notice's "By site" list another 1.3 KB, which took the
+          # top-frame figure to 160,029 -- 29 bytes over. 165,000 leaves about
+          # 3% headroom: room for a fix, not for a feature.
+          #
+          # When it is hit again, the search filter is the place to look. It is
+          # 37 KB of this figure (content/search-filter.js 30 KB,
+          # common/search-filter.js 5 KB, host-index.js 2 KB) and does nothing
+          # off a results page. It is <all_urls> so no Google country domain is
+          # missed, but Google publishes the full list (187 domains at
+          # https://www.google.com/supported_domains): registering it for those,
+          # Bing and DuckDuckGo would take it off every other page at the same
+          # document_start timing, with no flash of hidden results. Injecting it
+          # from the service worker instead would wait on the worker waking, and
+          # hidden results could show for a moment.
+          $TOP_FRAME_BUDGET = 165000
           $SUBFRAME_BUDGET  = 45000
 
           $manifest = Get-Content "dist\chrome\manifest.json" -Raw | ConvertFrom-Json

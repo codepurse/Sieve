@@ -35,6 +35,7 @@
   const SUBS_DATA_PREFIX = "searchFilterSub:";
   const STYLE_ID = "sv-sf-style";
   const NOTICE_ID = "sv-sf-notice";
+  const SITES_ID = "sv-sf-sites"; // the notice's "By site" list
   const REVEAL_CLASS = "sv-sf-reveal"; // on <html> while hidden results are shown
   const MARKER_CLASS = "sv-sf-why";    // the per-result "why?" button
   const POPOVER_ID = "sv-sf-pop";      // the panel it opens
@@ -239,9 +240,25 @@
     if (uiTheme === "light" || uiTheme === "dark") el.setAttribute("data-theme", uiTheme);
     else el.removeAttribute("data-theme");
   }
+  // What is hidden on the page now: the total the notice states, and the same
+  // results by site for its "By site" list. Changed only through noteHidden(),
+  // noteShown() and recountHidden(), so the two can never disagree.
   let hiddenCount = 0;
+  let hiddenBySite = new Map();
   let observer = null;
   let scheduled = false;
+
+  function noteHidden(host) {
+    hiddenCount++;
+    hiddenBySite.set(host, (hiddenBySite.get(host) || 0) + 1);
+  }
+
+  function noteShown(host) {
+    hiddenCount = Math.max(0, hiddenCount - 1);
+    const left = (hiddenBySite.get(host) || 0) - 1;
+    if (left > 0) hiddenBySite.set(host, left);
+    else hiddenBySite.delete(host);
+  }
 
   // --- styles -------------------------------------------------------------
 
@@ -273,7 +290,18 @@
       // results sneaking back in.
       `.${REVEAL_CLASS} [${MARK}="hidden"]{display:block !important;opacity:.45;` +
         `outline:1px dashed rgba(128,128,128,.6);outline-offset:2px}`,
-      `#${NOTICE_ID}{font:14px/1.5 system-ui,sans-serif;opacity:.8;padding:9px 0;display:flex;gap:8px;align-items:center;list-style:none}`,
+      `#${NOTICE_ID}{font:14px/1.5 system-ui,sans-serif;opacity:.8;padding:9px 0;display:flex;flex-wrap:wrap;gap:8px;align-items:center;list-style:none}`,
+      // "By site": a full-width row under the notice, in the page's own text
+      // colour (results pages are light and dark), scrolling past about ten
+      // sites rather than pushing the results down the page.
+      `#${NOTICE_ID} .sv-sf-sites{flex-basis:100%;max-width:440px;max-height:15em;overflow-y:auto;` +
+        `margin:2px 0 0;padding:4px 0;list-style:none;` +
+        `border-top:1px solid rgba(128,128,128,.35);border-bottom:1px solid rgba(128,128,128,.35)}`,
+      `#${NOTICE_ID} .sv-sf-sites[hidden]{display:none}`,
+      `#${NOTICE_ID} .sv-sf-sites li{display:flex;justify-content:space-between;gap:16px;margin:0;padding:2px 0;` +
+        `font-size:13px;list-style:none}`,
+      `#${NOTICE_ID} .sv-sf-site{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}`,
+      `#${NOTICE_ID} .sv-sf-n{flex:0 0 auto;font-variant-numeric:tabular-nums}`,
       `#${NOTICE_ID} button{font:inherit;cursor:pointer;background:none;border:0;padding:0;` +
         `color:currentColor;text-decoration:underline;text-underline-offset:3px}`,
       `#${NOTICE_ID} button::before{content:"·";display:inline-block;margin-right:8px}`,
@@ -672,7 +700,7 @@
         block.setAttribute(MARK, "seen");
         const own = block.querySelector(`.${MARKER_CLASS}`);
         if (own) own.remove();
-        hiddenCount = Math.max(0, hiddenCount - 1);
+        noteShown(verdict.host);
         closePopover();
         updateNotice();
       });
@@ -766,19 +794,22 @@
     const notice = document.getElementById(NOTICE_ID);
     if (notice) notice.remove();
     document.documentElement.classList.remove(REVEAL_CLASS);
-    hiddenCount = countHidden(); // a tab visited before keeps what it hid
+    recountHidden(); // a tab visited before keeps what it hid
     applyStyles();
   }
 
-  // Results already hidden under the current engine's roots. A Set, because on
-  // Google the roots nest and the same result is reachable from two of them.
-  function countHidden() {
+  // Recount from the page: the results already hidden under the current
+  // engine's roots, by site. A Set, because on Google the roots nest and the
+  // same result is reachable from two of them.
+  function recountHidden() {
     const seen = new Set();
     for (const selector of engine.roots) {
       const root = document.querySelector(selector);
       if (root) for (const el of root.querySelectorAll(`[${MARK}="hidden"]`)) seen.add(el);
     }
-    return seen.size;
+    hiddenCount = 0;
+    hiddenBySite = new Map();
+    for (const el of seen) noteHidden((explanations.get(el) || {}).host || "");
   }
 
   function process() {
@@ -793,7 +824,7 @@
       }
       if (verdict.color === window.SieveSearchFilter.HIDE) {
         block.setAttribute(MARK, "hidden");
-        hiddenCount++;
+        noteHidden(verdict.host);
       } else {
         // Colours beyond the palette would be invisible, so they fall back to
         // the last one the user actually defined rather than doing nothing.
@@ -824,19 +855,61 @@
       notice = document.createElement(/^(OL|UL)$/.test(anchor.tagName) ? "li" : "div");
       notice.id = NOTICE_ID;
       const label = document.createElement("span");
-      const button = document.createElement("button");
-      button.type = "button";
-      button.addEventListener("click", () => {
-        const on = document.documentElement.classList.toggle(REVEAL_CLASS);
-        button.textContent = on ? "Hide them again" : "Show them";
+      label.className = "sv-sf-label";
+      const reveal = noticeButton("sv-sf-reveal", () => {
+        document.documentElement.classList.toggle(REVEAL_CLASS);
+        updateNotice();
       });
-      notice.append(label, button);
+      const sites = document.createElement("ul");
+      sites.id = SITES_ID;
+      sites.className = "sv-sf-sites";
+      sites.hidden = true;
+      const bySite = noticeButton("sv-sf-by-site", () => {
+        sites.hidden = !sites.hidden;
+        updateNotice();
+      });
+      bySite.setAttribute("aria-controls", SITES_ID);
+      notice.append(label, reveal, bySite, sites);
       anchor.insertBefore(notice, anchor.firstChild);
     }
     const revealed = document.documentElement.classList.contains(REVEAL_CLASS);
-    notice.firstChild.textContent =
+    notice.querySelector(".sv-sf-label").textContent =
       `Sieve hid ${hiddenCount} ${hiddenCount === 1 ? "result" : "results"}`;
-    notice.lastChild.textContent = revealed ? "Hide them again" : "Show them";
+    notice.querySelector(".sv-sf-reveal").textContent = revealed ? "Hide them again" : "Show them";
+    const sites = notice.querySelector(".sv-sf-sites");
+    const bySite = notice.querySelector(".sv-sf-by-site");
+    bySite.textContent = sites.hidden ? "By site" : "Hide the list";
+    bySite.setAttribute("aria-expanded", String(!sites.hidden));
+    if (!sites.hidden) renderSites(sites);
+  }
+
+  function noticeButton(className, onClick) {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = className;
+    button.addEventListener("click", onClick);
+    return button;
+  }
+
+  // Which sites were hidden, and how many results each: the most first, then
+  // by name. What was hidden can be seen at a glance without showing any of
+  // it, so a filter that is catching more than it should is noticed without
+  // revealing the results. The list scrolls once it is long (see applyStyles),
+  // and is kept current as more results stream in while it is open.
+  function renderSites(list) {
+    list.textContent = "";
+    const rows = [...hiddenBySite].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]));
+    for (const [host, count] of rows) {
+      const row = document.createElement("li");
+      const site = document.createElement("span");
+      site.className = "sv-sf-site";
+      site.textContent = host || "(no address)";
+      const n = document.createElement("span");
+      n.className = "sv-sf-n";
+      n.textContent = String(count);
+      row.append(site, n);
+      list.append(row);
+    }
   }
 
   // Results arrive in batches as Google streams and re-renders them, so the
@@ -872,6 +945,7 @@
     const notice = document.getElementById(NOTICE_ID);
     if (notice) notice.remove();
     hiddenCount = 0;
+    hiddenBySite = new Map();
   }
 
   // --- settings -----------------------------------------------------------
