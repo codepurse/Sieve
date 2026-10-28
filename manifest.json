@@ -170,6 +170,7 @@
         "<all_urls>"
       ],
       "js": [
+        "common/host-index.js",
         "common/search-filter.js",
         "content/search-filter.js"
       ],

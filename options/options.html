@@ -1251,6 +1251,24 @@
               </div>
 
               <div class="field">
+                <h3 class="field-title">Subscribed lists</h3>
+                <p class="hint">
+                  Lists other people keep, or your own, checked for changes once a day. Paste the
+                  address of the raw file: uBlacklist rulesets, plain lists of sites, hosts files and
+                  AdGuard or uBlock Origin domain rules (<code>||example.com^</code>) all work. A list
+                  can hide or colour results, never bring one back. There are lists to start from at
+                  <a href="https://ublacklist.github.io/rulesets" target="_blank" rel="noopener noreferrer">ublacklist.github.io/rulesets</a>.
+                </p>
+                <div class="add-row">
+                  <input id="sf-sub-url" class="input" type="url" placeholder="https://example.com/list.txt" autocomplete="off" aria-label="Address of a list to subscribe to" />
+                  <select id="sf-sub-color" class="input sf-select" aria-label="What to do with results on the list"></select>
+                  <button id="sf-sub-add" class="btn btn-primary" type="button">Subscribe</button>
+                </div>
+                <p id="sf-sub-error" class="error" role="alert"></p>
+                <ul id="sf-sub-list" class="domain-list sf-rules sf-subs"></ul>
+              </div>
+
+              <div class="field">
                 <h3 class="field-title">Highlight colours</h3>
                 <p class="hint">
                   Each colour is used as a soft tint and an edge, so it reads the same on a light or

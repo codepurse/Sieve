@@ -132,6 +132,10 @@ never to upload anything about you. Specifically:
   malware, and phishing domains) are downloaded so protection stays current.
 - **Optional toxicity model** — if you enable smart toxic-comment detection, that
   on-device model is **downloaded once and cached** for local use.
+- **Lists you subscribe to** — if you add a list to the Search Result Filter, it is
+  downloaded from the address you entered when you subscribe, then checked for
+  changes about once a day. Only you choose these addresses, and they are stored
+  on your device with the list.
 - **Announcement check** — when you open Sieve's settings page, it fetches a small
   public JSON file from the project's GitHub repository to see whether there's an
   optional in-app notice to show (for example, a new feature). It sends no
@@ -141,8 +145,9 @@ never to upload anything about you. Specifically:
 These are all **downloads to your device**. They do not include your identity, your
 browsing history, page content, or any personal information beyond the normal
 network request needed to fetch a file. As with any web request, the host serving
-a file (a blocklist provider, the model host, or GitHub for the announcement) may
-observe your IP address. No user data is sent in the other direction.
+a file (a blocklist provider, the model host, GitHub for the announcement, or the
+host of a list you subscribed to) may observe your IP address. No user data is sent
+in the other direction.
 
 ---
 

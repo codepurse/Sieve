@@ -1577,6 +1577,49 @@ html.preload .loading-veil {
   flex: 1;
 }
 
+/* A subscribed list: its name, what it holds and how fresh it is, and the
+   address it comes from, stacked; then the same controls as a rule. */
+.sf-subs li.sf-sub {
+  padding: 10px 0;
+}
+
+.sf-sub-text {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.sf-sub-name {
+  font-size: 13.5px;
+  font-weight: 500;
+  color: var(--ink);
+  overflow-wrap: anywhere;
+}
+
+.sf-sub-meta {
+  font-size: 12px;
+  color: var(--ink-2);
+}
+
+.sf-sub-meta.is-error {
+  color: var(--danger);
+}
+
+.sf-sub-url {
+  font-family: var(--font-mono);
+  font-size: 11.5px;
+  color: var(--ink-3);
+  word-break: break-all;
+}
+
+/* Switched off: kept, and plainly not doing anything. */
+.sf-sub.is-off .sf-sub-name,
+.sf-sub.is-off .sf-swatch {
+  opacity: 0.5;
+}
+
 .sf-swatch {
   flex: 0 0 auto;
   width: 12px;
@@ -2345,7 +2388,8 @@ html.preload .loading-veil {
     flex-wrap: wrap;
   }
 
-  .sf-pattern {
+  .sf-pattern,
+  .sf-sub-text {
     flex: 1 0 calc(100% - 64px);
   }
 }
