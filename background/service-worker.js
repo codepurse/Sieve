@@ -541,13 +541,18 @@ chrome.runtime.onStartup.addListener(() => {
 
 const DOOMSCROLL_CUSTOM_CS_ID = "sieve-doomscroll-custom";
 
-// Must stay in step with the doomscroll entry in manifest.json.
+// Must stay in step with the doomscroll entry in manifest.json; a test holds the
+// two to the same list. They had drifted once already: user-added sites ran
+// without cool-off.js and theme.js, so their pause screen ignored Appearance.
 const DOOMSCROLL_CS_FILES = [
   "common/guardian.js",
   "common/doomscroll-sites.js",
   "common/access-code.js",
+  "common/cooloff.js",
+  "common/theme.js",
   "common/guardian-prompt.js",
   "content/pause-overlay.js",
+  "content/countdown.js",
   "content/doomscroll.js",
 ];
 

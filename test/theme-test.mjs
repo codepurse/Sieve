@@ -138,6 +138,7 @@ test("the widgets drawn on websites write their dark palette both ways", () => {
   const sources = [
     ["common/guardian-prompt.js", ".sg-backdrop", "SG_DARK"],
     ["content/pause-overlay.js", ".backdrop", "DARK"],
+    ["content/countdown.js", ".pill", "DARK"],
     ["content/search-filter.js", "#${POPOVER_ID}", "POPOVER_DARK"],
   ];
   for (const [file, sel, constName] of sources) {

@@ -6,6 +6,7 @@
 //    either using it (scrolling, typing, pointing) or something on it is playing.
 //  - Reads the user's per-site DAILY time limit from chrome.storage.local.
 //  - When the daily time limit is reached, asks the pause overlay to appear.
+//  - Keeps the countdown bubble (content/countdown.js) showing what is left.
 //  - Because totals are persisted per day, a refresh or a new tab no longer
 //    resets progress — only midnight does (handled by the service worker).
 //
@@ -34,9 +35,15 @@
   // A time limit of 0 means "this limit is off".
   const DEFAULT_SITE_SETTINGS = { enabled: false, timeLimitMinutes: 15 };
 
+  // The countdown bubble (content/countdown.js). On by default: the whole point
+  // of it is showing that a limit is running, which an opt-in would hide from
+  // exactly the people who never went looking.
+  const DEFAULT_COUNTDOWN = { enabled: true, corner: "bottom-left", size: "medium" };
+
   // --- live state ---------------------------------------------------------
   let site = null;                       // matched entry from site-configs.json
   let settings = DEFAULT_SITE_SETTINGS;  // this site's limit
+  let countdown = DEFAULT_COUNTDOWN;     // the bubble's switch, corner and size
   let moduleEnabled = false;             // master Doomscroll Stopper toggle (opt-in, off by default)
   let stoppedToday = false;              // user chose "Stop for today"
 
@@ -108,10 +115,18 @@
       doomscrollEnabled: false,
       doomscrollSites: {},
       doomscrollStoppedDates: {},
+      doomscrollCountdown: DEFAULT_COUNTDOWN.enabled,
+      doomscrollCountdownCorner: DEFAULT_COUNTDOWN.corner,
+      doomscrollCountdownSize: DEFAULT_COUNTDOWN.size,
     });
     moduleEnabled = stored.doomscrollEnabled;
     settings = { ...DEFAULT_SITE_SETTINGS, ...(stored.doomscrollSites[site.id] || {}) };
     stoppedToday = stored.doomscrollStoppedDates[site.id] === todayStr();
+    countdown = {
+      enabled: stored.doomscrollCountdown !== false,
+      corner: stored.doomscrollCountdownCorner,
+      size: stored.doomscrollCountdownSize,
+    };
   }
 
   // Load today's cumulative total so we resume where the day left off.
@@ -163,17 +178,42 @@
     return now - lastInputTs < IDLE_AFTER_MS || mediaPlaying();
   }
 
+  // Is the clock running? The pause screen and a snooze are breaks, so they
+  // never count, however present the user is.
+  function counting(now) {
+    return !overlayShown && !isSnoozed() && present(now);
+  }
+
   // One tick of the clock: credit the time since the last tick if the user was
-  // here for it. The pause screen and a snooze are breaks, so they never count.
+  // here for it, then bring the countdown up to date.
   function tick() {
     rolloverIfNewDay();
     const now = Date.now();
     const delta = Math.min(now - lastTickTs, MAX_TICK_MS);
     lastTickTs = now;
-    if (delta <= 0 || overlayShown || isSnoozed() || !present(now)) return;
-    todayMs += delta;
-    unflushedMs += delta;
-    checkLimits();
+    const running = counting(now);
+    if (running && delta > 0) {
+      todayMs += delta;
+      unflushedMs += delta;
+      checkLimits();
+    }
+    renderCountdown(running);
+  }
+
+  // The bubble: what is left of today's limit, and whether the clock is running.
+  // Gone while the pause screen is up (that says more), on a site whose limit is
+  // off, and when the user switched it off. A hidden tab is skipped rather than
+  // torn down: nobody can see it, and it is redrawn on the first tick back.
+  function renderCountdown(running) {
+    const C = window.SieveCountdown;
+    if (!C) return;
+    const limitMs = (settings.timeLimitMinutes || 0) * 60000;
+    if (!tracking || !countdown.enabled || overlayShown || limitMs <= 0) {
+      C.hide();
+      return;
+    }
+    if (document.hidden) return;
+    C.update({ remainingMs: limitMs - todayMs, running, corner: countdown.corner, size: countdown.size });
   }
 
   // --- limit check + trigger ---------------------------------------------
@@ -307,6 +347,7 @@
       clearInterval(flushTimer);
       flushTimer = null;
     }
+    renderCountdown(false); // not tracking, so this takes the bubble away
     flushStats();
   }
 
@@ -322,6 +363,7 @@
     if (shouldTrack) {
       startTracking();
       checkLimits(); // already over the daily limit? show it now.
+      renderCountdown(counting(Date.now()));
     } else {
       stopTracking();
     }
@@ -339,6 +381,7 @@
     if (moduleEnabled && settings.enabled && !stoppedToday) {
       startTracking();
       checkLimits(); // if a refresh happened while already over budget, pause now.
+      renderCountdown(counting(Date.now()));
     }
 
     // React to options/service-worker changes (toggles, limits, midnight reset).
@@ -351,7 +394,10 @@
         changes.doomscrollEnabled ||
         changes.doomscrollSites ||
         changes.doomscrollStoppedDates ||
-        changes.doomscrollCustomSites
+        changes.doomscrollCustomSites ||
+        changes.doomscrollCountdown ||
+        changes.doomscrollCountdownCorner ||
+        changes.doomscrollCountdownSize
       ) {
         reloadAndApply();
       }

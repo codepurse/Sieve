@@ -560,6 +560,10 @@ function optionsDefaults() {
     doomscrollSites: {},
     doomscrollStats: {},
     doomscrollCustomSites: [],
+    // Its countdown bubble — on by default, see content/doomscroll.js.
+    doomscrollCountdown: true,
+    doomscrollCountdownCorner: "bottom-left",
+    doomscrollCountdownSize: "medium",
     // Site Cleanup — per-site page surgery, e.g. { youtube: { enabled, … } }
     siteCleanup: {},
     // Guardian — presence of a hash means a PIN is set
@@ -2323,6 +2327,31 @@ async function setupDoomscroll(store) {
   });
 
   render();
+  setupDsCountdown(store);
+}
+
+// The countdown bubble on tracked sites (content/countdown.js). Not a
+// protection — the limit is enforced with it or without it — so, like
+// Appearance, no Guardian gate.
+function setupDsCountdown(store) {
+  const toggle = document.getElementById("ds-countdown-toggle");
+  const optionsEl = document.getElementById("ds-countdown-options");
+  const corner = document.getElementById("ds-countdown-corner");
+  const size = document.getElementById("ds-countdown-size");
+  if (!toggle || !optionsEl || !corner || !size) return;
+
+  toggle.checked = store.doomscrollCountdown !== false;
+  corner.value = store.doomscrollCountdownCorner;
+  size.value = store.doomscrollCountdownSize;
+  // Corner and size show only while it is on, rather than sitting there greyed out.
+  optionsEl.hidden = !toggle.checked;
+
+  toggle.addEventListener("change", () => {
+    optionsEl.hidden = !toggle.checked;
+    chrome.storage.local.set({ doomscrollCountdown: toggle.checked });
+  });
+  corner.addEventListener("change", () => chrome.storage.local.set({ doomscrollCountdownCorner: corner.value }));
+  size.addEventListener("change", () => chrome.storage.local.set({ doomscrollCountdownSize: size.value }));
 }
 
 // ===========================================================================

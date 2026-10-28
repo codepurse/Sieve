@@ -1319,6 +1319,43 @@
               </div>
 
               <div class="field">
+                <div class="switch-row">
+                  <div class="switch-label">
+                    <span class="label">Show a countdown</span>
+                    <span class="description">
+                      A small timer in a corner of each tracked site, with what is left of today&rsquo;s
+                      limit. It says &ldquo;paused&rdquo; while the clock is stopped, so you can always
+                      see whether your limit is running.
+                    </span>
+                  </div>
+                  <label class="switch">
+                    <input type="checkbox" id="ds-countdown-toggle" />
+                    <span class="slider"></span>
+                  </label>
+                </div>
+              </div>
+
+              <div class="field ds-countdown-controls" id="ds-countdown-options">
+                <div class="ds-countdown-control">
+                  <label class="sub-label" for="ds-countdown-corner">Corner</label>
+                  <select class="input" id="ds-countdown-corner">
+                    <option value="top-left">Top left</option>
+                    <option value="top-right">Top right</option>
+                    <option value="bottom-left">Bottom left</option>
+                    <option value="bottom-right">Bottom right</option>
+                  </select>
+                </div>
+                <div class="ds-countdown-control">
+                  <label class="sub-label" for="ds-countdown-size">Size</label>
+                  <select class="input" id="ds-countdown-size">
+                    <option value="small">Small</option>
+                    <option value="medium">Medium</option>
+                    <option value="large">Large</option>
+                  </select>
+                </div>
+              </div>
+
+              <div class="field">
                 <h3 class="field-title">Add your own site</h3>
                 <p class="hint">
                   Any site with a feed you lose time to. It gets its own daily limit and the same
