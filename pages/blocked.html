@@ -309,6 +309,7 @@
         background: transparent;
         border: 1px solid var(--rule-strong);
         border-radius: 3px;
+        text-decoration: none;
         cursor: pointer;
         transition: background-color 120ms var(--ease), border-color 120ms var(--ease),
           color 120ms var(--ease), transform 80ms var(--ease);
@@ -371,6 +372,132 @@
         font-size: 13px;
         line-height: 1.6;
         color: var(--ink-3);
+      }
+
+      /* ---- Urge screen (Sieve Pro, pro/urge.js) ----------------------------------
+         Leads the page instead of the notice's headline when it is on: a
+         breathing ring, a count, the reader's own reason and photo, and one
+         tap to someone they trust. Ink only — nothing here is "on". */
+
+      .urge {
+        margin-bottom: 36px;
+      }
+
+      .breath {
+        position: relative;
+        display: grid;
+        place-items: center;
+        width: 168px;
+        height: 168px;
+        margin-top: 32px;
+      }
+
+      .breath-ring {
+        position: absolute;
+        inset: 0;
+        border: 1.5px solid var(--ink);
+        border-radius: 50%;
+        background: var(--wash);
+        transform: scale(0.62);
+      }
+
+      .breath-word {
+        position: relative;
+        font-family: var(--font-serif);
+        font-size: 19px;
+        letter-spacing: -0.005em;
+      }
+
+      .urge-count {
+        width: 168px;
+        margin: 12px 0 0;
+        text-align: center;
+        font-family: var(--font-mono);
+        font-size: 12px;
+        letter-spacing: 0.1em;
+        font-variant-numeric: tabular-nums;
+        color: var(--ink-3);
+      }
+
+      .urge-why {
+        display: flex;
+        align-items: flex-start;
+        gap: 18px;
+        margin: 28px 0 0;
+        padding: 14px 0;
+        border-top: 1px solid var(--rule);
+        border-bottom: 1px solid var(--rule);
+      }
+
+      .urge-photo {
+        flex: none;
+        width: 120px;
+        height: 120px;
+        object-fit: cover;
+        border-radius: 3px;
+      }
+
+      .urge-reason {
+        margin: 0;
+        font-family: var(--font-serif);
+        font-size: 19px;
+        line-height: 1.45;
+        white-space: pre-wrap;
+        overflow-wrap: anywhere;
+      }
+
+      .urge-streak {
+        margin: 18px 0 0;
+        font-size: 14px;
+        color: var(--ink-2);
+      }
+
+      /* With the urge screen leading, its own buttons are the primary ones;
+         Go back below steps down to an outline, and the settings note goes. */
+      html[data-urge="on"] #back-btn {
+        color: var(--ink);
+        background: transparent;
+        border-color: var(--rule-strong);
+      }
+
+      html[data-urge="on"] #back-btn:hover {
+        background: var(--wash);
+        border-color: var(--ink);
+      }
+
+      html[data-urge="on"] .note {
+        display: none;
+      }
+
+      @media (prefers-reduced-motion: no-preference) {
+        .urge:not([hidden]) .breath-ring {
+          animation: breath 10s linear infinite;
+        }
+        /* In for four seconds, out for six — the same split urge.js counts. */
+        @keyframes breath {
+          0% {
+            transform: scale(0.62);
+            animation-timing-function: cubic-bezier(0.37, 0, 0.63, 1);
+          }
+          40% {
+            transform: scale(1);
+            animation-timing-function: cubic-bezier(0.37, 0, 0.63, 1);
+          }
+          100% {
+            transform: scale(0.62);
+          }
+        }
+      }
+
+      @media (max-width: 560px) {
+        .urge-why {
+          flex-direction: column;
+        }
+        .urge-photo {
+          width: 100%;
+          height: auto;
+          max-height: 240px;
+        }
       }
 
       /* ---- Foot --------------------------------------------------------------- */
@@ -445,6 +572,38 @@
 
     <main class="notice">
       <div class="notice-body">
+        <!-- Sieve Pro's urge screen (pro/urge.js). When it shows, the
+             notice's own kicker, headline and message are hidden. -->
+        <section class="urge" id="urge" aria-labelledby="urge-title" hidden>
+          <p class="kicker">Ride it out</p>
+          <h1 id="urge-title">This will pass.</h1>
+          <p class="message" id="urge-lede">
+            An urge rises, peaks and fades, usually within a few minutes. Breathe with the
+            circle until it does.
+          </p>
+
+          <div class="breath">
+            <span class="breath-ring" aria-hidden="true"></span>
+            <span class="breath-word" id="urge-breath-word">Breathe in</span>
+          </div>
+          <p class="urge-count" id="urge-count" role="timer">1:30</p>
+
+          <figure class="urge-why" id="urge-why" hidden>
+            <img class="urge-photo" id="urge-photo" alt="" hidden />
+            <figcaption>
+              <span class="origin-label">Why you're doing this</span>
+              <p class="urge-reason" id="urge-reason"></p>
+            </figcaption>
+          </figure>
+
+          <p class="urge-streak" id="urge-streak" hidden></p>
+
+          <div class="actions">
+            <a class="btn btn-primary" id="urge-contact" hidden></a>
+            <button class="btn" id="urge-close" type="button">Close this tab</button>
+          </div>
+        </section>
+
         <!-- Kept for blocked.js, which writes the category's symbol here; the
              page reads its tone from data-severity instead of an emoji. -->
         <span id="block-shield" hidden></span>
@@ -486,7 +645,11 @@
     <script src="../common/guardian.js"></script>
     <script src="../common/access-code.js"></script>
     <script src="../common/cooloff.js"></script>
+    <script src="../pro/seal.js"></script>
     <script src="../common/guardian-prompt.js"></script>
+    <script src="../common/pro.js"></script>
+    <script src="../pro/streaks.js"></script>
+    <script src="../pro/urge.js"></script>
     <script src="blocked.js"></script>
   </body>
 </html>

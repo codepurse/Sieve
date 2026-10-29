@@ -116,6 +116,18 @@ body {
   display: none;
 }
 
+/* Sieve Pro's lines: a running seal, and each tracked streak. Ink, not
+   green — a streak is a count, not something switched on. */
+.status-pro {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  margin-top: 4px;
+  font-size: 12.5px;
+  line-height: 1.4;
+  color: var(--ink-2);
+}
+
 /* ---- Blocks of switches --------------------------------------------------- */
 
 .block {

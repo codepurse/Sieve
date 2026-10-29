@@ -1,6 +1,6 @@
 {
   "name": "sieve",
-  "version": "1.5.1",
+  "version": "1.6.0",
   "private": true,
   "description": "Build tooling for Sieve's optional TensorFlow.js toxicity model (Module 4A, Layer 2). The extension itself is plain JS loaded directly by the manifest; only the optional Layer-2 bundle is produced by esbuild.",
   "scripts": {
@@ -9,7 +9,8 @@
     "build:chrome": "powershell -ExecutionPolicy Bypass -File ./build-chrome.ps1 -Bundle -Zip",
     "build:firefox": "powershell -ExecutionPolicy Bypass -File ./build-firefox.ps1 -Bundle -Zip",
     "build:all": "npm run build:chrome && npm run build:firefox",
-    "test": "node --test test/*-test.mjs"
+    "test": "node --test test/*-test.mjs",
+    "test:pro": "node --test pro-private/tests/*-test.mjs"
   },
   "devDependencies": {
     "esbuild": "^0.25.0"

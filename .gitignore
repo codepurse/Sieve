@@ -28,6 +28,11 @@ store-assets/
 # Packaged extension builds produced by build-chrome.ps1 / build-firefox.ps1
 dist/
 
+# Sieve Pro: a separate private repository, checked out here and copied over
+# the stand-ins in pro/ by the build (pro/README.md). Never part of this one;
+# test/pro-standins-test.mjs fails if anything under it is ever tracked.
+/pro-private/
+
 # Packaged extension artifacts / signing keys — never commit these
 *.zip
 *.crx

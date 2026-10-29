@@ -12,6 +12,9 @@
 //     With a cool-off set (common/cooloff.js) the change must first wait it
 //     out: until then the dialog only offers to start or call off the wait, and
 //     resolves false. Once the wait is over, the PIN is asked for as before.
+//     While a Seal runs (Sieve Pro, pro/seal.js) the change is refused before
+//     any of that, and only the seal's emergency key — which ends the seal —
+//     gets through to the cool-off and the PIN.
 //
 //   SieveGuardian.gateToggleOff(checkbox, actionName) -> Promise<boolean>
 //     Helper for on/off switches. Returns true if the change may proceed.
@@ -271,6 +274,7 @@
     cancelBtn.textContent = "Cancel";
     codeExpected = "";
     cool = null;
+    seal = null;
     stage = "pin";
   }
 
@@ -356,10 +360,82 @@
     }
   }
 
+  // --- seal stage ---------------------------------------------------------
+  //
+  // Shown INSTEAD of everything else while a Seal runs. The change is refused;
+  // the one thing on offer is the emergency key, which ends the seal and hands
+  // over to the cool-off and the PIN exactly as if there had been no seal.
+  let seal = null; // { until } while it is showing
+
+  function showSealed(actionName, info) {
+    const S = window.SieveSeal;
+    const { title } = codeElements();
+    stage = "sealed";
+    seal = info;
+    title.textContent = `Sealed until ${S.formatDay(info.until)}`;
+    subEl.textContent = actionName || "This change is protected.";
+    input.hidden = true;
+    errorEl.hidden = true;
+    coolEl.hidden = false;
+    setCoolText([
+      "You sealed your protection until ",
+      { strong: S.formatWhen(info.until) },
+      ". Until then nothing that weakens it can be changed — not with your PIN, and not after a cool-off. Only the emergency key ends it early.",
+    ]);
+    cancelBtn.textContent = "Use emergency key";
+    confirmBtn.textContent = "Close";
+    confirmBtn.focus();
+  }
+
+  function askForSealKey() {
+    const { title } = codeElements();
+    stage = "sealkey";
+    title.textContent = "End the seal early";
+    setCoolText([
+      "Type the emergency key you were given when the seal started. It ends the whole seal; your PIN and cool-off still apply after it.",
+    ]);
+    input.hidden = false;
+    input.type = "text";
+    input.classList.add("code-input");
+    input.placeholder = "XXXX-XXXX-XXXX-XXXX-XXXX";
+    input.value = "";
+    errorEl.hidden = false;
+    errorEl.textContent = "";
+    errorEl.dataset.tone = "";
+    cancelBtn.textContent = "Back";
+    confirmBtn.textContent = "End the seal";
+    input.focus();
+  }
+
+  async function sealKeySubmit() {
+    let ended = false;
+    try {
+      ended = await window.SieveSeal.breakWithKey(input.value);
+    } catch (err) {
+      console.warn("[Sieve] could not check the emergency key:", err);
+    }
+    if (ended) {
+      finish(true);
+      return;
+    }
+    errorEl.textContent = "That key doesn't match.";
+    errorEl.dataset.tone = "";
+    input.focus();
+  }
+
   // The left-hand button: Cancel / Never mind, or — while a request is
   // waiting — Cancel request, which calls the change off. Always free, since
-  // it can only keep protection where it is.
+  // it can only keep protection where it is. On the seal it leads to the
+  // emergency key and back.
   async function dismiss() {
+    if (stage === "sealed") {
+      askForSealKey();
+      return;
+    }
+    if (stage === "sealkey") {
+      showSealed(pending && pending.actionName, seal);
+      return;
+    }
     if (stage === "cooloff" && cool && cool.info.state !== "none") {
       try {
         await window.SieveCooloff.cancel(cool.info.key);
@@ -371,6 +447,14 @@
   }
 
   async function submit() {
+    if (stage === "sealed") {
+      finish(false);
+      return;
+    }
+    if (stage === "sealkey") {
+      await sealKeySubmit();
+      return;
+    }
     if (stage === "cooloff") {
       await cooloffSubmit();
       return;
@@ -468,6 +552,34 @@
     }
   }
 
+  // The running seal, or null when there is none (or this page did not load
+  // pro/seal.js, an empty stand-in in an open-source build). A failed read
+  // goes on without it, as the cool-off does.
+  async function sealFor() {
+    const S = window.SieveSeal;
+    if (!S) return null;
+    try {
+      const info = await S.check();
+      return info.sealed ? info : null;
+    } catch (err) {
+      console.warn("[Sieve] seal check failed, going on without it:", err);
+      return null;
+    }
+  }
+
+  // Resolves true only when the emergency key ended the seal.
+  function askSealed(actionName, info, critical) {
+    build();
+    if (pending) finish(false);
+    return new Promise((resolve) => {
+      pending = { resolve, actionName, critical, cooloffKey: null };
+      resetToPinStage();
+      raise();
+      overlay.hidden = false;
+      showSealed(actionName, info);
+    });
+  }
+
   function askToWait(actionName, info, critical) {
     build();
     if (pending) finish(false);
@@ -486,6 +598,12 @@
   // still needs the PIN alone.
   async function confirmUnlock(actionName, opts) {
     const critical = !!(opts && opts.critical);
+
+    // A seal comes before everything else: while it runs, nothing that weakens
+    // protection goes through. Its emergency key ends it, and then the rest of
+    // the gate runs as usual.
+    const running = await sealFor();
+    if (running && !(await askSealed(actionName, running, critical))) return false;
 
     // The cool-off comes first and does not depend on a PIN: it is the lock
     // that still works for someone on their own.
@@ -536,6 +654,8 @@
   // Resolves true when no cool-off applies or the wait is over (using up the
   // request), false otherwise — so a caller can await it after its PIN check.
   async function requireCooloff(actionName) {
+    const running = await sealFor();
+    if (running && !(await askSealed(actionName, running, true))) return false;
     const cooloff = await cooloffFor(actionName);
     if (!cooloff) return true;
     if (cooloff.state === "ready") {

@@ -21,9 +21,9 @@
 //   gambling → the Phase-1 gambling blocker           (original wording)
 //   prediction-markets → a prediction market / betting platform (2nd Gambling
 //                        Blocker toggle; opt-in self-control tone)
-// If the param is missing (the gambling rules don't send one) we fall back to
-// the gambling wording — which is also the static HTML default, so the page
-// still reads correctly even if this script somehow never runs.
+// If the param is missing (the bundled gambling rule did not send one before
+// 1.6.0) we fall back to the gambling wording — which is also the static HTML
+// default, so the page still reads correctly even if this script never runs.
 //
 // The page also shows WHICH url was blocked (a DNR redirect drops it, so the
 // background captures it from webNavigation and we ask for it here) and offers a
@@ -265,6 +265,16 @@
     }
   }
   recordBlockView();
+
+  // Streaks and the urge screen (Sieve Pro): records this attempt for the
+  // habit the category belongs to, and with Pro and the urge screen on, leads
+  // the page with it. See pro/urge.js (an empty stand-in in an open-source
+  // build, where SieveUrge does not exist and the page stays the plain notice).
+  if (window.SieveUrge) {
+    window.SieveUrge.onBlocked(category).catch((err) => {
+      console.warn("[Sieve] urge screen failed:", err);
+    });
+  }
 
   // Severity sets the tone: ⚠️ categories are known threats and take the
   // caution colour on the kicker and margin rule; everything else is ink.

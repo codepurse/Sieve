@@ -37,13 +37,16 @@ jobs:
         shell: pwsh
         run: node build-cookie-engine.mjs
 
+      # -OpenSource: Sieve Pro lives in a private repository CI cannot see
+      # (pro/README.md), so CI packages with its empty stand-ins. Every
+      # protection is in this repository and is built and checked here.
       - name: Package Chrome build
         shell: pwsh
-        run: powershell -ExecutionPolicy Bypass -File .\build-chrome.ps1 -Zip
+        run: powershell -ExecutionPolicy Bypass -File .\build-chrome.ps1 -Zip -OpenSource
 
       - name: Package Firefox build
         shell: pwsh
-        run: powershell -ExecutionPolicy Bypass -File .\build-firefox.ps1 -Zip
+        run: powershell -ExecutionPolicy Bypass -File .\build-firefox.ps1 -Zip -OpenSource
 
       - name: Validate expected outputs
         shell: pwsh
@@ -84,11 +87,15 @@ jobs:
           }
 
           # Dev-only trees must never be shipped.
-          $forbidden = @("node_modules", "src", "vendor", "test", "_metadata")
+          $forbidden = @("node_modules", "src", "vendor", "test", "_metadata", "pro-private")
           foreach ($browser in @("chrome", "firefox")) {
             foreach ($dir in $forbidden) {
               $p = "dist\$browser\$dir"
               if (Test-Path $p) { throw "Dev-only path leaked into build: $p" }
+            }
+            # An open-source build carries Sieve Pro's stand-ins, never Pro.
+            if (-not (Select-String -Path "dist\$browser\pro\features.js" -SimpleMatch "SieveProFeatures = null" -Quiet)) {
+              throw "The open-source $browser build carries Sieve Pro, or lost its stand-in"
             }
           }
 

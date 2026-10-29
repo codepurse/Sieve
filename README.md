@@ -187,3 +187,9 @@ licensed under [CC BY-SA 3.0](https://creativecommons.org/licenses/by-sa/3.0/), 
 Sieve elects the CC arm of EasyList's GPLv3 / CC BY-SA 3.0 dual licence; BY-SA's
 "Collection" clause is what keeps the rest of the project MIT. Editing that one file
 means editing a BY-SA file — see [`data/ATTRIBUTION-easylist.md`](data/ATTRIBUTION-easylist.md).
+
+**Sieve Pro** (the Seal, the urge screen and streaks) is not open source and is not in
+this repository: [`pro/`](pro/README.md) holds empty stand-ins, and the store versions
+of Sieve carry the real files. Every protection is here, so a build from this
+repository blocks exactly what the store version does. Build one with
+`build-chrome.ps1 -OpenSource` (or `build-firefox.ps1 -OpenSource`).

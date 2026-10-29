@@ -592,6 +592,14 @@ function optionsDefaults() {
     seenWhatsNewVersion: "",
     // Warden band on the Overview — folded to its one-line bar by the ×
     wardenFolded: false,
+    // Sieve Pro — the licence (common/pro.js), the Seal (pro/seal.js), and
+    // the urge screen and streaks (pro/streaks.js). The urge screen's photo
+    // has its own key, read separately, so this batch never carries an image.
+    proLicence: null,
+    proSeal: null,
+    proUrge: {},
+    proHabits: {},
+    habitAttempts: {},
   };
   for (const t of DARK_PATTERN_TYPES) {
     d[t.key] = t.default !== undefined ? t.default : true;
@@ -725,6 +733,7 @@ async function applyStoredSettings(store) {
   setupGuardian(store);            // self-lock PIN status panel
   setupAccessCode();               // optional second layer over that PIN
   setupCooloff(store);             // a wait before any weakening change unlocks
+  setupPro(store);                 // Sieve Pro: licence, Seal, urge screen, streaks
   setupDarkPatterns(store);        // Module 3A — relocated from the popup
   setupToxicSites(store);          // per-site toggles — relocated from the popup
 
@@ -2155,6 +2164,161 @@ function setupCooloff(store) {
 
   renderConfig(CO.normalizeConfig(store.cooloffConfig));
   renderRequests();
+}
+
+// ===========================================================================
+// Sieve Pro — the licence box, and the section the Pro features live in.
+// Everything Sieve did before Pro stays free and open source. The features
+// themselves (the Seal, the urge screen, streaks) are not: a store build copies
+// them from a private repository over the empty stand-ins in pro/ (see
+// pro/README.md). An open-source build keeps the stand-ins, so this section is
+// taken out of the page, and every protection works exactly the same.
+//
+// In a store build the groups are shown to everyone and work only with a
+// licence. Losing it never weakens a protection already running, so a running
+// seal is shown (and honoured, in common/guardian-prompt.js) whatever the
+// licence says.
+// ===========================================================================
+
+function proShortDate(ms) {
+  try {
+    return new Date(ms).toLocaleDateString(undefined, { day: "numeric", month: "short", year: "numeric" });
+  } catch {
+    return new Date(ms).toDateString();
+  }
+}
+
+function setupPro(store) {
+  const P = window.SievePro;
+  // pro/features.js names the features this build carries: null in an
+  // open-source build, where pro/settings.js is an empty stand-in as well.
+  const carried = Array.isArray(window.SieveProFeatures) && window.SieveProFeatures.length > 0;
+  if (!P || !carried || !window.SieveProSettings) {
+    // Gone before setupNav and setupFinder run, so no link, search or deep
+    // link can open a section with nothing in it.
+    const section = document.getElementById("section-pro");
+    if (section) section.remove();
+    return;
+  }
+
+  let pro = P.isProState(store.proLicence);
+
+  for (const el of document.querySelectorAll(".pro-price")) el.textContent = P.CONFIG.priceLabel;
+
+  // The section's link appears once Pro is on sale, or once a key is stored,
+  // so a build shipped before the shop opens shows nobody a dead end.
+  const navShown = P.isConfigured() || !!P.normalizeLicence(store.proLicence);
+  document.getElementById("nav-pro-group").hidden = !navShown;
+  document.getElementById("nav-pro").hidden = !navShown;
+
+  const { seal, urge, streaks } = window.SieveProSettings.setup(store);
+  enhanceSwitchRows(document.getElementById("section-pro"));
+
+  function applyPro() {
+    for (const card of document.querySelectorAll(".pro-feature")) {
+      card.classList.toggle("is-locked", !pro);
+      const note = card.querySelector(".pro-note");
+      if (note) note.hidden = pro;
+      for (const control of card.querySelectorAll(".pro-control")) control.disabled = !pro;
+    }
+    seal.render();
+    urge.render(pro);
+    streaks.render(pro);
+  }
+
+  setupLicence(store, (next) => {
+    pro = next;
+    applyPro();
+  });
+  applyPro();
+}
+
+function setupLicence(store, onChange) {
+  const P = window.SievePro;
+  const badge = document.getElementById("pro-badge");
+  const buyActions = document.getElementById("pro-buy-actions");
+  const buyLink = document.getElementById("pro-buy");
+  const buyField = document.getElementById("pro-buy-field");
+  const ownedField = document.getElementById("pro-owned-field");
+  const ownedText = document.getElementById("pro-owned-text");
+  const checkedEl = document.getElementById("pro-checked");
+  const keyInput = document.getElementById("pro-key");
+  const activateBtn = document.getElementById("pro-activate");
+  const errorEl = document.getElementById("pro-error");
+  const forgetBtn = document.getElementById("pro-forget");
+
+  if (P.CONFIG.checkoutUrl) {
+    buyLink.href = P.CONFIG.checkoutUrl;
+    buyActions.hidden = false;
+  }
+
+  function render(raw) {
+    const licence = P.normalizeLicence(raw);
+    const on = P.isProState(licence);
+    badge.textContent = on ? "Pro" : "Free";
+    badge.classList.toggle("badge-new", on);
+    buyField.hidden = on;
+    ownedField.hidden = !licence;
+    if (!licence) return;
+    if (on) {
+      ownedText.textContent = `Pro is on, with key ${licence.displayKey}. Thank you for supporting Sieve.`;
+    } else if (licence.status === "revoked" || licence.status === "disabled") {
+      ownedText.textContent =
+        `Key ${licence.displayKey} was refunded or turned off, so Pro is off. ` +
+        "A seal you already started still runs to its date.";
+    } else {
+      ownedText.textContent = `Key ${licence.displayKey} is not a Sieve Pro key, so Pro is off.`;
+    }
+    checkedEl.textContent = licence.checkedAt ? `Last checked ${proShortDate(licence.checkedAt)}` : "";
+  }
+
+  async function activate() {
+    const key = keyInput.value.trim();
+    errorEl.textContent = "";
+    if (!key) {
+      errorEl.textContent = "Paste the licence key from your receipt email.";
+      return;
+    }
+    activateBtn.disabled = true;
+    activateBtn.textContent = "Checking…";
+    let result;
+    try {
+      result = await P.activate(key);
+    } catch {
+      result = { ok: false, offline: true };
+    }
+    activateBtn.disabled = false;
+    activateBtn.textContent = "Activate";
+    if (result.ok) {
+      keyInput.value = ""; // the storage listener below shows the rest
+    } else if (result.reason === "not-configured") {
+      errorEl.textContent = "Sieve Pro is not on sale yet.";
+    } else if (result.offline) {
+      errorEl.textContent = "Could not reach the licence check. Check your connection and try again.";
+    } else if (result.status === "revoked" || result.status === "disabled") {
+      errorEl.textContent = "That key was refunded or turned off.";
+    } else {
+      errorEl.textContent = "That key was not recognised. Check it against your receipt email.";
+    }
+  }
+
+  activateBtn.addEventListener("click", activate);
+  keyInput.addEventListener("keydown", (e) => {
+    if (e.key === "Enter") activate();
+  });
+  // Pro going away weakens no protection, so taking the key out is not gated.
+  forgetBtn.addEventListener("click", () => P.forget());
+
+  chrome.storage.onChanged.addListener((changes, area) => {
+    if (area !== "local" || !changes[P.LICENCE_KEY]) return;
+    const next = changes[P.LICENCE_KEY].newValue;
+    render(next);
+    onChange(P.isProState(next));
+  });
+
+  render(store.proLicence);
+  // The weekly re-check: a no-op on most loads, and never in the page's way.
+  P.refreshIfDue().catch((err) => console.warn("[Sieve] licence check failed:", err));
 }
 
 // ===========================================================================
