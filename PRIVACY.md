@@ -31,7 +31,7 @@ described [below](#sieve-pro-licence-check). Without Pro, nothing changes.
 
 Sieve is open source, so anyone can verify these claims:
 <https://github.com/codepurse/Sieve>. The one exception is Sieve Pro's
-features (the urge screen, streaks and Your progress), which are not open source.
+features (the urge screen, plans, streaks and Your progress), which are not open source.
 They make no network requests and keep everything on your device, and the
 licence check, the only request Pro makes, is part of the open-source code
 (`common/pro.js`), so what it sends can be checked by anyone.
@@ -60,6 +60,9 @@ third party.
 | Monthly block totals | The Protection Dashboard keeps its daily counts for 30 days; as a day leaves, its counts are added to its month, for about two years — counts only, never a site | Yes |
 | Urges waited out, **only if you press "I'm OK now"** | When, how long it took, and the kind of site, to draw Sieve Pro's Proof it passes dial | Yes |
 | A message in your own voice, **only if you record or choose one** | The recording or sound file, stored in the extension's own database in your browser, and played on the urge screen. The microphone is used only while you record | Yes |
+| Plans for the hard moments, **only if you write one** | Your two lines in your own words, the kind of site and the time each is for, to show on Sieve Pro's urge screen when that moment comes | Yes |
+| What you picked to try instead, **only if you pick one** | Your list of things to try, and for each pick on the urge screen when it was, the kind of site and which one, kept for a year, so Sieve Pro can tell you how long you tended to stay away after each | Yes |
+| A heads-up before your hardest hours, **only if you turn it on** | The times to give it and the words it says, worked out from the record above, for Sieve Pro's heads-up notification | Yes |
 | Sieve Pro licence key, **only if you enter one** | Turn on the Pro features | Kept on your device; checked with Polar — see [below](#sieve-pro-licence-check) |
 | Seal, **only if you start one** | When it ends, and its way out: either the key your witness's authenticator app shares with Sieve (needed to check their codes) and their recovery codes as **hashes**, or the emergency key as a **hash**. A witness's app works offline; nothing is sent to them, us or anyone | Yes |
 | Urge screen, **only what you fill in** | Your reason, an optional photo (shrunk to fit 800 pixels), and a contact's name and number or email address, shown on the block page | Yes |
@@ -154,8 +157,8 @@ extension sends. If you say no, nothing is sent and Pro stays off. Nobody who
 does not activate Pro is ever asked.
 
 The key is kept on your device so it can be checked again. The Pro features
-themselves (the urge screen, streaks and Your progress) run entirely on your
-device, like the rest of Sieve.
+themselves (the urge screen, plans, the heads-up, streaks and Your progress) run
+entirely on your device, like the rest of Sieve.
 
 ---
 
@@ -218,6 +221,7 @@ Sieve requests only the permissions needed to filter content locally:
 - **tabs** — open the local "blocked"/settings pages and close popup/hijack tabs. It does not read your browser history. If you switch Usage Insights on, it also reads the site name of the tab you are looking at, in order to time it.
 - **idle** — used only by Usage Insights, to stop the clock when you step away or lock the screen. It reports how long it has been since you touched the keyboard or mouse; it cannot see what you typed.
 - **offscreen** — run the optional toxicity model locally, off the main page.
+- **notifications** (optional, never asked for at install) — asked for only if you turn on Sieve Pro's heads-up before your hardest hours, and used only to show it. The notification's words are worked out on your device; nothing is sent.
 - **scripting** — run Sieve's own filters in pages. For example, the Dark Pattern Blocker's on-page notes are added only to a page where it has found something to show, rather than to every page.
 - **host access (all sites)** — required because harmful content can appear on any site; used only to run the local filters. No browsing data is collected.
 

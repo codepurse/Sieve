@@ -224,10 +224,83 @@
 
 /* ---- Streaks ------------------------------------------------------------- */
 
-.pg-streak-list {
+.pg-streak-list,
+.pg-works-list,
+.pg-plan-list {
   margin: 14px 0 0;
   padding: 0;
   list-style: none;
+}
+
+/* What works for you: the thing tried, and what came after it. */
+.pg-work {
+  display: grid;
+  grid-template-columns: minmax(0, 14rem) minmax(0, 1fr);
+  gap: 4px 24px;
+  padding: 12px 0;
+}
+
+.pg-work + .pg-work,
+.pg-plan + .pg-plan {
+  border-top: 1px solid var(--rule);
+}
+
+.pg-work-name {
+  font-family: var(--font-serif);
+  font-size: 19px;
+  line-height: 1.3;
+  overflow-wrap: anywhere;
+}
+
+.pg-work-what {
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--ink-2);
+}
+
+.pg-work.is-early .pg-work-name {
+  color: var(--ink-2);
+}
+
+/* Your plans: If and Then apart, in their own words. */
+.pg-plan {
+  padding: 12px 0;
+}
+
+.pg-plan-text {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 4px 14px;
+  margin: 0;
+}
+
+.pg-plan-text dt {
+  padding-top: 5px;
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+}
+
+.pg-plan-text dd {
+  margin: 0;
+  font-family: var(--font-serif);
+  font-size: 19px;
+  line-height: 1.4;
+  overflow-wrap: anywhere;
+}
+
+.pg-plan-when {
+  margin: 6px 0 0;
+  font-size: 13px;
+  color: var(--ink-3);
+}
+
+@media (max-width: 560px) {
+  .pg-work {
+    grid-template-columns: minmax(0, 1fr);
+  }
 }
 
 .pg-streak {

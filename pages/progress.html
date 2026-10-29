@@ -50,8 +50,8 @@
       <section class="pg-note" id="pg-locked" hidden>
         <h2 class="pg-h">See when it gets hard, and that it passes.</h2>
         <p>
-          Your hardest hours by weekday and hour, proof from the urges you&rsquo;ve waited out, and
-          a letter after every month with your year on one calendar. Sieve has been keeping the
+          Your hardest hours by weekday and hour, proof from the urges you&rsquo;ve waited out,
+          what tends to help you, and a letter after every month with your year on one calendar. Sieve has been keeping the
           record on this device all along, so it starts from the months before. It comes with Sieve
           Pro. Blocking is the same either way.
         </p>
@@ -94,9 +94,36 @@
           </div>
         </section>
 
+        <section class="pg-part" id="pg-works" aria-labelledby="pg-works-h">
+          <p class="kicker">04 &middot; What works for you</p>
+          <h2 class="pg-h" id="pg-works-h">What you tried, and how long you stayed away after.</h2>
+          <p class="pg-lede" id="pg-works-lede"></p>
+          <ul class="pg-works-list" id="pg-works-list"></ul>
+          <p class="pg-empty" id="pg-works-empty" hidden>
+            Nothing tried yet. While you wait on the urge screen, pick one of your
+            <a href="../options/options.html#urge-card">things to try instead</a>, and Sieve keeps how
+            long you stayed away after it.
+          </p>
+        </section>
+
+        <section class="pg-part" id="pg-plans" aria-labelledby="pg-plans-h">
+          <p class="kicker">05 &middot; Your plans</p>
+          <h2 class="pg-h" id="pg-plans-h">Decided while it was calm.</h2>
+          <p class="pg-lede" id="pg-plans-lede"></p>
+          <ol class="pg-plan-list" id="pg-plan-list"></ol>
+          <p class="pg-empty" id="pg-plans-empty" hidden>
+            No plans yet. Write one in
+            <a href="../options/options.html#plans-card">Settings &rsaquo; Sieve Pro &rsaquo; Plans for the hard moments</a>,
+            or answer the two questions the urge screen asks once an urge has passed.
+          </p>
+          <div class="pg-actions pg-no-print">
+            <a class="btn" href="../options/options.html#plans-card">Change your plans</a>
+          </div>
+        </section>
+
         <section class="pg-part pg-letter" id="pg-month" aria-labelledby="pg-month-h">
           <div class="pg-part-head">
-            <p class="kicker" id="pg-month-kind">04 &middot; Your month</p>
+            <p class="kicker" id="pg-month-kind">06 &middot; Your month</p>
             <div class="pg-nav">
               <button class="btn btn-quiet" id="pg-month-prev" type="button" aria-label="The month before">&lsaquo;</button>
               <span class="pg-nav-label" id="pg-month-label" aria-live="polite"></span>
@@ -120,7 +147,7 @@
 
         <section class="pg-part" id="pg-year" aria-labelledby="pg-year-h">
           <div class="pg-part-head">
-            <p class="kicker">05 &middot; Your year</p>
+            <p class="kicker">07 &middot; Your year</p>
             <div class="pg-nav">
               <button class="btn btn-quiet" id="pg-year-prev" type="button" aria-label="The year before">&lsaquo;</button>
               <span class="pg-nav-label" id="pg-year-label" aria-live="polite"></span>
@@ -145,6 +172,7 @@
     <script src="../pro/features.js"></script>
     <script src="../pro/streaks.js"></script>
     <script src="../pro/insights.js"></script>
+    <script src="../pro/coach.js"></script>
     <script src="../pro/progress.js"></script>
     <script src="progress.js"></script>
   </body>

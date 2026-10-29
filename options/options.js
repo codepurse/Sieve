@@ -603,6 +603,10 @@ function optionsDefaults() {
     proHabits: {},
     habitAttempts: {},
     proVoice: null,
+    // Plans, things to do instead, and the heads-up (pro/coach.js).
+    proPlans: null,
+    proInstead: null,
+    proHeadsUp: null,
   };
   for (const t of DARK_PATTERN_TYPES) {
     d[t.key] = t.default !== undefined ? t.default : true;

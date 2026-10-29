@@ -20,6 +20,7 @@ const STANDINS = readdirSync(DIR).filter((f) => !f.endsWith(".md")).sort();
 
 test("the stand-ins are the Pro files, and the README names each", () => {
   assert.deepEqual(STANDINS, [
+    "coach.js",
     "designs.js",
     "features.js",
     "insights.js",
@@ -72,9 +73,9 @@ test("everything that uses Pro checks it is there first", () => {
 
 test("pages load Pro from pro/, never from anywhere a stand-in cannot replace", () => {
   const pages = {
-    "options/options.html": ["../pro/features.js", "../pro/streaks.js", "../pro/settings.js"],
+    "options/options.html": ["../pro/features.js", "../pro/streaks.js", "../pro/coach.js", "../pro/settings.js"],
     "popup/popup.html": ["../pro/streaks.js"],
-    "pages/blocked.html": ["../pro/streaks.js", "../pro/urge.js"],
+    "pages/blocked.html": ["../pro/streaks.js", "../pro/coach.js", "../pro/urge.js"],
   };
   for (const [page, scripts] of Object.entries(pages)) {
     const html = read(...page.split("/"));

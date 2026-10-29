@@ -2742,8 +2742,121 @@ html.preload .loading-veil {
   color: var(--ink-2);
 }
 
+/* Things to try instead (pro/coach.js): a plain list, each with its Remove. */
+.instead-list {
+  list-style: none;
+  margin-top: 6px;
+}
+
+.instead-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s-2);
+  padding: 6px 0;
+  border-bottom: 1px solid var(--rule);
+}
+
+.instead-text {
+  min-width: 0;
+  font-size: 14px;
+  color: var(--ink);
+  overflow-wrap: anywhere;
+}
+
+.instead-add {
+  display: flex;
+  gap: var(--s-2);
+  margin-top: 10px;
+  max-width: 28rem;
+}
+
+.instead-add .input {
+  flex: 1;
+  min-width: 0;
+}
+
+/* Plans for the hard moments: each in the person's own words, If and Then
+   apart, as on the urge screen. */
+.plan-list {
+  list-style: none;
+}
+
+.plan-item {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: start;
+  gap: 4px var(--s-2);
+  padding: 12px 0;
+  border-bottom: 1px solid var(--rule);
+}
+
+.plan-item:first-child {
+  padding-top: 4px;
+}
+
+.plan-text {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 4px 12px;
+  margin: 0;
+}
+
+.plan-text dt {
+  padding-top: 4px;
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+}
+
+.plan-text dd {
+  margin: 0;
+  font-family: var(--font-serif);
+  font-size: 17px;
+  line-height: 1.4;
+  color: var(--ink);
+  overflow-wrap: anywhere;
+}
+
+.plan-item > .meta {
+  grid-column: 1;
+  margin: 2px 0 0;
+}
+
+.plan-item > .btn {
+  grid-column: 2;
+  grid-row: 1;
+}
+
+.plan-form {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 0 var(--s-2);
+  max-width: 36rem;
+  margin-top: 14px;
+}
+
+.plan-cell-wide,
+.plan-form > .actions,
+.plan-form > .error {
+  grid-column: 1 / -1;
+}
+
+.plan-cell .sub-label {
+  margin: 12px 0 6px;
+}
+
+.plan-form > .actions {
+  margin-top: 14px;
+}
+
 @container (max-width: 560px) {
   .urge-contact-row {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .plan-form {
     grid-template-columns: minmax(0, 1fr);
   }
 }
