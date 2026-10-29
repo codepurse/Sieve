@@ -11,8 +11,9 @@
 //      Listing google.co.uk, google.de, google.com.au … in the manifest instead
 //      would still miss whichever one the next user happens to use.
 //
-//      Supported engines: Google, Bing, DuckDuckGo (web results, and its
-//      Images and Videos tabs).
+//      Supported engines: Google, Bing, DuckDuckGo (web results, its Images
+//      and Videos tabs, and its no-JS html version), Brave Search, Yahoo and
+//      Swisscows.
 //
 //   2. It fails visible. Every unknown case leaves the result alone. A missed
 //      rule is a result you still see; an over-eager one is a result you never
@@ -86,6 +87,14 @@
   //           rows of text: a colour is drawn as a ring instead of a bar that
   //           shifts the result sideways, and the "why?" marker sits beside
   //           the title instead of pushing the thumbnail aside.
+  //   site    OPTIONAL. The engine's hostname, for an engine whose home page
+  //           shows its results without loading a new page. On that site the
+  //           script stays, idle, until the address becomes a results page;
+  //           everywhere else it still quits at once.
+  //   markerIn OPTIONAL. An element inside each result to put the "why?"
+  //           marker at the end of, for an engine whose own controls already
+  //           fill the result's top-right corner, where the marker otherwise
+  //           floats.
 
   // DuckDuckGo keeps every tab at "/" with a ?q=, and says which tab in ia=
   // (and iax=, once the tab has been opened rather than linked to).
@@ -181,10 +190,14 @@
     {
       // DuckDuckGo serves results from "/" with a ?q=, not from a /search path.
       // Listed after its Images and Videos tabs, which this test also matches.
+      // The no-JS html version is the exception: its search box POSTs to
+      // /html/, so a search typed there leaves no ?q= in the address. (Lite
+      // lays each result over four rows of one table, with nothing around
+      // them to hide, so it is not covered.)
       id: "duckduckgo",
       test: () =>
         /^(www\.|html\.|lite\.)?duckduckgo\.com$/.test(location.hostname) &&
-        new URLSearchParams(location.search).has("q"),
+        (new URLSearchParams(location.search).has("q") || /^\/html\/?$/.test(location.pathname)),
       roots: ["ol.react-results--main", "[data-area='mainline']", "#links"],
       blocks: "article[data-testid='result'], li[data-layout='organic'], div.result",
       anchor: "a[href]",
@@ -206,6 +219,67 @@
       },
       noticeAnchor: "ol.react-results--main, #links",
     },
+    {
+      // Brave Search (read off the live page, October 2026). Each web result is
+      // a div.snippet with data-type="web", and links go straight to the site.
+      // The same list holds snippets of other types (discussions, videos,
+      // "search elsewhere", pagination), which are left alone. The class names
+      // carry Svelte hashes; data-type is the handle that lasts. The result
+      // and title selectors follow uBlacklist's SERPINFO for Brave
+      // (github.com/ublacklist/builtin, MIT).
+      id: "brave",
+      test: () =>
+        /^(safe\.)?search\.brave\.com$/.test(location.hostname) &&
+        location.pathname.startsWith("/search"),
+      roots: ["#mixed-main"],
+      blocks: ".snippet[data-type='web']",
+      anchor: "a[href]",
+      title: ".title",
+      // Narrower than brave.com, so a result for Brave's own site can still be
+      // filtered like any other.
+      self: /(^|\.)search\.brave\.com$/,
+      noticeAnchor: "#mixed-main",
+    },
+    {
+      // Swisscows (read off the live page, October 2026): an
+      // <article class="item"> per result in div.web-results, with an <h1>
+      // title inside a direct link. The video carousel in the same list is
+      // made of article.video-object, not .item, so it is left alone.
+      // Searching from the home page does not load a new page, hence `site`.
+      // Swisscows pins its own buttons (like, share, more) absolutely into
+      // the top-right corner, where the marker would sit on top of one, so
+      // the marker joins Preview and AI summary in the result's footer.
+      id: "swisscows",
+      site: /^(www\.)?swisscows\.com$/,
+      markerIn: "footer",
+      test: () =>
+        /^(www\.)?swisscows\.com$/.test(location.hostname) &&
+        /^\/([a-z]{2}(-[a-z]{2})?\/)?web\/?$/i.test(location.pathname),
+      roots: [".web-results"],
+      blocks: "article.item",
+      anchor: "a[href]",
+      title: "h1",
+      self: /(^|\.)swisscows\.com$/,
+      noticeAnchor: ".web-results",
+    },
+    {
+      // Yahoo (read off the live pages, October 2026: search.yahoo.com and
+      // the uk. and fr. versions). A div.algo per result in #web, one <h3>
+      // title, direct links. The regional versions put the link inside the
+      // <h3> rather than around it; resultUrl() takes either. Images, video
+      // and news searches live on hosts of their own with markup of their
+      // own, and are not covered.
+      id: "yahoo",
+      test: () =>
+        /^(?!(images|video|news)\.)([a-z-]+\.)?search\.yahoo\.com$/.test(location.hostname) &&
+        /^\/search\/?(;|$)/.test(location.pathname),
+      roots: ["#web"],
+      blocks: "div.algo",
+      anchor: "a[href]",
+      title: "h3",
+      self: /(^|\.)search\.yahoo\.com$/,
+      noticeAnchor: "#web",
+    },
   ];
 
   function pickEngine() {
@@ -223,7 +297,10 @@
   // `let`, not `const`: DuckDuckGo changes tab without loading a new page, so
   // the engine can change under a running script. See followTabs().
   let engine = pickEngine();
-  if (!engine) return; // not a search page — the overwhelmingly common case
+  // Not a search page — the overwhelmingly common case. The exception is the
+  // home page of an engine with a `site`: no engine yet, and followTabs()
+  // picks one up once a search there puts results on the page.
+  if (!engine && !ENGINES.some((e) => e.site && e.site.test(location.hostname))) return;
 
   // --- state --------------------------------------------------------------
   let enabled = false;
@@ -405,7 +482,7 @@
       // sits just OUTSIDE the tile, in the gap. Inside it was invisible on the
       // live Videos tab: the card within is position:relative with an opaque
       // background, and a positioned child paints over its parent's outline.
-      if (engine.tiles) {
+      if (engine && engine.tiles) {
         rules.push(`[${MARK}="c${i + 1}"]{outline:3px solid ${color} !important;outline-offset:1px;border-radius:8px}`);
         return;
       }
@@ -414,11 +491,18 @@
       // the same colour, because the results page can be light or dark — a
       // pastel that looks right on white turns light-on-light in dark mode,
       // while a wash just tints whatever is already there.
+      //
+      // The padding and the negative margin only work as a pair: together they
+      // move the bar out into the gutter and leave the text where it was.
+      // Search engines' own stylesheets kept winning one or both (measured
+      // live, October 2026): Yahoo's took the margin alone, which pushed every
+      // coloured result 10px to the right, and Bing's took both, which left
+      // the bar pressed against the text. Hence !important on both.
       const wash = tint(color, 0.16) || color;
       rules.push(
         `[${MARK}="c${i + 1}"]{background-color:${wash} !important;` +
           `box-shadow:inset 3px 0 0 ${color};border-radius:3px;` +
-          `padding-left:10px;margin-left:-10px}`
+          `padding-left:10px !important;margin-left:-10px !important}`
       );
     });
     style.textContent = rules.join("");
@@ -426,18 +510,21 @@
 
   // --- reading the page ---------------------------------------------------
 
-  // The destination of a result. The link wrapping the heading is the real one;
+  // The destination of a result. The heading's link is the real one, whether
+  // it wraps the heading or sits inside it (Bing, Yahoo's regional pages);
   // everything else in a result block (cached copy, sitelinks, "translate this
   // page") is secondary, so the heading's link is tried first and the other
   // outbound links are only a fallback.
   function resultUrl(block) {
     const titleEl = engine.title ? block.querySelector(engine.title) : null;
-    const titleLink = titleEl ? titleEl.closest("a[href]") : null;
+    const titleLink = titleEl ? titleEl.closest("a[href]") || titleEl.querySelector("a[href]") : null;
     const anchors = Array.from(block.querySelectorAll(engine.anchor));
     if (titleLink) anchors.unshift(titleLink);
 
     for (const a of anchors) {
-      if (!/^https?:/i.test(a.getAttribute("href") || "")) continue;
+      // Absolute links only — but "//host/…" is one too: DuckDuckGo's html
+      // version writes every result as //duckduckgo.com/l/?uddg=…
+      if (!/^(https?:)?\/\//i.test(a.getAttribute("href") || "")) continue;
       // Unwrap the engine's redirector BEFORE judging the host, or on Bing
       // every result reads as a link to Bing and is discarded as furniture.
       const resolved = engine.resolve ? engine.resolve(a.href) : a.href;
@@ -752,9 +839,13 @@
     marker.innerHTML = SIEVE_SVG;
     marker.title = "Why did Sieve change this result?";
     marker.setAttribute("aria-label", "Why did Sieve change this result?");
+    // Where the engine keeps its own controls in that corner, the marker goes
+    // where the entry says instead, rather than on top of them.
+    const slot = engine.markerIn ? block.querySelector(engine.markerIn) : null;
+    if (slot) slot.appendChild(marker);
     // On a tile the block's first child is the thumbnail, which a float would
     // push aside; beside the title it only shortens the caption's lines.
-    if (engine.tiles) titleEl.parentElement.insertBefore(marker, titleEl);
+    else if (engine.tiles) titleEl.parentElement.insertBefore(marker, titleEl);
     else block.insertBefore(marker, block.firstChild);
   }
 
@@ -781,8 +872,9 @@
   // start over for the tab now showing: the old notice lives in the old tab's
   // results, and updating it would be updating something nobody can see. A
   // user who searches first and then clicks Images would otherwise get no
-  // filtering at all. Everywhere else the address does not change under a
-  // results page, and this is one string comparison.
+  // filtering at all. The same carries an engine with a `site` from its home
+  // page to its first results. Everywhere else the address does not change
+  // under a results page, and this is one string comparison.
   let engineHref = location.href;
 
   function followTabs() {
@@ -794,12 +886,16 @@
     const notice = document.getElementById(NOTICE_ID);
     if (notice) notice.remove();
     document.documentElement.classList.remove(REVEAL_CLASS);
-    recountHidden(); // a tab visited before keeps what it hid
     applyStyles();
   }
 
-  // Recount from the page: the results already hidden under the current
-  // engine's roots, by site. A Set, because on Google the roots nest and the
+  // Count from the page: the results hidden under the current engine's roots,
+  // by site. Done after every pass rather than kept as a running total,
+  // because results can leave the page without anything telling us. Brave
+  // swaps its first results for fresh copies as its script starts, which a
+  // running total counted twice; Swisscows replaces one search's results with
+  // the next without loading a page; and on DuckDuckGo the tab just left
+  // still holds what it hid. A Set, because on Google the roots nest and the
   // same result is reachable from two of them.
   function recountHidden() {
     const seen = new Set();
@@ -815,6 +911,7 @@
   function process() {
     if (!enabled) return;
     followTabs();
+    if (!engine) return; // on an engine's site, but not on its results yet
     let changed = false;
     for (const { block, url, title } of collectBlocks()) {
       const verdict = window.SieveSearchFilter.explain(compiled, url, title);
@@ -824,7 +921,6 @@
       }
       if (verdict.color === window.SieveSearchFilter.HIDE) {
         block.setAttribute(MARK, "hidden");
-        noteHidden(verdict.host);
       } else {
         // Colours beyond the palette would be invisible, so they fall back to
         // the last one the user actually defined rather than doing nothing.
@@ -834,7 +930,11 @@
       addMarker(block);
       changed = true;
     }
-    if (changed || hiddenCount) updateNotice();
+    const before = hiddenCount;
+    recountHidden();
+    // `before` too: a count that has just dropped to nothing still has a
+    // notice on the page to take away.
+    if (changed || hiddenCount || before) updateNotice();
   }
 
   // A count with a way back. Silently eating results is how a filter loses the
