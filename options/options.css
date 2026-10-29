@@ -2628,6 +2628,120 @@ html.preload .loading-veil {
   width: 7.5rem;
 }
 
+.streak-goal .streak-cost-row input[type="text"].input {
+  width: 15rem;
+  max-width: 100%;
+}
+
+/* The savings goal: how far the money kept has come. Ink, not green — a goal
+   is progress, not something switched on. */
+.goal {
+  max-width: 28rem;
+  margin-top: 10px;
+}
+
+.goal-text {
+  margin: 0 0 6px;
+  font-size: 14px;
+  color: var(--ink-2);
+}
+
+.goal-track {
+  height: 6px;
+  background: var(--rule);
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.goal-fill {
+  display: block;
+  height: 100%;
+  width: 0;
+  background: var(--ink);
+  border-radius: 3px;
+}
+
+/* The urge screen's centre: a still picture of each design to choose from. */
+.design-choices {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(11rem, 1fr));
+  gap: var(--s-2);
+  margin-top: 10px;
+}
+
+.design-choice {
+  position: relative;
+  display: grid;
+  gap: 8px;
+  padding: 12px;
+  border: 1px solid var(--rule);
+  border-radius: var(--r-1);
+  cursor: pointer;
+}
+
+.design-choice:has(input:checked) {
+  border-color: var(--ink);
+  box-shadow: inset 0 0 0 1px var(--ink);
+}
+
+.design-choice:has(input:focus-visible) {
+  outline: 2px solid var(--ink);
+  outline-offset: 2px;
+}
+
+.design-choice:has(input:disabled) {
+  cursor: default;
+}
+
+.design-choice input {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.design-thumb {
+  width: 100%;
+  height: auto;
+  aspect-ratio: 3 / 2;
+  border-radius: var(--r-1);
+  background: var(--wash);
+}
+
+.design-thumb .thumb-ink,
+.design-thumb .thumb-line {
+  fill: none;
+  stroke: var(--ink);
+}
+
+.design-thumb .thumb-line {
+  stroke: var(--ink-3);
+}
+
+.design-thumb .thumb-wash {
+  fill: var(--rule);
+}
+
+.design-thumb .thumb-dot {
+  fill: var(--ink);
+}
+
+.design-text {
+  display: grid;
+  gap: 2px;
+}
+
+.design-name {
+  font-weight: 600;
+  font-size: 14px;
+  color: var(--ink);
+}
+
+.design-blurb {
+  font-size: 13px;
+  line-height: 1.45;
+  color: var(--ink-2);
+}
+
 @container (max-width: 560px) {
   .urge-contact-row {
     grid-template-columns: minmax(0, 1fr);

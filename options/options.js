@@ -593,13 +593,16 @@ function optionsDefaults() {
     // Warden band on the Overview — folded to its one-line bar by the ×
     wardenFolded: false,
     // The Seal (common/seal.js), and Sieve Pro: the licence (common/pro.js),
-    // the urge screen and streaks (pro/streaks.js). The urge screen's photo
-    // has its own key, read separately, so this batch never carries an image.
+    // the urge screen and streaks (pro/streaks.js), and the note about a
+    // voice message (pro/voice.js). The urge screen's photo has its own key,
+    // read separately, and the sound lives in IndexedDB, so this batch never
+    // carries an image or a recording.
     proLicence: null,
     proSeal: null,
     proUrge: {},
     proHabits: {},
     habitAttempts: {},
+    proVoice: null,
   };
   for (const t of DARK_PATTERN_TYPES) {
     d[t.key] = t.default !== undefined ? t.default : true;
@@ -2458,7 +2461,8 @@ function setupPro(store) {
   document.getElementById("nav-pro-group").hidden = !navShown;
   document.getElementById("nav-pro").hidden = !navShown;
 
-  const { urge, streaks } = window.SieveProSettings.setup(store);
+  // Each Pro group returns its render(pro); this page needs no list of them.
+  const groups = Object.values(window.SieveProSettings.setup(store) || {});
   enhanceSwitchRows(document.getElementById("section-pro"));
 
   function applyPro() {
@@ -2468,8 +2472,7 @@ function setupPro(store) {
       if (note) note.hidden = pro;
       for (const control of card.querySelectorAll(".pro-control")) control.disabled = !pro;
     }
-    urge.render(pro);
-    streaks.render(pro);
+    for (const group of groups) if (group && typeof group.render === "function") group.render(pro);
   }
 
   setupLicence(store, (next) => {

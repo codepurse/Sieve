@@ -230,6 +230,10 @@ export function installStatsListener() {
 
 const STATS_MIDNIGHT_ALARM = "sieveStatsMidnight";
 const STATS_RETENTION_DAYS = 30;
+// Month totals of the days the window has let go of: { "2026-09": { gambling: 12, ... } }.
+export const STATS_MONTHS_KEY = "sieveStatsMonths";
+const STATS_MONTHS_KEPT = 25;
+const MONTH_RE = /^\d{4}-\d{2}$/;
 
 // Timestamp of the next local midnight.
 function nextMidnight() {
@@ -242,6 +246,11 @@ function nextMidnight() {
 // Remove daily buckets older than the retention window. Weekly rollups only
 // need 7 days; we keep 30 so prior-day data survives midnight cleanly and
 // leaves headroom for future features.
+//
+// A day leaving the window is added to its month first (STATS_MONTHS_KEY), so
+// a month can still be counted after its days are gone: a month's total is its
+// folded days plus the daily buckets still here, and a day is only ever in one
+// of the two. Only counts are kept, never anything about a site.
 async function pruneOldStats() {
   // Land the buffer first, or a prune would read stats that do not yet include
   // the pending counts and write back a version missing them.
@@ -251,10 +260,42 @@ async function pruneOldStats() {
   cutoff.setDate(cutoff.getDate() - STATS_RETENTION_DAYS);
   const cutoffStr = localDateStr(cutoff);
   const pruned = {};
+  const leaving = {};
   for (const [date, dayStats] of Object.entries(stats)) {
     if (date >= cutoffStr) pruned[date] = dayStats;
+    else leaving[date] = dayStats;
+  }
+  if (Object.keys(leaving).length) {
+    const stored = await chrome.storage.local.get({ [STATS_MONTHS_KEY]: {} });
+    const months = foldIntoMonths(stored[STATS_MONTHS_KEY], leaving, cutoff);
+    // Months first: a worker torn down between the two writes then keeps a
+    // day twice for a night, rather than losing it.
+    await chrome.storage.local.set({ [STATS_MONTHS_KEY]: months });
   }
   await writeAllStats(pruned);
+}
+
+// The month totals with these days added in, keeping STATS_MONTHS_KEPT months
+// back from `now`. Exported for tests.
+export function foldIntoMonths(months, days, now = new Date()) {
+  const out = {};
+  const src = months && typeof months === "object" ? months : {};
+  for (const [month, counts] of Object.entries(src)) {
+    if (MONTH_RE.test(month) && counts && typeof counts === "object") out[month] = { ...counts };
+  }
+  for (const [date, dayStats] of Object.entries(days || {})) {
+    const month = date.slice(0, 7);
+    if (!MONTH_RE.test(month) || !dayStats || typeof dayStats !== "object") continue;
+    const into = out[month] || (out[month] = {});
+    for (const [category, count] of Object.entries(dayStats)) {
+      const n = Number(count);
+      if (Number.isFinite(n) && n > 0) into[category] = (into[category] || 0) + n;
+    }
+  }
+  const oldest = new Date(now.getFullYear(), now.getMonth() - STATS_MONTHS_KEPT + 1, 1);
+  const oldestStr = localDateStr(oldest).slice(0, 7);
+  for (const month of Object.keys(out)) if (month < oldestStr) delete out[month];
+  return out;
 }
 
 async function handleStatsMidnightAlarm() {

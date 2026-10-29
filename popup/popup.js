@@ -144,9 +144,31 @@ async function updateStatusBanner() {
 }
 
 // Under the summary: a running seal (free, common/seal.js), then each streak
-// tracked with Sieve Pro, with the money kept. Without Pro — or in an
-// open-source build, where pro/streaks.js is an empty stand-in — only the seal.
-const PRO_LINE_KEYS = ["proLicence", "proSeal", "proHabits", "habitAttempts"];
+// tracked with Sieve Pro, with the money kept and how far toward the goal,
+// and a way to Your progress (saying so when last month's letter is waiting).
+// Without Pro — or in an open-source build, where pro/streaks.js is an empty
+// stand-in — only the seal.
+const PRO_LINE_KEYS = ["proLicence", "proSeal", "proHabits", "habitAttempts", "proMonthSeen"];
+
+// The month just ended, as "2026-10", and its name, while its letter is new:
+// the first week of the next month, if the attempt record began before it
+// ended and the letter has not been opened.
+async function waitingLetter(now) {
+  const d = new Date(now);
+  if (d.getDate() > 7) return null;
+  const prev = new Date(d.getFullYear(), d.getMonth() - 1, 1);
+  const key = `${prev.getFullYear()}-${String(prev.getMonth() + 1).padStart(2, "0")}`;
+  const stored = await chrome.storage.local.get(["proMonthSeen", "sieveAttempts"]);
+  const since = stored.sieveAttempts && stored.sieveAttempts.since;
+  const thisMonth = new Date(d.getFullYear(), d.getMonth(), 1).getTime();
+  if (stored.proMonthSeen === key || !Number.isFinite(since) || since >= thisMonth) return null;
+  return prev.toLocaleDateString([], { month: "long" });
+}
+
+function openProgress(hash) {
+  chrome.tabs.create({ url: chrome.runtime.getURL(`pages/progress.html${hash || ""}`) });
+  window.close();
+}
 
 async function updateProLines() {
   const el = document.getElementById("status-pro");
@@ -165,17 +187,39 @@ async function updateProLines() {
       for (const row of (await ST.summary(now)).slice(0, 3)) {
         const parts = [row.label, row.days === 0 ? "starting today" : ST.daysLabel(row.days)];
         if (row.keptLabel) parts.push(`about ${row.keptLabel} kept`);
+        if (row.goalProgress) {
+          parts.push(
+            row.goalProgress.reached
+              ? `enough for ${row.goal.name}`
+              : `${Math.floor(row.goalProgress.share * 100)}% to ${row.goal.name}`,
+          );
+        }
         lines.push(parts.join(" · "));
       }
+      const month = await waitingLetter(now);
+      lines.push(
+        month
+          ? { text: `Your ${month} letter is ready`, hash: "#month" }
+          : { text: "Your progress", hash: "" },
+      );
     }
   } catch (err) {
     console.warn("[Sieve] popup: could not read the seal or streaks:", err);
   }
   el.textContent = "";
   for (const line of lines) {
-    const span = document.createElement("span");
-    span.textContent = line;
-    el.appendChild(span);
+    if (typeof line === "string") {
+      const span = document.createElement("span");
+      span.textContent = line;
+      el.appendChild(span);
+      continue;
+    }
+    const link = document.createElement("button");
+    link.type = "button";
+    link.className = "status-pro-link";
+    link.textContent = `${line.text} →`;
+    link.addEventListener("click", () => openProgress(line.hash));
+    el.appendChild(link);
   }
   el.hidden = lines.length === 0;
 }

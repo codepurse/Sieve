@@ -189,7 +189,9 @@ Sieve elects the CC arm of EasyList's GPLv3 / CC BY-SA 3.0 dual licence; BY-SA's
 "Collection" clause is what keeps the rest of the project MIT. Editing that one file
 means editing a BY-SA file — see [`data/ATTRIBUTION-easylist.md`](data/ATTRIBUTION-easylist.md).
 
-**Sieve Pro** (the urge screen and streaks) is not open source and is not in
+**Sieve Pro** (the urge screen with its designs and voice message, streaks with a
+savings goal, and Your progress: hardest hours, proof it passes, the month and
+year letters) is not open source and is not in
 this repository: [`pro/`](pro/README.md) holds empty stand-ins, and the store versions
 of Sieve carry the real files. Every protection is here, so a build from this
 repository blocks exactly what the store version does. Build one with

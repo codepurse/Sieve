@@ -29,10 +29,14 @@ import "./trial-reminders.js"; // Dark Pattern Blocker — the free-trial remind
 // lives. The settings page and the content script load the same file, so all
 // three agree on what an entry means.
 import "../common/keyword-pattern.js";
+// Also a plain script: the attempt record (when the block page stopped a habit),
+// which this worker alone writes so two block pages cannot lose an entry.
+import "../common/attempts.js";
 import { buildCustomBlockRules } from "./custom-block-rules.js"; // blocked-sites list -> dynamic rules
 import { installStatsListener, installStatsAlarmHandler, scheduleStatsMidnightAlarm } from "../common/stats.js"; // Shared Protection Dashboard stats store
 
 installStatsListener();
+self.SieveAttempts.installListener();
 installStatsAlarmHandler();
 scheduleStatsMidnightAlarm();
 

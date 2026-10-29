@@ -266,6 +266,21 @@
   }
   recordBlockView();
 
+  // The attempt record (common/attempts.js): when, as well as how many, for
+  // the habits someone blocks for themselves. The service worker decides
+  // whether this category is one, and keeps it on this device.
+  function recordAttempt() {
+    if (new URLSearchParams(location.search).get("resolved")) return;
+    try {
+      chrome.runtime
+        .sendMessage({ type: "SIEVE_RECORD_ATTEMPT", category })
+        .catch(() => {});
+    } catch (err) {
+      // Extension context may be unavailable in unusual conditions.
+    }
+  }
+  recordAttempt();
+
   // Streaks and the urge screen (Sieve Pro): records this attempt for the
   // habit the category belongs to, and with Pro and the urge screen on, leads
   // the page with it. See pro/urge.js (an empty stand-in in an open-source

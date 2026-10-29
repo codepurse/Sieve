@@ -383,13 +383,514 @@
         margin-bottom: 36px;
       }
 
+      .urge-hour {
+        margin: 12px 0 0;
+        max-width: 46ch;
+        font-size: 14px;
+        line-height: 1.5;
+        color: var(--ink-2);
+      }
+
+      .urge-stage {
+        position: relative;
+        width: 168px;
+        margin-top: 32px;
+      }
+
       .breath {
         position: relative;
         display: grid;
         place-items: center;
         width: 168px;
         height: 168px;
-        margin-top: 32px;
+      }
+
+      /* Proof it passes: the breathing ring sits inside the dial of the urges
+         already waited out, each a dot at the minute it passed. The ring at
+         its fullest stays inside the innermost dots. */
+      .urge-stage.has-dial {
+        display: grid;
+        place-items: center;
+        width: min(320px, 100%);
+        aspect-ratio: 1;
+      }
+
+      .urge-stage.has-dial .breath {
+        width: 41%;
+        height: 41%;
+      }
+
+      .urge-stage.has-dial .breath-word {
+        max-width: 78%;
+        font-size: 15px;
+        line-height: 1.2;
+        text-align: center;
+      }
+
+      .urge-stage.has-dial + .urge-design + .urge-count {
+        width: min(320px, 100%);
+      }
+
+      .dial {
+        position: absolute;
+        inset: 0;
+        width: 100%;
+        height: 100%;
+        overflow: visible;
+      }
+
+      .dial-ring {
+        fill: none;
+        stroke: var(--rule-strong);
+        stroke-width: 1;
+      }
+
+      .dial-tick {
+        stroke: var(--ink-3);
+        stroke-width: 1;
+      }
+
+      .dial-label {
+        font-family: var(--font-mono);
+        font-size: 11px;
+        fill: var(--ink-3);
+      }
+
+      .dial-arc {
+        fill: none;
+        stroke: var(--ink);
+        stroke-width: 2;
+      }
+
+      .dial-hand {
+        stroke: var(--ink);
+        stroke-width: 1.5;
+        stroke-linecap: round;
+      }
+
+      .dial-usual {
+        stroke: var(--ink-2);
+        stroke-width: 3;
+      }
+
+      .dial-dot {
+        fill: var(--ink-3);
+      }
+
+      .dial-dot.is-ahead {
+        fill: none;
+        stroke: var(--ink-3);
+        stroke-width: 1;
+      }
+
+      .dial-dot.is-passed,
+      .dial-new {
+        fill: var(--ink);
+      }
+
+      .urge-proof {
+        margin: 14px 0 0;
+        max-width: 46ch;
+        font-size: 15px;
+        line-height: 1.5;
+        color: var(--ink-2);
+      }
+
+      .urge-voice {
+        margin-top: 14px;
+      }
+
+      /* ---- Urge screen designs (pro/designs.js) ----------------------------
+         The ensō: the Zen circle drawn one breath at a time; ink on paper, and
+         the page signed in ink after the fifth breath. The river: tiles turned
+         until the ink runs from the spring to the sea. */
+
+      .urge-design {
+        margin-top: 28px;
+      }
+
+      .btn-link {
+        margin-top: 8px;
+        padding: 0;
+        border: 0;
+        background: none;
+        color: var(--ink);
+        font: inherit;
+        font-size: 14px;
+        text-decoration: underline;
+        text-underline-offset: 3px;
+        cursor: pointer;
+      }
+
+      .enso-stage {
+        display: flex;
+        align-items: flex-end;
+        gap: 14px;
+      }
+
+      .enso-frame {
+        position: relative;
+        width: min(calc(100% - 3rem), 22rem);
+        aspect-ratio: 1;
+      }
+
+      .enso {
+        display: block;
+        width: 100%;
+        height: 100%;
+        overflow: visible;
+      }
+
+      .enso-path {
+        fill: none;
+        stroke: var(--rule-strong);
+        stroke-width: 1.2;
+      }
+
+      .enso-stroke {
+        fill: none;
+        stroke: var(--ink);
+        stroke-linecap: round;
+      }
+
+      .enso-bristle {
+        opacity: 0.4;
+      }
+
+      .enso-dry circle {
+        fill: none;
+        stroke: var(--paper);
+      }
+
+      .enso-pool,
+      .enso-drops circle {
+        fill: var(--ink);
+      }
+
+      /* The breath drives the brush: the in-breath takes it halfway round, the
+         longer out-breath closes it, and between breaths the ink fades. */
+      .enso-ink {
+        opacity: 0;
+      }
+
+      .enso-stage[data-phase="in"] .enso-ink,
+      .enso-stage[data-phase="out"] .enso-ink,
+      .enso-stage[data-phase="done"] .enso-ink {
+        opacity: 1;
+      }
+
+      .enso-stage[data-phase="rest"] .enso-ink {
+        transition: opacity 0.9s var(--ease);
+      }
+
+      .enso-stage[data-phase="in"] .enso-stroke {
+        transition: stroke-dashoffset 4s cubic-bezier(0.35, 0, 0.6, 1);
+      }
+
+      .enso-stage[data-phase="out"] .enso-stroke {
+        transition: stroke-dashoffset 6s cubic-bezier(0.25, 0, 0.35, 1);
+      }
+
+      .enso-hold {
+        position: absolute;
+        inset: 8%;
+        padding: 0;
+        border: 0;
+        border-radius: 50%;
+        background: transparent;
+        cursor: pointer;
+        touch-action: none;
+        user-select: none;
+        -webkit-user-select: none;
+        -webkit-touch-callout: none;
+        -webkit-tap-highlight-color: transparent;
+      }
+
+      .enso-hold:focus-visible {
+        outline: 2px solid var(--ink);
+        outline-offset: 6px;
+      }
+
+      .enso-cue {
+        position: absolute;
+        inset: 0;
+        display: grid;
+        place-items: center;
+        font-family: var(--font-serif);
+        font-size: 17px;
+        color: var(--ink-2);
+        pointer-events: none;
+      }
+
+      .enso-stage[data-phase="done"] .enso-cue {
+        opacity: 0;
+      }
+
+      /* On a wide screen the breath is named under the circle once it has
+         begun; on a phone it stays inside, where the thumb and eyes are. */
+      @media (min-width: 561px) {
+        .enso-stage:not([data-phase="idle"]) .enso-cue {
+          opacity: 0;
+        }
+      }
+
+      .enso-signature {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 10px;
+        padding-bottom: 6%;
+      }
+
+      .enso-inscription {
+        margin: 0;
+        writing-mode: vertical-rl;
+        font-family: var(--font-mono);
+        font-size: 10px;
+        letter-spacing: 0.15em;
+        text-transform: uppercase;
+        color: var(--ink-3);
+      }
+
+      .enso-seal {
+        flex: none;
+        width: 2rem;
+        height: 2rem;
+        opacity: 0;
+        transform: scale(1.1);
+        transition:
+          opacity 0.3s var(--ease),
+          transform 0.3s var(--ease);
+      }
+
+      .enso-stage[data-phase="done"] .enso-seal {
+        opacity: 1;
+        transform: none;
+      }
+
+      .enso-stage.is-still .enso-seal {
+        transform: none;
+      }
+
+      .enso-seal-stone {
+        fill: var(--ink);
+      }
+
+      .enso-seal-cut {
+        fill: none;
+        stroke: var(--paper);
+        stroke-width: 2.4;
+        stroke-linecap: round;
+      }
+
+      .enso-seal-border {
+        stroke-width: 1.1;
+      }
+
+      .enso-phase {
+        margin: 16px 0 0;
+        min-height: 1.3em;
+        font-family: var(--font-serif);
+        font-size: 19px;
+      }
+
+      .enso-tally {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 8px 12px;
+        margin-top: 10px;
+      }
+
+      .enso-slots {
+        display: flex;
+        gap: 8px;
+      }
+
+      .enso-slot {
+        width: 2rem;
+        height: 2rem;
+        overflow: visible;
+      }
+
+      .enso-slot-guide {
+        fill: none;
+        stroke: var(--ink-3);
+        stroke-width: 1.2;
+        stroke-dasharray: 1.4 3.2;
+      }
+
+      .enso-slot.is-drawn .enso-slot-guide {
+        display: none;
+      }
+
+      .enso-slot-ink {
+        fill: none;
+        stroke: var(--ink);
+        stroke-linecap: round;
+      }
+
+      .enso-count,
+      .river-moves {
+        font-family: var(--font-mono);
+        font-size: 12px;
+        letter-spacing: 0.04em;
+        font-variant-numeric: tabular-nums;
+        color: var(--ink-3);
+      }
+
+      .enso-done {
+        margin-top: 14px;
+      }
+
+      .enso-done-line,
+      .river-status {
+        margin: 0;
+        font-size: 15px;
+        line-height: 1.5;
+      }
+
+      /* The board: 720 x 600 in the drawing's units, the tiles in the middle
+         600, the spring and the sea in the 60 either side. */
+      .river-play {
+        position: relative;
+        width: min(100%, 30rem);
+        aspect-ratio: 6 / 5;
+      }
+
+      .river-ends {
+        position: absolute;
+        inset: 0;
+        width: 100%;
+        height: 100%;
+        overflow: visible;
+        pointer-events: none;
+      }
+
+      .river-grid {
+        position: absolute;
+        inset: 0 calc(100% / 12);
+        display: grid;
+        grid-template-columns: repeat(6, minmax(0, 1fr));
+        grid-template-rows: repeat(6, minmax(0, 1fr));
+        gap: 1px;
+        padding: 1px;
+        background: var(--rule-strong);
+      }
+
+      .river-tile {
+        position: relative;
+        min-width: 0;
+        min-height: 0;
+        padding: 0;
+        border: 0;
+        border-radius: 0;
+        background: var(--paper);
+        color: inherit;
+        cursor: pointer;
+        overflow: hidden;
+        touch-action: manipulation;
+        -webkit-tap-highlight-color: transparent;
+        transition: background-color 0.2s var(--ease);
+      }
+
+      .river-tile:focus-visible {
+        z-index: 1;
+        outline: 2px solid var(--ink);
+        outline-offset: -3px;
+      }
+
+      .river-piece {
+        display: block;
+        width: 100%;
+        height: 100%;
+        transition: transform 0.24s var(--ease);
+      }
+
+      /* A channel is its banks with the paper between them, until the ink
+         fills it. */
+      .river-bank {
+        fill: none;
+        stroke: var(--ink-3);
+        stroke-width: 25;
+      }
+
+      .river-water {
+        fill: none;
+        stroke: var(--paper);
+        stroke-width: 21;
+        transition: stroke 0.2s var(--ease);
+      }
+
+      @media (hover: hover) {
+        .river-play:not(.is-solved) .river-tile:hover {
+          background: var(--raised);
+        }
+        .river-play:not(.is-solved) .river-tile:hover:not(.is-wet) .river-water {
+          stroke: var(--raised);
+        }
+      }
+
+      .river-tile.is-wet .river-water,
+      .river-source {
+        stroke: var(--ink);
+      }
+
+      .river-pool {
+        fill: var(--ink);
+      }
+
+      .river-waves {
+        fill: none;
+        stroke: var(--ink-3);
+        stroke-width: 1.5px;
+        stroke-linecap: round;
+        vector-effect: non-scaling-stroke;
+      }
+
+      .river-seal {
+        fill: var(--ink);
+        opacity: 0;
+        transition: opacity 0.2s var(--ease) 0.2s;
+      }
+
+      .river-play.is-solved .river-tile {
+        cursor: default;
+      }
+
+      .river-play.is-solved .river-mouth,
+      .river-play.is-solved .river-waves {
+        stroke: var(--ink);
+      }
+
+      .river-play.is-solved .river-seal {
+        opacity: 1;
+      }
+
+      .river-play.is-still .river-piece,
+      .river-play.is-still .river-water,
+      .river-play.is-still .river-seal {
+        transition: none;
+      }
+
+      .river-tally {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: baseline;
+        gap: 6px 12px;
+        margin: 16px 0 8px;
+      }
+
+      .river-count {
+        font-family: var(--font-mono);
+        font-size: 30px;
+        line-height: 1;
+        font-variant-numeric: tabular-nums;
+      }
+
+      .river-unit {
+        font-size: 14px;
+        color: var(--ink-2);
       }
 
       .breath-ring {
@@ -582,17 +1083,28 @@
             circle until it does.
           </p>
 
-          <div class="breath">
-            <span class="breath-ring" aria-hidden="true"></span>
-            <span class="breath-word" id="urge-breath-word">Breathe in</span>
+          <p class="urge-hour" id="urge-hour" hidden></p>
+
+          <!-- The breathing ring, with the Proof it passes dial round it
+               (pro/insights.js), or a design in #urge-design instead
+               (pro/designs.js). -->
+          <div class="urge-stage" id="urge-stage">
+            <svg class="dial" id="urge-dial" aria-hidden="true" focusable="false" hidden></svg>
+            <div class="breath">
+              <span class="breath-ring" aria-hidden="true"></span>
+              <span class="breath-word" id="urge-breath-word">Breathe in</span>
+            </div>
           </div>
+          <div class="urge-design" id="urge-design" hidden></div>
           <p class="urge-count" id="urge-count" role="timer">1:30</p>
+          <p class="urge-proof" id="urge-proof" aria-live="polite" hidden></p>
 
           <figure class="urge-why" id="urge-why" hidden>
             <img class="urge-photo" id="urge-photo" alt="" hidden />
             <figcaption>
               <span class="origin-label">Why you're doing this</span>
               <p class="urge-reason" id="urge-reason"></p>
+              <button class="btn urge-voice" id="urge-voice" type="button" hidden>Play your message</button>
             </figcaption>
           </figure>
 
@@ -600,6 +1112,7 @@
 
           <div class="actions">
             <a class="btn btn-primary" id="urge-contact" hidden></a>
+            <button class="btn" id="urge-ok" type="button" hidden>I&rsquo;m OK now</button>
             <button class="btn" id="urge-close" type="button">Close this tab</button>
           </div>
         </section>
@@ -649,7 +1162,11 @@
     <script src="../common/seal.js"></script>
     <script src="../common/guardian-prompt.js"></script>
     <script src="../common/pro.js"></script>
+    <script src="../common/attempts.js"></script>
     <script src="../pro/streaks.js"></script>
+    <script src="../pro/insights.js"></script>
+    <script src="../pro/designs.js"></script>
+    <script src="../pro/voice.js"></script>
     <script src="../pro/urge.js"></script>
     <script src="blocked.js"></script>
   </body>

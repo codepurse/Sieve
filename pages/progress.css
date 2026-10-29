@@ -1,0 +1,577 @@
+/* ==========================================================================
+   Sieve — Your progress (Sieve Pro)
+   Layout only; tokens come from common/sieve-ui.css. Ink on paper, and
+   nothing green: green means a protection is on, and nothing here is one.
+   A clear day is a filled ink dot, a day a blocked site stopped you is a
+   ring, and days before the record began are a hairline.
+   ========================================================================== */
+
+.pg {
+  width: min(860px, 100%);
+  margin: 0 auto;
+  padding: 0 32px 80px;
+}
+
+.pg-letterhead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 28px 0 20px;
+  border-bottom: 1px solid var(--rule);
+}
+
+.pg-back {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin-left: -6px;
+  padding: 4px 6px;
+  font-size: 13px;
+  color: var(--ink-2);
+  text-decoration: none;
+  border-radius: var(--r-1);
+  transition: color var(--t-press) var(--ease), background-color var(--t-press) var(--ease);
+}
+
+.pg-back:hover {
+  color: var(--ink);
+  background: var(--wash);
+}
+
+.pg-back svg {
+  width: 15px;
+  height: 15px;
+}
+
+.brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.brand .mark {
+  width: 22px;
+  height: 22px;
+}
+
+.pg-head {
+  padding: 48px 0 8px;
+}
+
+.pg-title {
+  margin: 8px 0 0;
+  font-family: var(--font-serif);
+  font-size: clamp(34px, 6vw, 46px);
+  font-weight: 400;
+  line-height: 1.08;
+  letter-spacing: -0.02em;
+}
+
+.pg-sub {
+  max-width: 56ch;
+  margin: 14px 0 0;
+  font-size: 15px;
+  line-height: 1.6;
+  color: var(--ink-2);
+}
+
+.pg-note {
+  margin-top: 36px;
+  padding: 24px 0;
+  border-top: 1px solid var(--rule);
+}
+
+.pg-note p {
+  max-width: 58ch;
+  font-size: 15px;
+  line-height: 1.6;
+  color: var(--ink-2);
+}
+
+.pg-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s-2);
+  margin-top: 18px;
+}
+
+/* ---- Which habits -------------------------------------------------------- */
+
+.pg-habits {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 28px;
+}
+
+.pg-habits:empty {
+  display: none;
+}
+
+.pg-chip {
+  padding: 6px 12px;
+  border: 1px solid var(--rule-strong);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--ink-2);
+  font: inherit;
+  font-size: 13px;
+  cursor: pointer;
+  transition: color var(--t-press) var(--ease), border-color var(--t-press) var(--ease);
+}
+
+.pg-chip:hover {
+  color: var(--ink);
+  border-color: var(--ink);
+}
+
+.pg-chip[aria-pressed="true"] {
+  color: var(--paper);
+  background: var(--ink);
+  border-color: var(--ink);
+}
+
+.pg-chip:focus-visible {
+  outline: 2px solid var(--ink);
+  outline-offset: 2px;
+}
+
+/* ---- Parts --------------------------------------------------------------- */
+
+.pg-part {
+  margin-top: 40px;
+  padding-top: 24px;
+  border-top: 1px solid var(--rule);
+}
+
+.pg-part-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px 16px;
+}
+
+.pg-h {
+  margin: 10px 0 0;
+  font-family: var(--font-serif);
+  font-size: 26px;
+  font-weight: 400;
+  line-height: 1.2;
+  letter-spacing: -0.01em;
+}
+
+.pg-lede {
+  max-width: 58ch;
+  margin: 10px 0 0;
+  font-size: 15px;
+  line-height: 1.6;
+  color: var(--ink-2);
+}
+
+.pg-meta {
+  margin: 12px 0 0;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  letter-spacing: 0.04em;
+  color: var(--ink-3);
+}
+
+.pg-try {
+  max-width: 58ch;
+  margin: 14px 0 0;
+  padding-left: 14px;
+  border-left: 2px solid var(--ink);
+  font-size: 15px;
+  line-height: 1.55;
+}
+
+.pg-empty {
+  max-width: 58ch;
+  margin: 12px 0 0;
+  font-size: 15px;
+  line-height: 1.6;
+  color: var(--ink-2);
+}
+
+.pg-empty a,
+.pg-note a {
+  color: var(--ink);
+}
+
+.pg-nav {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.pg-nav .btn {
+  min-width: 34px;
+  padding: 4px 10px;
+  font-size: 18px;
+  line-height: 1;
+}
+
+.pg-nav-label {
+  min-width: 9.5em;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  letter-spacing: 0.06em;
+  text-align: center;
+  text-transform: uppercase;
+  color: var(--ink-2);
+}
+
+/* ---- Streaks ------------------------------------------------------------- */
+
+.pg-streak-list {
+  margin: 14px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.pg-streak {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 4px 24px;
+  padding: 14px 0;
+}
+
+.pg-streak + .pg-streak {
+  border-top: 1px solid var(--rule);
+}
+
+.pg-streak-name {
+  font-size: 14px;
+  color: var(--ink-2);
+}
+
+.pg-streak-days {
+  font-family: var(--font-serif);
+  font-size: 34px;
+  line-height: 1.1;
+  letter-spacing: -0.015em;
+}
+
+.pg-streak-side {
+  align-self: end;
+  font-size: 14px;
+  line-height: 1.5;
+  text-align: right;
+  color: var(--ink-2);
+}
+
+.pg-goal {
+  grid-column: 1 / -1;
+  max-width: 30rem;
+  margin-top: 6px;
+}
+
+.pg-goal-text {
+  margin: 0 0 6px;
+  font-size: 14px;
+  color: var(--ink-2);
+}
+
+.pg-goal-track {
+  height: 6px;
+  background: var(--rule);
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.pg-goal-fill {
+  display: block;
+  height: 100%;
+  background: var(--ink);
+  border-radius: 3px;
+}
+
+/* ---- When it's hardest: seven weekdays by twenty-four hours --------------- */
+
+.heat {
+  display: grid;
+  grid-template-columns: 2.6em repeat(24, minmax(0, 1fr));
+  gap: 2px;
+  margin-top: 18px;
+  max-width: 44rem;
+}
+
+.heat-day,
+.heat-hour {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.04em;
+  color: var(--ink-3);
+}
+
+.heat-hour {
+  white-space: nowrap;
+  overflow: visible;
+}
+
+.heat-day {
+  align-self: center;
+}
+
+.heat-cell {
+  aspect-ratio: 1;
+  border-radius: 2px;
+  background: var(--wash);
+}
+
+.heat-cell.l1 { background: color-mix(in srgb, var(--ink) 18%, transparent); }
+.heat-cell.l2 { background: color-mix(in srgb, var(--ink) 38%, transparent); }
+.heat-cell.l3 { background: color-mix(in srgb, var(--ink) 62%, transparent); }
+.heat-cell.l4 { background: var(--ink); }
+
+.heat-cell.is-hard {
+  box-shadow: 0 0 0 1.5px var(--paper), 0 0 0 3px var(--ink);
+}
+
+/* ---- Proof it passes ----------------------------------------------------- */
+
+.pg-proof {
+  display: grid;
+  grid-template-columns: minmax(0, 240px) minmax(0, 1fr);
+  align-items: center;
+  gap: 28px;
+  margin-top: 10px;
+}
+
+.pg-proof .dial {
+  width: 100%;
+  height: auto;
+  overflow: visible;
+}
+
+.dial-ring { fill: none; stroke: var(--rule-strong); stroke-width: 1; }
+.dial-tick { stroke: var(--ink-3); stroke-width: 1; }
+.dial-label { font-family: var(--font-mono); font-size: 11px; fill: var(--ink-3); }
+.dial-arc { fill: none; stroke: var(--ink); stroke-width: 2; }
+.dial-hand { stroke: var(--ink); stroke-width: 1.5; stroke-linecap: round; }
+.dial-usual { stroke: var(--ink-2); stroke-width: 3; }
+.dial-dot { fill: var(--ink); }
+.dial-new { fill: var(--ink); }
+
+/* ---- Your month: a letter, and the month on one calendar ------------------ */
+
+.pg-figures {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 18px 36px;
+  margin-top: 20px;
+}
+
+.pg-figure {
+  display: grid;
+  gap: 2px;
+}
+
+.pg-figure-n {
+  font-family: var(--font-serif);
+  font-size: 30px;
+  line-height: 1.1;
+}
+
+.pg-figure-what {
+  font-size: 13px;
+  color: var(--ink-2);
+}
+
+.cal {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 4px;
+  max-width: 26rem;
+  margin-top: 22px;
+}
+
+.cal-weekday {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.06em;
+  text-align: center;
+  text-transform: uppercase;
+  color: var(--ink-3);
+}
+
+.cal-day {
+  position: relative;
+  display: grid;
+  place-items: center;
+  aspect-ratio: 1;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--ink-3);
+}
+
+.cal-day .day-mark {
+  position: absolute;
+  inset: 14%;
+  width: auto;
+  height: auto;
+}
+
+.cal-day span {
+  position: relative;
+}
+
+.cal-day.is-clear span {
+  color: var(--paper);
+}
+
+.cal-day.is-urge span,
+.cal-day.is-today span {
+  color: var(--ink);
+}
+
+.cal-day.is-today {
+  outline: 1px solid var(--ink);
+  outline-offset: -1px;
+  border-radius: var(--r-1);
+}
+
+.day-mark {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  vertical-align: -1px;
+}
+
+.day-mark.is-clear {
+  background: var(--ink);
+}
+
+.day-mark.is-urge {
+  box-shadow: inset 0 0 0 1.5px var(--ink);
+}
+
+.day-mark.is-before {
+  box-shadow: inset 0 0 0 1px var(--rule-strong);
+  border-radius: 2px;
+}
+
+.pg-key {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 18px;
+  margin-top: 12px;
+  font-size: 12px;
+  color: var(--ink-3);
+}
+
+.pg-closing {
+  margin: 20px 0 0;
+  font-family: var(--font-serif);
+  font-size: 19px;
+  font-style: italic;
+}
+
+.pg-closing:empty {
+  display: none;
+}
+
+/* ---- Your year: every day on one calendar --------------------------------- */
+
+.year {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(10.5rem, 1fr));
+  gap: 18px 22px;
+  margin-top: 20px;
+}
+
+.year-month-name {
+  margin: 0 0 6px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--ink-2);
+}
+
+.year-month-count {
+  color: var(--ink-3);
+}
+
+.year-days {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 3px;
+  max-width: 8.5rem;
+}
+
+.year-day {
+  aspect-ratio: 1;
+  border-radius: 50%;
+}
+
+.year-day.is-clear { background: var(--ink); }
+.year-day.is-urge { box-shadow: inset 0 0 0 1.5px var(--ink); }
+.year-day.is-today { box-shadow: inset 0 0 0 1.5px var(--ink-3); border-radius: 2px; }
+.year-day.is-before,
+.year-day.is-ahead { box-shadow: inset 0 0 0 1px var(--rule); border-radius: 2px; }
+
+/* ---- Foot ------------------------------------------------------------------ */
+
+.pg-foot {
+  margin-top: 64px;
+}
+
+.pg-foot .kicker {
+  margin-top: 12px;
+}
+
+/* ---- Small screens --------------------------------------------------------- */
+
+@media (max-width: 560px) {
+  .pg {
+    padding: 0 16px 64px;
+  }
+  .pg-head {
+    padding-top: 32px;
+  }
+  .pg-proof {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .pg-proof .dial {
+    max-width: 240px;
+  }
+  .heat {
+    grid-template-columns: 2.2em repeat(24, minmax(0, 1fr));
+    gap: 1px;
+  }
+  .heat-hour {
+    font-size: 8px;
+  }
+  .pg-streak {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .pg-streak-side {
+    text-align: left;
+  }
+}
+
+/* ---- Print: the month's letter, on its own -------------------------------- */
+
+@media print {
+  body {
+    background: #fff;
+  }
+  .pg-letterhead .pg-back,
+  .pg-head,
+  .pg-habits,
+  .pg-no-print,
+  .pg-nav .btn,
+  .pg-foot {
+    display: none !important;
+  }
+  .pg-part:not(.pg-letter) {
+    display: none !important;
+  }
+  .pg-letter {
+    margin-top: 24px;
+    border-top: 0;
+  }
+}

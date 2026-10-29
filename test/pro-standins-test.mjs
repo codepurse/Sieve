@@ -19,7 +19,16 @@ const read = (...p) => readFileSync(join(ROOT, ...p), "utf8");
 const STANDINS = readdirSync(DIR).filter((f) => !f.endsWith(".md")).sort();
 
 test("the stand-ins are the Pro files, and the README names each", () => {
-  assert.deepEqual(STANDINS, ["features.js", "settings.js", "streaks.js", "urge.js"]);
+  assert.deepEqual(STANDINS, [
+    "designs.js",
+    "features.js",
+    "insights.js",
+    "progress.js",
+    "settings.js",
+    "streaks.js",
+    "urge.js",
+    "voice.js",
+  ]);
   const readme = read("pro", "README.md");
   for (const f of STANDINS) assert.ok(readme.includes("`" + f + "`"), `pro/README.md names ${f}`);
 });
@@ -49,6 +58,8 @@ test("the private repository can never be committed here", () => {
 test("everything that uses Pro checks it is there first", () => {
   // The block page: no SieveUrge, the plain notice.
   assert.match(read("pages", "blocked.js"), /if \(window\.SieveUrge\) \{/);
+  // Your progress: no SieveProgress, a page that says Pro is not in this build.
+  assert.match(read("pages", "progress.js"), /if \(!window\.SieveProgress\) \{\s*document\.getElementById\("pg-absent"\)\.hidden = false;/);
   // The popup: no streaks without Pro and pro/streaks.js; the seal line needs neither.
   const popup = read("popup", "popup.js");
   assert.match(popup, /if \(P && ST && \(await P\.isPro\(now\)\)\) \{/);

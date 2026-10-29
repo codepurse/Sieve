@@ -5,8 +5,12 @@ The files in this folder are empty stand-ins for **Sieve Pro**:
 | File | The feature |
 | --- | --- |
 | `urge.js` | The urge screen, on the block page, and recording attempts for streaks |
-| `streaks.js` | Streaks and money kept, and the habits the urge screen knows about |
-| `settings.js` | The urge screen and streaks groups in Settings › Sieve Pro |
+| `streaks.js` | Streaks, money kept and the savings goal, and the habits the urge screen knows about |
+| `insights.js` | When it's hardest, proof it passes, and the month and year letters |
+| `designs.js` | The ensō and the river, for the centre of the urge screen |
+| `voice.js` | A message in your own voice, recorded in Settings and played on the urge screen |
+| `progress.js` | The Your progress page (`pages/progress.html`) |
+| `settings.js` | The urge screen, voice and streaks groups in Settings › Sieve Pro |
 | `features.js` | Which Pro features a build carries (here: none) |
 
 Sieve Pro is not open source. It lives in a separate, private repository and

@@ -31,7 +31,7 @@ described [below](#sieve-pro-licence-check). Without Pro, nothing changes.
 
 Sieve is open source, so anyone can verify these claims:
 <https://github.com/codepurse/Sieve>. The one exception is Sieve Pro's
-features (the urge screen and streaks), which are not open source.
+features (the urge screen, streaks and Your progress), which are not open source.
 They make no network requests and keep everything on your device, and the
 licence check, the only request Pro makes, is part of the open-source code
 (`common/pro.js`), so what it sends can be checked by anyone.
@@ -56,10 +56,14 @@ third party.
 | What a page claimed, while the Dark Pattern Blocker is on | Tell a fake countdown or stock number from a real one on your next visit — see [below](#what-the-dark-pattern-blocker-remembers) | Yes |
 | Free-trial reminders, **only the ones you ask for** | Remind you before a free trial starts charging — see [below](#free-trial-reminders) | Yes |
 | When the block page last stopped each kind of site | One date and time per kind (gambling, dating, games, AI tools, trading, your own blocked sites) and your longest gap, for Sieve Pro's streaks — never the site or its address | Yes |
+| When the block page stopped you, for the kinds of site you block for yourself | The time and the kind (gambling, dating, games, AI tools, trading, your own blocked sites) of each stop, kept for a year, so Sieve Pro can show when it tends to get hard and write your month — never the site or its address, and never threats such as scam or malware sites. Kept for everyone, Pro or not | Yes |
+| Monthly block totals | The Protection Dashboard keeps its daily counts for 30 days; as a day leaves, its counts are added to its month, for about two years — counts only, never a site | Yes |
+| Urges waited out, **only if you press "I'm OK now"** | When, how long it took, and the kind of site, to draw Sieve Pro's Proof it passes dial | Yes |
+| A message in your own voice, **only if you record or choose one** | The recording or sound file, stored in the extension's own database in your browser, and played on the urge screen. The microphone is used only while you record | Yes |
 | Sieve Pro licence key, **only if you enter one** | Turn on the Pro features | Kept on your device; checked with Polar — see [below](#sieve-pro-licence-check) |
 | Seal, **only if you start one** | When it ends, and its way out: either the key your witness's authenticator app shares with Sieve (needed to check their codes) and their recovery codes as **hashes**, or the emergency key as a **hash**. A witness's app works offline; nothing is sent to them, us or anyone | Yes |
 | Urge screen, **only what you fill in** | Your reason, an optional photo (shrunk to fit 800 pixels), and a contact's name and number or email address, shown on the block page | Yes |
-| Streak settings, **only for what you track** | The day you stopped, and what it used to cost you, to count streaks and money kept | Yes |
+| Streak settings, **only for what you track** | The day you stopped, what it used to cost you, and what you are saving for, to count streaks, money kept and how close the goal is | Yes |
 
 Sieve also reads the content of web pages you visit **in the page itself** — for
 example, to mask profanity, hide toxic comments, remove dark patterns, or count
@@ -150,8 +154,8 @@ extension sends. If you say no, nothing is sent and Pro stays off. Nobody who
 does not activate Pro is ever asked.
 
 The key is kept on your device so it can be checked again. The Pro features
-themselves (the urge screen and streaks) run entirely on your device, like the
-rest of Sieve.
+themselves (the urge screen, streaks and Your progress) run entirely on your
+device, like the rest of Sieve.
 
 ---
 
@@ -234,7 +238,8 @@ To be plain about the cases where that wording could mislead: if you switch
 on Usage Insights, a tally of site names and durations is written **to your own
 browser storage**; the Dark Pattern Blocker writes the numbers described
 above under scrambled codes; a free-trial reminder you ask for keeps that
-site's name and dates; and Sieve Pro's streaks and urge screen keep what is
+site's name and dates; the block page keeps when it stopped you, by kind of
+site; and Sieve Pro's streaks, urge screen and voice message keep what is
 listed in the table above. You can erase any of them at any time. Nothing about
 them is ever sent to us or to a third party, which is why the declaration above
 is still accurate.
