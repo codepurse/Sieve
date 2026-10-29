@@ -47,23 +47,40 @@
   const LICENCE_KEY = "proLicence";
 
   // From the Polar dashboard: Monolab's store, the one BlockNSFW's Supporter
-  // sells through too. `mode` is "sandbox" while testing with Polar's test
-  // store and "live" for real purchases; a key from one does not open the
-  // other, and the sandbox has its own organisation and benefit ids.
+  // sells through too. `mode` is "live" for real purchases and "sandbox" for
+  // Polar's test store, which is a separate copy with its own organisation,
+  // product and benefit; a key from one does not open the other. Shipped
+  // builds are live; `build-chrome.ps1 -Sandbox` makes a test build that
+  // switches this one word in its own copy (build-pro.mjs).
   const CONFIG = {
     mode: "live",
-    organizationId: "354a2f6c-8ea7-46a7-87c5-f97645c12e29",
-    api: { sandbox: "https://sandbox-api.polar.sh", live: "https://api.polar.sh" },
-    // Where buyers find their key and see the browsers it is on.
-    portal: { sandbox: "https://sandbox.polar.sh/monolab/portal", live: "https://polar.sh/monolab/portal" },
-    // The benefit(s) that grant Sieve Pro. Required: every product in the store
-    // shares the organisation id, so this is what tells a Sieve Pro key from a
-    // BlockNSFW one. Until it is set, Pro cannot be activated.
-    benefitIds: [],
-    // Without it the settings page hides the Buy button.
-    checkoutUrl: "",
-    priceLabel: "$24",
+    stores: {
+      live: {
+        organizationId: "354a2f6c-8ea7-46a7-87c5-f97645c12e29",
+        // The benefit(s) that grant Sieve Pro. Required: every product in the
+        // store shares the organisation id, so this is what tells a Sieve Pro
+        // key from a BlockNSFW one. Until it is set, Pro cannot be activated.
+        benefitIds: [],
+        // Without it the settings page hides the Buy button.
+        checkoutUrl: "",
+        api: "https://api.polar.sh",
+        // Where buyers find their key and see the browsers it is on.
+        portal: "https://polar.sh/monolab/portal",
+      },
+      sandbox: {
+        organizationId: "35c82b93-77a2-4b87-8478-39fc5dd4e666",
+        benefitIds: ["128feed7-d174-4ea4-a623-8bb26140935a"],
+        checkoutUrl: "https://sandbox-api.polar.sh/v1/checkout-links/polar_cl_nMckDrg0py2tVxqLjBPTm96ZqBomNzo7lS5nV2amxgc/redirect",
+        api: "https://sandbox-api.polar.sh",
+        portal: "https://sandbox.polar.sh/monolab/portal",
+      },
+    },
+    priceLabel: "$24.99",
   };
+
+  function store() {
+    return CONFIG.stores[CONFIG.mode] || CONFIG.stores.live;
+  }
 
   const DAY = 24 * 60 * 60 * 1000;
   const REFRESH_EVERY_MS = 7 * DAY;
@@ -109,15 +126,20 @@
   }
 
   function isConfigured() {
-    return !!CONFIG.organizationId && CONFIG.benefitIds.length > 0;
+    const s = store();
+    return !!s.organizationId && s.benefitIds.length > 0;
   }
 
   function apiBase() {
-    return CONFIG.api[CONFIG.mode] || CONFIG.api.live;
+    return store().api;
   }
 
   function portalUrl() {
-    return CONFIG.portal[CONFIG.mode] || CONFIG.portal.live;
+    return store().portal;
+  }
+
+  function checkoutUrl() {
+    return store().checkoutUrl;
   }
 
   // What this browser is called on the purchases page, so a buyer can tell
@@ -210,7 +232,7 @@
   function readAnswer(body) {
     const status = STATUSES.includes(body && body.status) ? body.status : "invalid";
     const benefitId = body && typeof body.benefit_id === "string" ? body.benefit_id : "";
-    const wrongProduct = !CONFIG.benefitIds.includes(benefitId);
+    const wrongProduct = !store().benefitIds.includes(benefitId);
     const expires = body && body.expires_at ? Date.parse(body.expires_at) : NaN;
     const limit = Math.floor(Number(body && body.limit_activations));
     return {
@@ -226,7 +248,7 @@
   async function validate(key, activationId) {
     if (!isConfigured()) return { ok: false, offline: true, reason: "not-configured" };
     if (!(await hasConsent())) return { ok: false, offline: true, reason: "no-consent" };
-    const payload = { key, organization_id: CONFIG.organizationId };
+    const payload = { key, organization_id: store().organizationId };
     if (activationId) payload.activation_id = activationId;
     const r = await call("/v1/customer-portal/license-keys/validate", payload);
     if (r.offline) return { ok: false, offline: true };
@@ -240,7 +262,7 @@
   async function takePlace(key, limit) {
     const r = await call("/v1/customer-portal/license-keys/activate", {
       key,
-      organization_id: CONFIG.organizationId,
+      organization_id: store().organizationId,
       label: deviceLabel(),
     });
     if (r.offline) return { ok: false, offline: true };
@@ -371,7 +393,7 @@
       if (!(await hasConsent())) return { ok: false, offline: true, reason: "no-consent" };
       const r = await call("/v1/customer-portal/license-keys/deactivate", {
         key: licence.key,
-        organization_id: CONFIG.organizationId,
+        organization_id: store().organizationId,
         activation_id: licence.activationId,
       });
       // 404: Polar has no such place any more, which is what was asked for.
@@ -392,6 +414,7 @@
     isConfigured,
     apiBase,
     portalUrl,
+    checkoutUrl,
     deviceLabel,
     needsConsent,
     hasConsent,

@@ -12,8 +12,8 @@
 #   -OpenSource
 #             Build without Sieve Pro, on purpose: pro\ keeps its empty
 #             stand-ins. What CI builds, and what anyone can build from GitHub.
-#   -Sandbox  With -Zip: a test package whose Pro may use Polar's sandbox.
-#             Never upload one.
+#   -Sandbox  A test build whose Pro uses Polar's sandbox store (with -Zip, a
+#             test package). Never upload one.
 #
 # Sieve Pro comes from a private repository checked out at pro-private\ (see
 # pro\README.md and build-pro.mjs). A plain build includes it when that
@@ -36,7 +36,7 @@ $OutDir      = Join-Path $ScriptDir "dist\chrome"
 $ManifestSrc = Join-Path $SrcDir "manifest.json"
 $ManifestDst = Join-Path $OutDir "manifest.json"
 
-$ProKind = if ($OpenSource) { "open-source" } elseif ($Zip -and $Sandbox) { "sandbox" } elseif ($Zip) { "store" } else { "dev" }
+$ProKind = if ($OpenSource) { "open-source" } elseif ($Sandbox) { "sandbox" } elseif ($Zip) { "store" } else { "dev" }
 
 # Whole folders copied verbatim into the build. Anything not listed here
 # (node_modules, src, vendor, cookie-rules-extra, test, _metadata, docs) is

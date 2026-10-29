@@ -2250,8 +2250,8 @@ function setupLicence(store, onChange) {
   const forgetHint = document.getElementById("pro-forget-hint");
   const portalLink = document.getElementById("pro-portal");
 
-  if (P.CONFIG.checkoutUrl) {
-    buyLink.href = P.CONFIG.checkoutUrl;
+  if (P.checkoutUrl()) {
+    buyLink.href = P.checkoutUrl();
     buyActions.hidden = false;
   }
   portalLink.href = P.portalUrl();

@@ -9,8 +9,9 @@
 // <kind> is one of:
 //   store        a package for the stores (-Zip): Pro must be included, from a
 //                clean pro-private checkout, selling through Polar's live store
-//   sandbox      a test package (-Zip -Sandbox): Pro included, any store mode;
-//                never upload one
+//   sandbox      a test build (-Sandbox, with or without -Zip): Pro included,
+//                and this build's own copy of common/pro.js switched to Polar's
+//                sandbox store; never upload one
 //   dev          a plain build: Pro included when pro-private is checked out
 //   open-source  without Pro on purpose (-OpenSource): the stand-ins stay
 //
@@ -20,7 +21,7 @@
 // nothing else in the private repository (its tests, its notes) can reach a
 // package.
 
-import { readFileSync, readdirSync, existsSync, copyFileSync, rmSync, statSync } from "node:fs";
+import { readFileSync, readdirSync, existsSync, copyFileSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 import { execFileSync } from "node:child_process";
@@ -73,14 +74,26 @@ function checkPrivate(kind) {
   return true;
 }
 
+// What a store in common/pro.js still lacks before it can sell Sieve Pro.
+function storeGaps(name) {
+  const s = (proConfig().stores || {})[name] || {};
+  const missing = [];
+  if (!s.organizationId) missing.push("no organizationId");
+  if (!Array.isArray(s.benefitIds) || s.benefitIds.length === 0) missing.push("no benefitIds");
+  if (!s.checkoutUrl) missing.push("no checkoutUrl");
+  return missing;
+}
+
+function checkSandbox() {
+  const missing = storeGaps("sandbox");
+  if (missing.length) fail(`common/pro.js has no complete sandbox store: ${missing.join(", ")}.`);
+}
+
 function checkStore() {
   const c = proConfig();
-  const missing = [];
-  if (c.mode !== "live") missing.push(`mode is "${c.mode}", not "live"`);
-  if (!c.organizationId) missing.push("no organizationId");
-  if (!Array.isArray(c.benefitIds) || c.benefitIds.length === 0) missing.push("no benefitIds");
-  if (!c.checkoutUrl) missing.push("no checkoutUrl");
-  if (missing.length) fail(`common/pro.js cannot sell Sieve Pro yet: ${missing.join(", ")}. Fill it in from the Polar dashboard, or pass -Sandbox for a test package.`);
+  const missing = storeGaps("live");
+  if (c.mode !== "live") missing.unshift(`mode is "${c.mode}", not "live"`);
+  if (missing.length) fail(`common/pro.js cannot sell Sieve Pro yet: ${missing.join(", ")}. Fill in stores.live from the Polar dashboard, or pass -Sandbox for a test package.`);
 
   let dirty = "";
   try {
@@ -99,6 +112,7 @@ if (args[0] === "--check") {
   if (kind === "open-source") process.exit(0);
   checkPrivate(kind);
   if (kind === "store") checkStore();
+  if (kind === "sandbox") checkSandbox();
   process.exit(0);
 }
 
@@ -114,3 +128,15 @@ if (kind === "open-source" || !checkPrivate(kind)) {
 }
 for (const name of standInNames()) copyFileSync(join(REAL, name), join(outPro, name));
 console.log(`Sieve Pro: included (${standInNames().join(", ")})`);
+
+// A sandbox build switches its own copy of the licence check to Polar's test
+// store. The source, and every other build, stays live.
+if (kind === "sandbox") {
+  const file = join(outDir, "common", "pro.js");
+  const text = readFileSync(file, "utf8");
+  // \r? because a Windows checkout may have CRLF line endings.
+  const live = /^([ \t]*)mode: "live",(\r?)$/m;
+  if ((text.match(new RegExp(live.source, "gm")) || []).length !== 1) fail(`${file}: expected exactly one mode: "live", line`);
+  writeFileSync(file, text.replace(live, '$1mode: "sandbox",$2'));
+  console.log("Sieve Pro: this build uses Polar's sandbox store");
+}

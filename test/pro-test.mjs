@@ -65,8 +65,11 @@ globalThis.window = globalThis;
 await import("../common/pro.js");
 const P = globalThis.SievePro;
 
-P.CONFIG.organizationId = "org-test";
-P.CONFIG.benefitIds = ["benefit-pro"];
+// The config as shipped, before the tests point the live store at test ids.
+const SHIPPED = structuredClone(P.CONFIG);
+const LIVE = P.CONFIG.stores.live;
+LIVE.organizationId = "org-test";
+LIVE.benefitIds = ["benefit-pro"];
 
 const DAY = 24 * 3600000;
 const T0 = Date.UTC(2026, 9, 29, 9, 0, 0);
@@ -386,47 +389,59 @@ test("Chrome and Edge never ask", async () => {
 test("without an organisation id nothing is sent", async () => {
   reset();
   answers.validate = reply(200, GRANTED);
-  P.CONFIG.organizationId = "";
+  LIVE.organizationId = "";
   try {
     const result = await P.activate(KEY, T0);
     assert.equal(result.ok, false);
     assert.equal(calls.length, 0);
   } finally {
-    P.CONFIG.organizationId = "org-test";
+    LIVE.organizationId = "org-test";
   }
 });
 
 test("without Sieve Pro's benefit named, nothing is sent", async () => {
   reset();
   answers.validate = reply(200, { ...GRANTED, benefit_id: "blocknsfw-supporter" });
-  P.CONFIG.benefitIds = [];
+  LIVE.benefitIds = [];
   try {
     assert.equal(P.isConfigured(), false);
     const result = await P.activate(KEY, T0);
     assert.equal(result.ok, false);
     assert.equal(calls.length, 0);
   } finally {
-    P.CONFIG.benefitIds = ["benefit-pro"];
+    LIVE.benefitIds = ["benefit-pro"];
   }
 });
 
-test("sandbox mode asks Polar's test store, and shows its purchases page", async () => {
+test("sandbox mode uses the test store's own ids, address, checkout and purchases page", async () => {
   reset();
-  answers.validate = reply(200, GRANTED);
+  const sandbox = SHIPPED.stores.sandbox;
+  answers.validate = reply(200, { ...GRANTED, benefit_id: sandbox.benefitIds[0] });
   P.CONFIG.mode = "sandbox";
   try {
-    await P.activate(KEY, T0);
+    assert.deepEqual(await P.activate(KEY, T0), { ok: true });
     assert.match(calls[0].url, /^https:\/\/sandbox-api\.polar\.sh\//);
+    assert.equal(calls[0].body.organization_id, sandbox.organizationId);
+    assert.equal(P.checkoutUrl(), sandbox.checkoutUrl);
     assert.match(P.portalUrl(), /^https:\/\/sandbox\.polar\.sh\//);
   } finally {
     P.CONFIG.mode = "live";
   }
 });
 
-test("the shipped config is the live store", () => {
-  assert.equal(P.CONFIG.mode, "live");
-  assert.equal(P.apiBase(), "https://api.polar.sh");
-  assert.equal(P.portalUrl(), "https://polar.sh/monolab/portal");
+test("the shipped config: live mode, Monolab's live store, and a complete sandbox", () => {
+  assert.equal(SHIPPED.mode, "live");
+  const { live, sandbox } = SHIPPED.stores;
+  assert.equal(live.organizationId, "354a2f6c-8ea7-46a7-87c5-f97645c12e29");
+  assert.equal(live.api, "https://api.polar.sh");
+  assert.equal(live.portal, "https://polar.sh/monolab/portal");
+  // The live store's benefit and checkout are filled in at launch; a store
+  // package refuses to build until they are (build-pro.mjs).
+  assert.notEqual(sandbox.organizationId, live.organizationId, "the sandbox is a separate store");
+  assert.match(sandbox.organizationId, /^[0-9a-f-]{36}$/);
+  assert.equal(sandbox.benefitIds.length, 1);
+  assert.match(sandbox.checkoutUrl, /^https:\/\/sandbox-api\.polar\.sh\/v1\/checkout-links\/polar_cl_\w+\/redirect$/);
+  assert.equal(sandbox.api, "https://sandbox-api.polar.sh");
 });
 
 test("the masked key shows the tail only", () => {
