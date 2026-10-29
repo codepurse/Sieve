@@ -2246,11 +2246,17 @@ function setupLicence(store, onChange) {
   const activateBtn = document.getElementById("pro-activate");
   const errorEl = document.getElementById("pro-error");
   const forgetBtn = document.getElementById("pro-forget");
+  const forgetError = document.getElementById("pro-forget-error");
+  const forgetHint = document.getElementById("pro-forget-hint");
+  const portalLink = document.getElementById("pro-portal");
 
   if (P.CONFIG.checkoutUrl) {
     buyLink.href = P.CONFIG.checkoutUrl;
     buyActions.hidden = false;
   }
+  portalLink.href = P.portalUrl();
+
+  const CONSENT_MSG = "Firefox asks before Sieve sends the key to Polar to check it. Press Activate again and choose Allow.";
 
   function render(raw) {
     const licence = P.normalizeLicence(raw);
@@ -2260,15 +2266,24 @@ function setupLicence(store, onChange) {
     buyField.hidden = on;
     ownedField.hidden = !licence;
     if (!licence) return;
+    const key = licence.displayKey;
     if (on) {
-      ownedText.textContent = `Pro is on, with key ${licence.displayKey}. Thank you for supporting Sieve.`;
+      const places = licence.limit
+        ? ` It works in up to ${licence.limit} browsers at once; this one is “${P.deviceLabel()}”.`
+        : "";
+      ownedText.textContent = `Pro is on, with key ${key}.${places} Thank you for supporting Sieve.`;
+    } else if (licence.status === "removed") {
+      ownedText.textContent =
+        `This browser's place on key ${key} was given back, so Pro is off here. ` +
+        "Enter the key again to take a place back, if one is free.";
     } else if (licence.status === "revoked" || licence.status === "disabled") {
       ownedText.textContent =
-        `Key ${licence.displayKey} was refunded or turned off, so Pro is off. ` +
+        `Key ${key} was refunded or turned off, so Pro is off. ` +
         "A seal you already started still runs to its date.";
     } else {
-      ownedText.textContent = `Key ${licence.displayKey} is not a Sieve Pro key, so Pro is off.`;
+      ownedText.textContent = `Key ${key} is not a Sieve Pro key, so Pro is off.`;
     }
+    forgetHint.hidden = !(on && licence.activationId);
     checkedEl.textContent = licence.checkedAt ? `Last checked ${proShortDate(licence.checkedAt)}` : "";
   }
 
@@ -2279,11 +2294,14 @@ function setupLicence(store, onChange) {
       errorEl.textContent = "Paste the licence key from your receipt email.";
       return;
     }
+    // Firefox's question has to come straight from this click, before
+    // anything else is awaited. Everywhere else it is a yes at once.
+    const consent = P.askConsent();
     activateBtn.disabled = true;
     activateBtn.textContent = "Checking…";
     let result;
     try {
-      result = await P.activate(key);
+      result = (await consent) ? await P.activate(key) : { ok: false, offline: true, reason: "no-consent" };
     } catch {
       result = { ok: false, offline: true };
     }
@@ -2293,8 +2311,15 @@ function setupLicence(store, onChange) {
       keyInput.value = ""; // the storage listener below shows the rest
     } else if (result.reason === "not-configured") {
       errorEl.textContent = "Sieve Pro is not on sale yet.";
+    } else if (result.reason === "no-consent") {
+      errorEl.textContent = CONSENT_MSG;
     } else if (result.offline) {
       errorEl.textContent = "Could not reach the licence check. Check your connection and try again.";
+    } else if (result.status === "full") {
+      const where = result.limit === 1 ? "one browser" : `${result.limit || "as many"} browsers`;
+      errorEl.textContent =
+        `That key is already in ${where}, as many as it allows. Remove it from one of them first: ` +
+        "in Sieve's settings there, or on your purchases page.";
     } else if (result.status === "revoked" || result.status === "disabled") {
       errorEl.textContent = "That key was refunded or turned off.";
     } else {
@@ -2306,8 +2331,25 @@ function setupLicence(store, onChange) {
   keyInput.addEventListener("keydown", (e) => {
     if (e.key === "Enter") activate();
   });
+
   // Pro going away weakens no protection, so taking the key out is not gated.
-  forgetBtn.addEventListener("click", () => P.forget());
+  forgetBtn.addEventListener("click", async () => {
+    forgetError.textContent = "";
+    forgetBtn.disabled = true;
+    let result;
+    try {
+      result = await P.release();
+    } catch {
+      result = { ok: false, offline: true };
+    }
+    forgetBtn.disabled = false;
+    if (!result.ok) {
+      forgetError.textContent =
+        result.reason === "no-consent"
+          ? "Firefox no longer lets Sieve send the key, so this browser keeps its place. Allow it in Firefox's add-on settings, or free the place on your purchases page."
+          : "Could not reach the licence check, so this browser keeps its place. Try again when you're online.";
+    }
+  });
 
   chrome.storage.onChanged.addListener((changes, area) => {
     if (area !== "local" || !changes[P.LICENCE_KEY]) return;

@@ -22,11 +22,12 @@ today", so it can compare them on your next visit. It is described
 be erased with one button.
 
 There is one exception to "nothing is sent": **Sieve Pro**, the optional one-time
-purchase. If you buy it and type in your licence key, that key, and nothing
-else, is sent to Polar, the company that sells Sieve Pro for us, to check that
-it is valid. That happens when you enter it and about once a week after that, and
-only from Sieve's settings page. It is described
-[below](#sieve-pro-licence-check). Without Pro, nothing changes.
+purchase. If you buy it and type in your licence key, that key is sent to Polar,
+the company that sells Sieve Pro for us, to check that it is valid, along with a
+plain name for the browser ("Sieve · Edge on Windows") so you can tell your
+browsers apart on your purchases page. That happens when you enter or remove the
+key and about once a week in between, and only from Sieve's settings page. It is
+described [below](#sieve-pro-licence-check). Without Pro, nothing changes.
 
 Sieve is open source, so anyone can verify these claims:
 <https://github.com/codepurse/Sieve>. The one exception is Sieve Pro's
@@ -130,17 +131,27 @@ the licence key. Sieve itself never sees your payment details or your email
 address.
 
 When you type a licence key into Sieve's settings, Sieve sends **that key and
-Sieve's own shop ID** to Polar's licence service
-(`api.polar.sh`) to ask whether it is valid. It asks again about once a week, only
-when you open Sieve's settings page, so a refunded key stops working. Nothing
-else is sent: not your browsing, not your settings, not anything the Pro features
-keep. Polar knows which purchase the key belongs to, because they sold it, and
-may see your IP address, as with any web request.
+Sieve's own shop ID** to Polar's licence service (`api.polar.sh`) to ask whether
+it is valid. A key works in a few browsers at once, so entering it also takes
+one of its places for this browser, under a plain name for the browser and
+operating system ("Sieve · Edge on Windows"), never anything that identifies you
+or the machine. Sieve asks again about once a week, only when you open its
+settings page, so a refunded key stops working; that check carries the key, the
+shop ID and this browser's place on the key. **Remove from this browser** gives
+the place back (the same three things) and then deletes the key here.
 
-The key is kept on your device so it can be checked again. **Remove the key from
-this browser** in Sieve's settings deletes it. The Pro features themselves (the
-Seal, the urge screen and streaks) run entirely on your device, like the rest of
-Sieve.
+Nothing else is sent: not your browsing, not your settings, not anything the
+Pro features keep. Polar knows which purchase the key belongs to, because they
+sold it, and may see your IP address, as with any web request.
+
+**In Firefox**, Sieve asks your permission before it sends the key, the first
+time you press Activate, through Firefox's own question about data an
+extension sends. If you say no, nothing is sent and Pro stays off. Nobody who
+does not activate Pro is ever asked.
+
+The key is kept on your device so it can be checked again. The Pro features
+themselves (the Seal, the urge screen and streaks) run entirely on your device,
+like the rest of Sieve.
 
 ---
 
@@ -178,10 +189,10 @@ licence check. Specifically:
   optional in-app notice to show (for example, a new feature). It sends no
   information about you, and if the file is unreachable nothing is shown. You can
   dismiss any notice permanently.
-- **Sieve Pro licence check, only if you enter a licence key** — the key and
-  Sieve's shop ID are sent to Polar's licence service (`api.polar.sh`) when you
-  enter it, then about once a week when you open the settings page. See
-  [above](#sieve-pro-licence-check).
+- **Sieve Pro licence check, only if you enter a licence key** — the key,
+  Sieve's shop ID and a plain browser name are sent to Polar's licence service
+  (`api.polar.sh`) when you enter or remove it, then about once a week when you
+  open the settings page. See [above](#sieve-pro-licence-check).
 
 Apart from that licence check, these are all **downloads to your device**. They do not include your identity, your
 browsing history, page content, or any personal information beyond the normal

@@ -4,8 +4,9 @@
 // The ways this goes wrong are all unfair to someone: a paying user losing Pro
 // because their Wi-Fi dropped during the weekly check, a mistyped key wiping a
 // good licence, a refunded key carrying on for ever, a key for another product
-// counting as this one. Polar is replaced by a fake fetch; the real endpoint is
-// checked by hand with a sandbox key.
+// counting as this one, a browser's place on the key lost because "Remove"
+// was pressed offline, or Firefox's consent skipped. Polar is replaced by a
+// fake fetch; the real endpoints are checked by hand with a sandbox key.
 //
 //   node --test test/
 
@@ -21,7 +22,25 @@ function keysOf(arg) {
   return Object.keys(arg);
 }
 
+// The manifest the module reads to know whether it is the Firefox build, and
+// the consent Firefox would give.
+let manifest = {};
+let consent = { granted: true, answer: true, requests: 0 };
+
 globalThis.chrome = {
+  runtime: { getManifest: () => manifest },
+  permissions: {
+    async contains(p) {
+      assert.deepEqual(p, { data_collection: ["authenticationInfo"] });
+      return consent.granted;
+    },
+    async request(p) {
+      assert.deepEqual(p, { data_collection: ["authenticationInfo"] });
+      consent.requests++;
+      if (consent.answer) consent.granted = true;
+      return consent.answer;
+    },
+  },
   storage: {
     local: {
       async get(arg) {
@@ -52,91 +71,131 @@ P.CONFIG.benefitIds = ["benefit-pro"];
 const DAY = 24 * 3600000;
 const T0 = Date.UTC(2026, 9, 29, 9, 0, 0);
 const KEY = "SIEVE-1C285B2D-6CE6-4BC7-B8BE-ADB6A7E304DA";
+const FIREFOX = {
+  browser_specific_settings: {
+    gecko: { data_collection_permissions: { required: ["none"], optional: ["authenticationInfo"] } },
+  },
+};
 
-// Every call the module makes, and the answer to give it.
+// Every call the module makes, and Polar's answer to each endpoint.
 let calls = [];
-let answer = null;
+let answers = {};
 
-function respond(status, body) {
-  answer = () => ({
-    ok: status >= 200 && status < 300,
-    status,
-    json: async () => body,
-  });
-}
-
-function goOffline() {
-  answer = () => {
-    throw new TypeError("Failed to fetch");
-  };
-}
+const reply = (status, body = null) => () => ({
+  ok: status >= 200 && status < 300,
+  status,
+  json: async () => body,
+});
+const offline = () => () => {
+  throw new TypeError("Failed to fetch");
+};
 
 globalThis.fetch = async (url, init) => {
-  calls.push({ url, body: JSON.parse(init.body), credentials: init.credentials });
-  return answer();
+  const endpoint = url.split("/license-keys/")[1];
+  calls.push({ url, endpoint, body: JSON.parse(init.body), credentials: init.credentials });
+  const answer = answers[endpoint];
+  if (!answer) throw new Error(`unexpected call to ${endpoint}`);
+  return answer(JSON.parse(init.body));
 };
 
 function reset() {
   backing.clear();
   calls = [];
-  answer = null;
+  answers = {};
+  manifest = {};
+  consent = { granted: true, answer: true, requests: 0 };
 }
 
-const GRANTED = { status: "granted", benefit_id: "benefit-pro", display_key: "****-E304DA", expires_at: null };
+const GRANTED = { status: "granted", benefit_id: "benefit-pro", display_key: "****-E304DA", expires_at: null, limit_activations: null };
+const LIMITED = { ...GRANTED, limit_activations: 3 };
+const stored = () => backing.get(P.LICENCE_KEY);
+const endpoints = () => calls.map((c) => c.endpoint);
 
 test("only a granted, unexpired licence is Pro", () => {
   assert.equal(P.isProState(null, T0), false);
   assert.equal(P.isProState({ key: KEY, status: "granted" }, T0), true);
-  assert.equal(P.isProState({ key: KEY, status: "revoked" }, T0), false);
-  assert.equal(P.isProState({ key: KEY, status: "disabled" }, T0), false);
-  assert.equal(P.isProState({ key: KEY, status: "something new" }, T0), false);
+  for (const status of ["revoked", "disabled", "invalid", "removed", "something new"]) {
+    assert.equal(P.isProState({ key: KEY, status }, T0), false, status);
+  }
   assert.equal(P.isProState({ key: "", status: "granted" }, T0), false);
   assert.equal(P.isProState({ key: KEY, status: "granted", expiresAt: T0 + 1 }, T0), true);
   assert.equal(P.isProState({ key: KEY, status: "granted", expiresAt: T0 }, T0), false);
 });
 
-test("activating sends only the key and the organisation, and keeps a granted key", async () => {
+test("no limit: one check, sending only the key and the organisation, and the key is kept", async () => {
   reset();
-  respond(200, GRANTED);
+  answers.validate = reply(200, GRANTED);
   assert.deepEqual(await P.activate(`  ${KEY}  `, T0), { ok: true });
 
-  assert.equal(calls.length, 1);
+  assert.deepEqual(endpoints(), ["validate"]);
   assert.match(calls[0].url, /^https:\/\/api\.polar\.sh\/v1\/customer-portal\/license-keys\/validate$/);
   assert.deepEqual(calls[0].body, { key: KEY, organization_id: "org-test" });
   assert.equal(calls[0].credentials, "omit");
-
-  const stored = backing.get(P.LICENCE_KEY);
-  assert.equal(stored.key, KEY);
-  assert.equal(stored.displayKey, "****-E304DA");
-  assert.equal(stored.checkedAt, T0);
+  assert.equal(stored().key, KEY);
+  assert.equal(stored().displayKey, "****-E304DA");
+  assert.equal(stored().activationId, "");
   assert.equal(await P.isPro(T0), true);
 });
 
-test("a key for another product does not count", async () => {
+test("a limit of 3: the key takes one place, named for this browser", async () => {
   reset();
-  respond(200, { ...GRANTED, benefit_id: "benefit-warden-only" });
+  answers.validate = reply(200, LIMITED);
+  answers.activate = reply(200, { id: "act-1" });
+  assert.deepEqual(await P.activate(KEY, T0), { ok: true });
+
+  assert.deepEqual(endpoints(), ["validate", "activate"]);
+  assert.deepEqual(calls[1].body, { key: KEY, organization_id: "org-test", label: P.deviceLabel() });
+  assert.match(P.deviceLabel(), /^Sieve · /);
+  assert.equal(stored().activationId, "act-1");
+  assert.equal(stored().limit, 3);
+});
+
+test("every place taken: refused, with the limit to say so, nothing kept", async () => {
+  reset();
+  answers.validate = reply(200, LIMITED);
+  answers.activate = reply(403, { error: "NotPermitted" });
+  assert.deepEqual(await P.activate(KEY, T0), { ok: false, status: "full", limit: 3 });
+  assert.equal(backing.has(P.LICENCE_KEY), false);
+});
+
+test("the same key entered again here keeps its place instead of taking a second", async () => {
+  reset();
+  answers.validate = reply(200, LIMITED);
+  answers.activate = reply(200, { id: "act-1" });
+  await P.activate(KEY, T0);
+  calls = [];
+
+  assert.deepEqual(await P.activate(KEY, T0 + DAY), { ok: true });
+  assert.deepEqual(endpoints(), ["validate"]);
+  assert.equal(calls[0].body.activation_id, "act-1");
+  assert.equal(stored().activationId, "act-1");
+});
+
+test("a key for another product does not count (the store is shared with BlockNSFW)", async () => {
+  reset();
+  answers.validate = reply(200, { ...GRANTED, benefit_id: "blocknsfw-supporter" });
   assert.deepEqual(await P.activate(KEY, T0), { ok: false, status: "invalid" });
   assert.equal(backing.has(P.LICENCE_KEY), false);
 });
 
 test("an unknown or refunded key is refused and does not replace a good one", async () => {
   reset();
-  respond(200, GRANTED);
+  answers.validate = reply(200, GRANTED);
   await P.activate(KEY, T0);
 
-  respond(404, { error: "ResourceNotFound" });
+  answers.validate = reply(404, { error: "ResourceNotFound" });
   assert.deepEqual(await P.activate("SIEVE-TYPO", T0 + 1), { ok: false, status: "invalid" });
-  respond(200, { ...GRANTED, status: "revoked" });
+  answers.validate = reply(200, { ...GRANTED, status: "revoked" });
   assert.deepEqual(await P.activate("SIEVE-OTHER", T0 + 2), { ok: false, status: "revoked" });
 
-  assert.equal(backing.get(P.LICENCE_KEY).key, KEY);
+  assert.equal(stored().key, KEY);
   assert.equal(await P.isPro(T0 + 3), true);
 });
 
 test("offline, rate-limited or a server error: no answer, nothing changes", async () => {
-  for (const setUp of [goOffline, () => respond(500, {}), () => respond(429, {}), () => respond(408, {})]) {
+  for (const answer of [offline(), reply(500), reply(429), reply(408)]) {
     reset();
-    setUp();
+    answers.validate = answer;
     const result = await P.activate(KEY, T0);
     assert.equal(result.ok, false);
     assert.equal(result.offline, true);
@@ -146,67 +205,187 @@ test("offline, rate-limited or a server error: no answer, nothing changes", asyn
 
 test("an empty key never reaches the network", async () => {
   reset();
-  respond(200, GRANTED);
   assert.deepEqual(await P.activate("   ", T0), { ok: false, status: "invalid" });
   assert.equal(calls.length, 0);
 });
 
 test("the weekly check runs once a week, not on every page load", async () => {
   reset();
-  respond(200, GRANTED);
+  answers.validate = reply(200, GRANTED);
   await P.activate(KEY, T0);
   calls = [];
 
   assert.deepEqual(await P.refreshIfDue(T0 + 6 * DAY), { checked: false });
   assert.equal(calls.length, 0);
-
   assert.deepEqual(await P.refreshIfDue(T0 + 7 * DAY), { checked: true, status: "granted" });
   assert.equal(calls.length, 1);
-  assert.equal(backing.get(P.LICENCE_KEY).checkedAt, T0 + 7 * DAY);
+  assert.equal(stored().checkedAt, T0 + 7 * DAY);
+});
+
+test("the weekly check asks with this browser's place", async () => {
+  reset();
+  answers.validate = reply(200, LIMITED);
+  answers.activate = reply(200, { id: "act-1" });
+  await P.activate(KEY, T0);
+  calls = [];
+  assert.deepEqual(await P.refreshIfDue(T0 + 8 * DAY), { checked: true, status: "granted" });
+  assert.equal(calls[0].body.activation_id, "act-1");
+});
+
+test("a place given back on the purchases page reads as removed, not refunded", async () => {
+  reset();
+  answers.validate = reply(200, LIMITED);
+  answers.activate = reply(200, { id: "act-1" });
+  await P.activate(KEY, T0);
+
+  // Asked with the old place: no. Asked without it: the key itself still works.
+  answers.validate = (body) => (body.activation_id ? reply(404)() : reply(200, LIMITED)());
+  assert.deepEqual(await P.refreshIfDue(T0 + 8 * DAY), { checked: true, status: "removed" });
+  assert.equal(await P.isPro(T0 + 8 * DAY), false);
+  assert.equal(stored().activationId, "");
+
+  // Entering the key again takes a place back.
+  answers.activate = reply(200, { id: "act-2" });
+  assert.deepEqual(await P.activate(KEY, T0 + 9 * DAY), { ok: true });
+  assert.equal(stored().activationId, "act-2");
+});
+
+test("a refund with a place held reads as revoked", async () => {
+  reset();
+  answers.validate = reply(200, LIMITED);
+  answers.activate = reply(200, { id: "act-1" });
+  await P.activate(KEY, T0);
+  answers.validate = (body) => (body.activation_id ? reply(404)() : reply(200, { ...LIMITED, status: "revoked" })());
+  assert.deepEqual(await P.refreshIfDue(T0 + 8 * DAY), { checked: true, status: "revoked" });
+  assert.equal(stored().key, KEY, "kept, so Settings can say what happened");
+});
+
+test("a limit set in Polar after the key was entered: a place is taken at the next check", async () => {
+  reset();
+  answers.validate = reply(200, GRANTED);
+  await P.activate(KEY, T0);
+
+  answers.validate = reply(200, LIMITED);
+  answers.activate = reply(200, { id: "act-late" });
+  assert.deepEqual(await P.refreshIfDue(T0 + 8 * DAY), { checked: true, status: "granted" });
+  assert.equal(stored().activationId, "act-late");
+
+  // ...or, with every place already taken, this browser is the one without.
+  reset();
+  answers.validate = reply(200, GRANTED);
+  await P.activate(KEY, T0);
+  answers.validate = reply(200, LIMITED);
+  answers.activate = reply(403);
+  assert.deepEqual(await P.refreshIfDue(T0 + 8 * DAY), { checked: true, status: "removed" });
 });
 
 test("a dropped connection during the weekly check keeps Pro", async () => {
   reset();
-  respond(200, GRANTED);
+  answers.validate = reply(200, GRANTED);
   await P.activate(KEY, T0);
-
-  goOffline();
+  answers.validate = offline();
   assert.deepEqual(await P.refreshIfDue(T0 + 30 * DAY), { checked: false, offline: true });
   assert.equal(await P.isPro(T0 + 30 * DAY), true);
 });
 
-test("a refund shows up at the weekly check, and the key is kept to say so", async () => {
+test("a key that is no longer granted is not checked again every week", async () => {
   reset();
-  respond(200, GRANTED);
-  await P.activate(KEY, T0);
-
-  respond(200, { ...GRANTED, status: "revoked" });
-  assert.deepEqual(await P.refreshIfDue(T0 + 8 * DAY), { checked: true, status: "revoked" });
-  assert.equal(await P.isPro(T0 + 8 * DAY), false);
-  assert.equal(backing.get(P.LICENCE_KEY).status, "revoked");
-  assert.equal(backing.get(P.LICENCE_KEY).key, KEY);
+  backing.set(P.LICENCE_KEY, { key: KEY, status: "revoked", checkedAt: T0 });
+  assert.deepEqual(await P.refreshIfDue(T0 + 30 * DAY), { checked: false });
+  assert.equal(calls.length, 0);
 });
 
 test("a clock moved backwards does not postpone the check", async () => {
   reset();
-  respond(200, GRANTED);
+  answers.validate = reply(200, GRANTED);
   await P.activate(KEY, T0);
   calls = [];
   assert.equal((await P.refreshIfDue(T0 - 365 * DAY)).checked, true);
   assert.equal(calls.length, 1);
 });
 
-test("forgetting the key turns Pro off", async () => {
+test("remove: the place is given back first, then the key forgotten", async () => {
   reset();
-  respond(200, GRANTED);
+  answers.validate = reply(200, LIMITED);
+  answers.activate = reply(200, { id: "act-1" });
   await P.activate(KEY, T0);
-  await P.forget();
-  assert.equal(await P.isPro(T0), false);
+  calls = [];
+
+  answers.deactivate = reply(204);
+  assert.deepEqual(await P.release(), { ok: true });
+  assert.deepEqual(endpoints(), ["deactivate"]);
+  assert.deepEqual(calls[0].body, { key: KEY, organization_id: "org-test", activation_id: "act-1" });
+  assert.equal(backing.has(P.LICENCE_KEY), false);
+});
+
+test("remove offline keeps the key, so the place is not left taken", async () => {
+  for (const answer of [offline(), reply(500)]) {
+    reset();
+    answers.validate = reply(200, LIMITED);
+    answers.activate = reply(200, { id: "act-1" });
+    await P.activate(KEY, T0);
+    answers.deactivate = answer;
+    assert.deepEqual(await P.release(), { ok: false, offline: true });
+    assert.equal(stored().activationId, "act-1");
+  }
+});
+
+test("remove: a place Polar no longer has is gone already, and a key with no place just goes", async () => {
+  reset();
+  answers.validate = reply(200, LIMITED);
+  answers.activate = reply(200, { id: "act-1" });
+  await P.activate(KEY, T0);
+  answers.deactivate = reply(404);
+  assert.deepEqual(await P.release(), { ok: true });
+  assert.equal(backing.has(P.LICENCE_KEY), false);
+
+  reset();
+  answers.validate = reply(200, GRANTED);
+  await P.activate(KEY, T0);
+  calls = [];
+  assert.deepEqual(await P.release(), { ok: true });
+  assert.equal(calls.length, 0);
+});
+
+test("Firefox: nothing is sent without its consent, and it is asked from Activate", async () => {
+  reset();
+  manifest = FIREFOX;
+  consent = { granted: false, answer: false, requests: 0 };
+  answers.validate = reply(200, GRANTED);
+
+  assert.equal(P.needsConsent(), true);
+  assert.deepEqual(await P.activate(KEY, T0), { ok: false, offline: true, reason: "no-consent" });
+  assert.equal(calls.length, 0);
+
+  assert.equal(await P.askConsent(), false);
+  consent.answer = true;
+  assert.equal(await P.askConsent(), true);
+  assert.equal(consent.requests, 2);
+  assert.deepEqual(await P.activate(KEY, T0), { ok: true });
+});
+
+test("Firefox: consent withdrawn later stops the weekly check, and Pro stays as it was", async () => {
+  reset();
+  manifest = FIREFOX;
+  answers.validate = reply(200, GRANTED);
+  await P.activate(KEY, T0);
+  consent.granted = false;
+  calls = [];
+  assert.deepEqual(await P.refreshIfDue(T0 + 8 * DAY), { checked: false, offline: true });
+  assert.equal(calls.length, 0);
+  assert.equal(await P.isPro(T0 + 8 * DAY), true);
+});
+
+test("Chrome and Edge never ask", async () => {
+  reset();
+  assert.equal(P.needsConsent(), false);
+  assert.equal(await P.askConsent(), true);
+  assert.equal(consent.requests, 0);
 });
 
 test("without an organisation id nothing is sent", async () => {
   reset();
-  respond(200, GRANTED);
+  answers.validate = reply(200, GRANTED);
   P.CONFIG.organizationId = "";
   try {
     const result = await P.activate(KEY, T0);
@@ -217,9 +396,9 @@ test("without an organisation id nothing is sent", async () => {
   }
 });
 
-test("without Sieve Pro's benefit named, nothing is sent (the store is shared with BlockNSFW)", async () => {
+test("without Sieve Pro's benefit named, nothing is sent", async () => {
   reset();
-  respond(200, { ...GRANTED, benefit_id: "blocknsfw-supporter" });
+  answers.validate = reply(200, { ...GRANTED, benefit_id: "blocknsfw-supporter" });
   P.CONFIG.benefitIds = [];
   try {
     assert.equal(P.isConfigured(), false);
@@ -231,13 +410,14 @@ test("without Sieve Pro's benefit named, nothing is sent (the store is shared wi
   }
 });
 
-test("sandbox mode asks Polar's test store", async () => {
+test("sandbox mode asks Polar's test store, and shows its purchases page", async () => {
   reset();
-  respond(200, GRANTED);
+  answers.validate = reply(200, GRANTED);
   P.CONFIG.mode = "sandbox";
   try {
     await P.activate(KEY, T0);
     assert.match(calls[0].url, /^https:\/\/sandbox-api\.polar\.sh\//);
+    assert.match(P.portalUrl(), /^https:\/\/sandbox\.polar\.sh\//);
   } finally {
     P.CONFIG.mode = "live";
   }
@@ -246,6 +426,7 @@ test("sandbox mode asks Polar's test store", async () => {
 test("the shipped config is the live store", () => {
   assert.equal(P.CONFIG.mode, "live");
   assert.equal(P.apiBase(), "https://api.polar.sh");
+  assert.equal(P.portalUrl(), "https://polar.sh/monolab/portal");
 });
 
 test("the masked key shows the tail only", () => {
