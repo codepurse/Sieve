@@ -112,6 +112,17 @@ const REPORTER = (titleSelector, settleMs = 400) => `
         scrolls: getComputedStyle(list).overflowY,
         visible: list.getBoundingClientRect().height > 0,
       };
+      // At rest, nothing in the notice may be written. Each write is a change
+      // the filter's own observer answers with another pass, and a notice
+      // rewritten on every pass kept the filter running on every frame. Only
+      // pages with a frame clock (see DDG_TAB_SWITCH) can show it: without
+      // one, headless Chrome never draws the frames the loop runs on.
+      let writes = 0;
+      const watch = new MutationObserver((records) => (writes += records.length));
+      watch.observe(notice, { childList: true, subtree: true, characterData: true });
+      await new Promise((r) => setTimeout(r, 200));
+      watch.disconnect();
+      out.noticeWrites = writes;
     }
     const noticeText = () => {
       const n = document.getElementById("sv-sf-notice");
@@ -599,6 +610,7 @@ const CASES = [
       eq(r.hidden, 2, "brave-rerender: two results hidden on the page");
       eq(r.notices, 1, "brave-rerender: one notice");
       eq(r.notice, "Sieve hid 2 results", "brave-rerender: each hidden result counted once, not once per copy");
+      eq(r.noticeWrites, 0, "brave-rerender: at rest, the notice and its By site list are left alone");
     },
   },
   {
@@ -612,6 +624,7 @@ const CASES = [
       eq(r.marked, 3, "swisscows-spa: only the latest search's results are on the page");
       eq(r.notices, 1, "swisscows-spa: one notice");
       eq(r.notice, "Sieve hid 1 result", "swisscows-spa: the count is this search's, not the one before it as well");
+      eq(r.noticeWrites, 0, "swisscows-spa: at rest, the notice is left alone");
     },
   },
   {
@@ -635,6 +648,7 @@ const CASES = [
       eq(r.notices, 1, "duckduckgo-tab-switch: one notice, not one per tab");
       eq(r.noticeIn, "zci-images", "duckduckgo-tab-switch: and it is the Images tab's");
       eq(r.notice, "Sieve hid 2 results", "duckduckgo-tab-switch: counting this tab, not the web results left behind");
+      eq(r.noticeWrites, 0, "duckduckgo-tab-switch: at rest, the notice is left alone");
     },
   },
   {

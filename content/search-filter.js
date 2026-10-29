@@ -973,15 +973,25 @@
       anchor.insertBefore(notice, anchor.firstChild);
     }
     const revealed = document.documentElement.classList.contains(REVEAL_CLASS);
-    notice.querySelector(".sv-sf-label").textContent =
-      `Sieve hid ${hiddenCount} ${hiddenCount === 1 ? "result" : "results"}`;
-    notice.querySelector(".sv-sf-reveal").textContent = revealed ? "Hide them again" : "Show them";
+    setText(notice.querySelector(".sv-sf-label"),
+      `Sieve hid ${hiddenCount} ${hiddenCount === 1 ? "result" : "results"}`);
+    setText(notice.querySelector(".sv-sf-reveal"), revealed ? "Hide them again" : "Show them");
     const sites = notice.querySelector(".sv-sf-sites");
     const bySite = notice.querySelector(".sv-sf-by-site");
-    bySite.textContent = sites.hidden ? "By site" : "Hide the list";
+    setText(bySite, sites.hidden ? "By site" : "Hide the list");
     bySite.setAttribute("aria-expanded", String(!sites.hidden));
     if (!sites.hidden) renderSites(sites);
     fitNoticeColor(notice);
+  }
+
+  // Every pass updates the notice, and the notice is in the page the observer
+  // watches: writing even the same words again is a change it answers with
+  // another pass. Rewritten every time, the notice kept the filter running on
+  // every frame for as long as anything was hidden (measured live on Bing:
+  // about 60 passes a second on a page at rest). So text is only written when
+  // it is different.
+  function setText(node, text) {
+    if (node.textContent !== text) node.textContent = text;
   }
 
   // --- the notice's colour --------------------------------------------------
@@ -1047,10 +1057,14 @@
   // by name. What was hidden can be seen at a glance without showing any of
   // it, so a filter that is catching more than it should is noticed without
   // revealing the results. The list scrolls once it is long (see applyStyles),
-  // and is kept current as more results stream in while it is open.
+  // and is kept current as more results stream in while it is open. Rebuilt
+  // only when its rows change, for the reason given at setText().
   function renderSites(list) {
-    list.textContent = "";
     const rows = [...hiddenBySite].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]));
+    const key = rows.map(([host, count]) => `${host} ${count}`).join("\n");
+    if (list.dataset.rows === key) return;
+    list.dataset.rows = key;
+    list.textContent = "";
     for (const [host, count] of rows) {
       const row = document.createElement("li");
       const site = document.createElement("span");
