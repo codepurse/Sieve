@@ -19,7 +19,7 @@ const read = (...p) => readFileSync(join(ROOT, ...p), "utf8");
 const STANDINS = readdirSync(DIR).filter((f) => !f.endsWith(".md")).sort();
 
 test("the stand-ins are the Pro files, and the README names each", () => {
-  assert.deepEqual(STANDINS, ["features.js", "seal.js", "settings.js", "streaks.js", "urge.js"]);
+  assert.deepEqual(STANDINS, ["features.js", "settings.js", "streaks.js", "urge.js"]);
   const readme = read("pro", "README.md");
   for (const f of STANDINS) assert.ok(readme.includes("`" + f + "`"), `pro/README.md names ${f}`);
 });
@@ -47,12 +47,12 @@ test("the private repository can never be committed here", () => {
 });
 
 test("everything that uses Pro checks it is there first", () => {
-  // The Guardian gate: no SieveSeal, no seal.
-  assert.match(read("common", "guardian-prompt.js"), /const S = window\.SieveSeal;\s*if \(!S\) return null;/);
   // The block page: no SieveUrge, the plain notice.
   assert.match(read("pages", "blocked.js"), /if \(window\.SieveUrge\) \{/);
-  // The popup: no seal or streaks, no Pro lines.
-  assert.match(read("popup", "popup.js"), /if \(!el \|\| !P \|\| !S \|\| !ST\) return;/);
+  // The popup: no streaks without Pro and pro/streaks.js; the seal line needs neither.
+  const popup = read("popup", "popup.js");
+  assert.match(popup, /if \(P && ST && \(await P\.isPro\(now\)\)\) \{/);
+  assert.match(popup, /if \(S\) \{\s*const seal = await S\.check\(now\);/);
   // Settings: no features, no section at all.
   const options = read("options", "options.js");
   assert.match(options, /Array\.isArray\(window\.SieveProFeatures\)/);
@@ -61,17 +61,34 @@ test("everything that uses Pro checks it is there first", () => {
 
 test("pages load Pro from pro/, never from anywhere a stand-in cannot replace", () => {
   const pages = {
-    "options/options.html": ["../pro/seal.js", "../pro/features.js", "../pro/streaks.js", "../pro/settings.js"],
-    "popup/popup.html": ["../pro/seal.js", "../pro/streaks.js"],
-    "pages/blocked.html": ["../pro/seal.js", "../pro/streaks.js", "../pro/urge.js"],
+    "options/options.html": ["../pro/features.js", "../pro/streaks.js", "../pro/settings.js"],
+    "popup/popup.html": ["../pro/streaks.js"],
+    "pages/blocked.html": ["../pro/streaks.js", "../pro/urge.js"],
   };
   for (const [page, scripts] of Object.entries(pages)) {
     const html = read(...page.split("/"));
     for (const s of scripts) assert.ok(html.includes(`<script src="${s}"></script>`), `${page} loads ${s}`);
   }
-  for (const manifest of ["manifest.json", "manifest.firefox.json"]) {
-    assert.ok(read(manifest).includes('"pro/seal.js"'), `${manifest} injects pro/seal.js with the pause screen`);
+});
+
+test("the Seal is a free protection: open source, loaded from common/, never from pro/", () => {
+  for (const page of ["options/options.html", "popup/popup.html", "pages/blocked.html"]) {
+    const html = read(...page.split("/"));
+    assert.ok(html.includes('<script src="../common/seal.js"></script>'), `${page} loads common/seal.js`);
+    assert.ok(!html.includes("pro/seal.js"), `${page} does not look for the Seal in pro/`);
   }
+  for (const manifest of ["manifest.json", "manifest.firefox.json"]) {
+    assert.ok(read(manifest).includes('"common/seal.js"'), `${manifest} injects common/seal.js with the pause screen`);
+  }
+  // Its settings live in the open-source page, in the Lock section, and never wait on Pro.
+  const options = read("options", "options.js");
+  assert.match(options, /^function setupSeal\(store\) \{/m);
+  assert.match(options, /setupSeal\(store\);/);
+  const html = read("options", "options.html");
+  const lock = html.slice(html.indexOf('id="section-security"'), html.indexOf('id="section-advanced"'));
+  assert.ok(lock.includes('id="seal-card"'), "the Seal is in Settings › Lock");
+  const sealCard = lock.slice(lock.indexOf('id="seal-card"'), lock.indexOf('id="desktop-guard-card"'));
+  assert.doesNotMatch(sealCard, /pro-(feature|control|note)/, "nothing in the Seal group waits on Pro");
 });
 
 test("the builds copy pro/ and hand it to build-pro.mjs", () => {

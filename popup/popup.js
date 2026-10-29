@@ -143,9 +143,9 @@ async function updateStatusBanner() {
   }
 }
 
-// Sieve Pro, under the summary: a running seal, and each tracked streak with
-// the money kept. A seal shows with or without Pro, since it is honoured with
-// or without it; streaks show only with Pro.
+// Under the summary: a running seal (free, common/seal.js), then each streak
+// tracked with Sieve Pro, with the money kept. Without Pro — or in an
+// open-source build, where pro/streaks.js is an empty stand-in — only the seal.
 const PRO_LINE_KEYS = ["proLicence", "proSeal", "proHabits", "habitAttempts"];
 
 async function updateProLines() {
@@ -153,13 +153,15 @@ async function updateProLines() {
   const P = window.SievePro;
   const S = window.SieveSeal;
   const ST = window.SieveStreaks;
-  if (!el || !P || !S || !ST) return;
+  if (!el) return;
   const now = Date.now();
   const lines = [];
   try {
-    const seal = await S.check(now);
-    if (seal.sealed) lines.push(`Sealed until ${S.formatDay(seal.until)}`);
-    if (await P.isPro(now)) {
+    if (S) {
+      const seal = await S.check(now);
+      if (seal.sealed) lines.push(`Sealed until ${S.formatDay(seal.until)}`);
+    }
+    if (P && ST && (await P.isPro(now))) {
       for (const row of (await ST.summary(now)).slice(0, 3)) {
         const parts = [row.label, row.days === 0 ? "starting today" : ST.daysLabel(row.days)];
         if (row.keptLabel) parts.push(`about ${row.keptLabel} kept`);
@@ -167,7 +169,7 @@ async function updateProLines() {
       }
     }
   } catch (err) {
-    console.warn("[Sieve] popup: could not read Pro state:", err);
+    console.warn("[Sieve] popup: could not read the seal or streaks:", err);
   }
   el.textContent = "";
   for (const line of lines) {

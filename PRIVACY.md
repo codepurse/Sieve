@@ -31,7 +31,7 @@ described [below](#sieve-pro-licence-check). Without Pro, nothing changes.
 
 Sieve is open source, so anyone can verify these claims:
 <https://github.com/codepurse/Sieve>. The one exception is Sieve Pro's
-features (the Seal, the urge screen and streaks), which are not open source.
+features (the urge screen and streaks), which are not open source.
 They make no network requests and keep everything on your device, and the
 licence check, the only request Pro makes, is part of the open-source code
 (`common/pro.js`), so what it sends can be checked by anyone.
@@ -57,7 +57,7 @@ third party.
 | Free-trial reminders, **only the ones you ask for** | Remind you before a free trial starts charging — see [below](#free-trial-reminders) | Yes |
 | When the block page last stopped each kind of site | One date and time per kind (gambling, dating, games, AI tools, trading, your own blocked sites) and your longest gap, for Sieve Pro's streaks — never the site or its address | Yes |
 | Sieve Pro licence key, **only if you enter one** | Turn on the Pro features | Kept on your device; checked with Polar — see [below](#sieve-pro-licence-check) |
-| Seal, **only if you start one** | When it ends, and its emergency key stored as a **hash**, never in plain text | Yes |
+| Seal, **only if you start one** | When it ends, and its way out: either the key your witness's authenticator app shares with Sieve (needed to check their codes) and their recovery codes as **hashes**, or the emergency key as a **hash**. A witness's app works offline; nothing is sent to them, us or anyone | Yes |
 | Urge screen, **only what you fill in** | Your reason, an optional photo (shrunk to fit 800 pixels), and a contact's name and number or email address, shown on the block page | Yes |
 | Streak settings, **only for what you track** | The day you stopped, and what it used to cost you, to count streaks and money kept | Yes |
 
@@ -150,8 +150,8 @@ extension sends. If you say no, nothing is sent and Pro stays off. Nobody who
 does not activate Pro is ever asked.
 
 The key is kept on your device so it can be checked again. The Pro features
-themselves (the Seal, the urge screen and streaks) run entirely on your device,
-like the rest of Sieve.
+themselves (the urge screen and streaks) run entirely on your device, like the
+rest of Sieve.
 
 ---
 

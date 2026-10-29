@@ -2395,7 +2395,8 @@ html.preload .loading-veil {
 }
 
 /* ==========================================================================
-   Sieve Pro — the licence, the Seal, the urge screen, streaks
+   The Seal (free, in Lock), and Sieve Pro — the licence, the urge screen,
+   streaks
    ========================================================================== */
 
 /* Without a licence the Pro groups stay visible but asleep, with a line in
@@ -2446,19 +2447,81 @@ html.preload .loading-veil {
   display: none;
 }
 
-/* Print sends the key alone: everything else is hidden, and the key's box
-   is lifted out of the page so nothing around it takes up the sheet. */
+/* Choosing who holds the way out, and pairing a witness. */
+.seal-exits {
+  margin-bottom: 4px;
+}
+
+.seal-witness {
+  margin-top: 20px;
+  padding-top: 18px;
+  border-top: 1px solid var(--rule);
+}
+
+.seal-witness .field-title {
+  margin-top: 20px;
+}
+
+.seal-witness .field-title:first-of-type {
+  margin-top: 0;
+}
+
+/* The QR code stays dark on white in either theme: that is what cameras read. */
+.seal-qr {
+  width: 200px;
+  margin: 4px 0 10px;
+  border: 1px solid var(--rule);
+  border-radius: var(--r-1);
+  overflow: hidden;
+}
+
+.seal-qr svg {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+.seal-secret {
+  font-family: var(--font-mono);
+  letter-spacing: 0.06em;
+  color: var(--ink);
+  user-select: all;
+  overflow-wrap: anywhere;
+}
+
+.seal-recovery {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(8.5rem, 1fr));
+  gap: 6px 16px;
+  margin: 0 0 4px;
+  padding-left: 1.4em;
+  font-family: var(--font-mono);
+  font-size: 14px;
+  letter-spacing: 0.08em;
+  color: var(--ink);
+}
+
+.seal-code-input {
+  max-width: 11rem;
+  font-family: var(--font-mono);
+  font-size: 18px;
+  letter-spacing: 0.2em;
+}
+
+/* Print sends one part of the seal alone (its key, or the witness's sheet):
+   everything else is hidden, and that part is lifted out of the page so
+   nothing around it takes up the sheet. options.js printSealPart. */
 @media print {
-  html.print-seal-key body * {
+  html.print-seal body * {
     visibility: hidden;
   }
 
-  html.print-seal-key #seal-key-box,
-  html.print-seal-key #seal-key-box * {
+  html.print-seal .is-printing,
+  html.print-seal .is-printing * {
     visibility: visible;
   }
 
-  html.print-seal-key #seal-key-box {
+  html.print-seal .is-printing {
     position: fixed;
     top: 0;
     left: 0;
@@ -2466,13 +2529,13 @@ html.preload .loading-veil {
     padding: 24px;
   }
 
-  html.print-seal-key .print-only {
+  html.print-seal .print-only {
     display: block;
     margin-bottom: 16px;
     font-size: 13px;
   }
 
-  html.print-seal-key .no-print {
+  html.print-seal .no-print {
     display: none;
   }
 }

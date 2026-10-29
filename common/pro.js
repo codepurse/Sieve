@@ -1,9 +1,9 @@
 // common/pro.js
 // Sieve — Sieve Pro, the one-time purchase that unlocks the Pro features.
 //
-// Everything Sieve did before Pro stays free. Pro adds new things on top (the
-// Seal, the urge screen, streaks), and this module answers one question for all
-// of them: has this browser got a valid Pro licence?
+// Every protection stays free, the Seal included. Pro adds comfort and insight
+// on top (the urge screen, streaks), and this module answers one question for
+// both: has this browser got a valid Pro licence?
 //
 // This file is open source on purpose, like BlockNSFW's shared/supporter.js:
 // it is the one part of Pro that talks to the network, so anyone can read
@@ -31,9 +31,8 @@
 //     server error keeps whatever was last known; only a clear answer from
 //     Polar (revoked, disabled, unknown key, this browser's place given back)
 //     turns Pro off.
-//   - Losing Pro never weakens a protection that is already running. That rule
-//     lives in each feature (a running Seal is honoured without asking this
-//     module), but it is why nothing here clears or changes their state.
+//   - Losing Pro never weakens a protection. Nothing that protects asks this
+//     module anything, and nothing here clears or changes their state.
 //
 // Like the PIN, this lives in this browser's storage. It is not copy
 // protection: anyone can edit an extension's code. The people who pay are the

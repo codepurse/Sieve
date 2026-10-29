@@ -12,7 +12,7 @@
 //     With a cool-off set (common/cooloff.js) the change must first wait it
 //     out: until then the dialog only offers to start or call off the wait, and
 //     resolves false. Once the wait is over, the PIN is asked for as before.
-//     While a Seal runs (Sieve Pro, pro/seal.js) the change is refused before
+//     While a Seal runs (common/seal.js) the change is refused before
 //     any of that, and only the seal's emergency key — which ends the seal —
 //     gets through to the cool-off and the PIN.
 //
@@ -363,9 +363,17 @@
   // --- seal stage ---------------------------------------------------------
   //
   // Shown INSTEAD of everything else while a Seal runs. The change is refused;
-  // the one thing on offer is the emergency key, which ends the seal and hands
-  // over to the cool-off and the PIN exactly as if there had been no seal.
-  let seal = null; // { until } while it is showing
+  // the one thing on offer is the seal's way out — a code from its witness,
+  // or its printed key — which ends the seal and hands over to the cool-off
+  // and the PIN exactly as if there had been no seal.
+  let seal = null; // SieveSeal.check()'s answer while it is showing
+
+  const byWitness = () => !!seal && seal.exit === "witness";
+
+  function lockedLine(retryAt) {
+    const minutes = Math.max(1, Math.ceil((retryAt - Date.now()) / 60000));
+    return `Too many wrong codes. Try again in ${minutes} min${minutes === 1 ? "" : "s"}.`;
+  }
 
   function showSealed(actionName, info) {
     const S = window.SieveSeal;
@@ -380,9 +388,11 @@
     setCoolText([
       "You sealed your protection until ",
       { strong: S.formatWhen(info.until) },
-      ". Until then nothing that weakens it can be changed — not with your PIN, and not after a cool-off. Only the emergency key ends it early.",
+      byWitness()
+        ? ". Until then nothing that weakens it can be changed — not with your PIN, and not after a cool-off. Only a code from your witness ends it early."
+        : ". Until then nothing that weakens it can be changed — not with your PIN, and not after a cool-off. Only the emergency key ends it early.",
     ]);
-    cancelBtn.textContent = "Use emergency key";
+    cancelBtn.textContent = byWitness() ? "Ask your witness" : "Use emergency key";
     confirmBtn.textContent = "Close";
     confirmBtn.focus();
   }
@@ -392,15 +402,17 @@
     stage = "sealkey";
     title.textContent = "End the seal early";
     setCoolText([
-      "Type the emergency key you were given when the seal started. It ends the whole seal; your PIN and cool-off still apply after it.",
+      byWitness()
+        ? "Ask your witness for the six digits their authenticator app shows for Sieve, or for one of their recovery codes. It ends the whole seal; your PIN and cool-off still apply after it."
+        : "Type the emergency key you were given when the seal started. It ends the whole seal; your PIN and cool-off still apply after it.",
     ]);
     input.hidden = false;
     input.type = "text";
     input.classList.add("code-input");
-    input.placeholder = "XXXX-XXXX-XXXX-XXXX-XXXX";
+    input.placeholder = byWitness() ? "123456 or XXXX-XXXX" : "XXXX-XXXX-XXXX-XXXX-XXXX";
     input.value = "";
     errorEl.hidden = false;
-    errorEl.textContent = "";
+    errorEl.textContent = seal && seal.lockedUntil ? lockedLine(seal.lockedUntil) : "";
     errorEl.dataset.tone = "";
     cancelBtn.textContent = "Back";
     confirmBtn.textContent = "End the seal";
@@ -408,18 +420,28 @@
   }
 
   async function sealKeySubmit() {
-    let ended = false;
+    // One code at a time (common/seal.js counts the wrong ones).
+    if (confirmBtn.disabled) return;
+    confirmBtn.disabled = true;
+    let result = { ok: false };
     try {
-      ended = await window.SieveSeal.breakWithKey(input.value);
+      result = await window.SieveSeal.breakWith(input.value);
     } catch (err) {
-      console.warn("[Sieve] could not check the emergency key:", err);
+      console.warn("[Sieve] could not check the seal's code:", err);
+    } finally {
+      confirmBtn.disabled = false;
     }
-    if (ended) {
+    if (result.ok) {
       finish(true);
       return;
     }
-    errorEl.textContent = "That key doesn't match.";
+    if (result.locked) {
+      errorEl.textContent = lockedLine(result.retryAt);
+    } else {
+      errorEl.textContent = byWitness() ? "That code doesn't match. Ask for the newest one." : "That key doesn't match.";
+    }
     errorEl.dataset.tone = "";
+    input.value = "";
     input.focus();
   }
 
@@ -553,8 +575,7 @@
   }
 
   // The running seal, or null when there is none (or this page did not load
-  // pro/seal.js, an empty stand-in in an open-source build). A failed read
-  // goes on without it, as the cool-off does.
+  // common/seal.js). A failed read goes on without it, as the cool-off does.
   async function sealFor() {
     const S = window.SieveSeal;
     if (!S) return null;
