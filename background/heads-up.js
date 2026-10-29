@@ -109,12 +109,12 @@ export async function fire(alarm, now = Date.now()) {
     chrome.notifications
   ) {
     try {
+      // Only the options Firefox knows as well: it rejects ones it doesn't.
       await chrome.notifications.create(NOTIFICATION, {
         type: "basic",
         iconUrl: chrome.runtime.getURL("icons/icon-128.png"),
         title: headsUp.title,
         message: headsUp.body,
-        priority: 1,
       });
       shown = true;
     } catch (err) {
