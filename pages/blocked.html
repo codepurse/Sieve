@@ -858,12 +858,15 @@
         line-height: 1.5;
       }
 
-      /* The board: 720 x 600 in the drawing's units, the tiles in the middle
-         600, the spring and the sea in the 60 either side. */
+      /* The river as a map (pro/designs.js): the tiles lie on an inked map,
+         100 units to a tile, with the spring and its hills in the margin on
+         the left and the coast and the sea on the right. designs.js sets the
+         board's proportions and where the tiles sit, as the board is 6 by 6
+         on a small screen and 10 by 5 on a wide one. */
       .river-play {
         position: relative;
         width: min(100%, 30rem);
-        aspect-ratio: 6 / 5;
+        aspect-ratio: 750 / 620;
       }
 
       .river-ends {
@@ -877,13 +880,7 @@
 
       .river-grid {
         position: absolute;
-        inset: 0 calc(100% / 12);
         display: grid;
-        grid-template-columns: repeat(6, minmax(0, 1fr));
-        grid-template-rows: repeat(6, minmax(0, 1fr));
-        gap: 1px;
-        padding: 1px;
-        background: var(--rule-strong);
       }
 
       .river-tile {
@@ -893,13 +890,13 @@
         padding: 0;
         border: 0;
         border-radius: 0;
-        background: var(--paper);
+        background: transparent;
         color: inherit;
         cursor: pointer;
         overflow: hidden;
         touch-action: manipulation;
         -webkit-tap-highlight-color: transparent;
-        transition: background-color 0.2s var(--ease);
+        transition: box-shadow 0.2s var(--ease);
       }
 
       .river-tile:focus-visible {
@@ -915,27 +912,24 @@
         transition: transform 0.24s var(--ease);
       }
 
-      /* A channel is its banks with the paper between them, until the ink
-         fills it. */
+      /* A channel is its banks with the map's paper between them, until the
+         ink fills it. */
       .river-bank {
         fill: none;
-        stroke: var(--ink-3);
-        stroke-width: 25;
+        stroke: var(--ink-2);
+        stroke-width: 22;
       }
 
       .river-water {
         fill: none;
-        stroke: var(--paper);
-        stroke-width: 21;
+        stroke: var(--raised);
+        stroke-width: 18.5;
         transition: stroke 0.2s var(--ease);
       }
 
       @media (hover: hover) {
         .river-play:not(.is-solved) .river-tile:hover {
-          background: var(--raised);
-        }
-        .river-play:not(.is-solved) .river-tile:hover:not(.is-wet) .river-water {
-          stroke: var(--raised);
+          box-shadow: inset 0 0 0 1px var(--rule-strong);
         }
       }
 
@@ -948,9 +942,83 @@
         fill: var(--ink);
       }
 
+      /* The map itself. Its thin lines keep one width at any size. */
+      .river-paper {
+        fill: var(--raised);
+      }
+
+      .river-sea {
+        fill: var(--wash);
+      }
+
+      .river-hatch,
+      .river-contour,
+      .river-ticks,
+      .river-coast,
+      .river-hills,
+      .river-frame,
+      .river-frame-in {
+        fill: none;
+        vector-effect: non-scaling-stroke;
+      }
+
+      .river-hatch {
+        stroke: var(--rule);
+        stroke-width: 1px;
+        transition: stroke 0.6s var(--ease) 0.3s;
+      }
+
+      .river-contour {
+        stroke: var(--rule);
+        stroke-width: 1px;
+      }
+
+      .river-ticks {
+        stroke: var(--rule-strong);
+        stroke-width: 1px;
+      }
+
+      .river-coast {
+        stroke: var(--ink-2);
+        stroke-width: 1.2px;
+      }
+
+      .river-hills {
+        stroke: var(--ink-3);
+        stroke-width: 1.3px;
+        stroke-linecap: round;
+        stroke-linejoin: round;
+      }
+
+      .river-frame {
+        stroke: var(--ink);
+        stroke-width: 1.5px;
+      }
+
+      .river-frame-in {
+        stroke: var(--rule-strong);
+        stroke-width: 0.8px;
+      }
+
+      .river-label {
+        fill: var(--ink-2);
+        font-family: var(--font-mono);
+        letter-spacing: 0.14em;
+      }
+
+      .river-sea-label {
+        font-family: var(--font-serif);
+        font-style: italic;
+        letter-spacing: 0.3em;
+      }
+
+      .river-north path {
+        fill: var(--ink);
+      }
+
       .river-waves {
         fill: none;
-        stroke: var(--ink-3);
+        stroke: var(--ink-2);
         stroke-width: 1.5px;
         stroke-linecap: round;
         vector-effect: non-scaling-stroke;
@@ -966,9 +1034,14 @@
         cursor: default;
       }
 
+      /* When the river reaches the sea, the sea darkens with it. */
       .river-play.is-solved .river-mouth,
       .river-play.is-solved .river-waves {
         stroke: var(--ink);
+      }
+
+      .river-play.is-solved .river-hatch {
+        stroke: var(--ink-3);
       }
 
       .river-play.is-solved .river-seal {
@@ -977,28 +1050,69 @@
 
       .river-play.is-still .river-piece,
       .river-play.is-still .river-water,
+      .river-play.is-still .river-hatch,
       .river-play.is-still .river-seal {
         transition: none;
+      }
+
+      @media (prefers-reduced-motion: no-preference) {
+        .river-play:not(.is-still) .river-pool {
+          transform-box: fill-box;
+          transform-origin: center;
+          animation: river-pool 2.6s ease-in-out infinite;
+        }
+        @keyframes river-pool {
+          50% {
+            transform: scale(1.18);
+          }
+        }
+      }
+
+      /* Under the map: where the river stands, with the map's key. */
+      .river-foot {
+        margin-top: 14px;
+      }
+
+      .river-status {
+        font-family: var(--font-serif);
+        font-size: 19px;
+        line-height: 1.3;
       }
 
       .river-tally {
         display: flex;
         flex-wrap: wrap;
-        align-items: baseline;
-        gap: 6px 12px;
-        margin: 16px 0 8px;
+        align-items: center;
+        gap: 6px 10px;
+        margin: 8px 0 4px;
       }
 
-      .river-count {
-        font-family: var(--font-mono);
-        font-size: 30px;
-        line-height: 1;
-        font-variant-numeric: tabular-nums;
+      .river-swatch {
+        width: 26px;
+        height: 10px;
       }
 
-      .river-unit {
-        font-size: 14px;
-        color: var(--ink-2);
+      .river-key {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        white-space: nowrap;
+      }
+
+      .river-key + .river-key {
+        margin-left: 8px;
+      }
+
+      .river-swatch .river-bank {
+        stroke-width: 9;
+      }
+
+      .river-swatch .river-water {
+        stroke-width: 7;
+      }
+
+      .river-swatch.is-wet .river-water {
+        stroke: var(--ink);
       }
 
       .breath-ring {
@@ -1216,23 +1330,23 @@
          sets data-urge-layout), the urge screen is two facing pages: the words
          on the left, the dial or the circle on the right with the two things
          to do now under it. The address, Go back, Close and Allow step down to
-         one quiet row beneath both. Narrower than this, and for the river, the
-         page stays the one column above. */
+         one quiet row beneath both (shared with the map, below). Narrower than
+         this, the page stays the one column above. */
       @media (min-width: 1024px) {
-        html[data-urge-layout="spread"] .letterhead,
-        html[data-urge-layout="spread"] .notice,
-        html[data-urge-layout="spread"] .foot {
+        html:is([data-urge-layout="spread"], [data-urge-layout="map"]) .letterhead,
+        html:is([data-urge-layout="spread"], [data-urge-layout="map"]) .notice,
+        html:is([data-urge-layout="spread"], [data-urge-layout="map"]) .foot {
           width: min(1280px, 100%);
           padding-left: 48px;
           padding-right: 48px;
         }
 
-        html[data-urge-layout="spread"] .notice {
+        html:is([data-urge-layout="spread"], [data-urge-layout="map"]) .notice {
           padding-top: 32px;
           padding-bottom: 32px;
         }
 
-        html[data-urge-layout="spread"] .notice-body {
+        html:is([data-urge-layout="spread"], [data-urge-layout="map"]) .notice-body {
           flex: 1;
           display: grid;
           grid-template-columns: minmax(0, 1fr) auto;
@@ -1244,7 +1358,7 @@
         }
 
         /* The plate beside the headline gives way to one round the dial. */
-        html[data-urge-layout="spread"] .notice-body::before {
+        html:is([data-urge-layout="spread"], [data-urge-layout="map"]) .notice-body::before {
           content: none;
         }
 
@@ -1415,7 +1529,7 @@
         }
 
         /* The quiet row: where you were going, and the ways out. */
-        html[data-urge-layout="spread"] .origin {
+        html:is([data-urge-layout="spread"], [data-urge-layout="map"]) .origin {
           display: flex;
           flex-wrap: wrap;
           align-items: baseline;
@@ -1426,11 +1540,11 @@
           border: 0;
         }
 
-        html[data-urge-layout="spread"] .origin-label {
+        html:is([data-urge-layout="spread"], [data-urge-layout="map"]) .origin-label {
           margin: 0;
         }
 
-        html[data-urge-layout="spread"] .notice-body > .actions {
+        html:is([data-urge-layout="spread"], [data-urge-layout="map"]) .notice-body > .actions {
           grid-column: 2;
           justify-content: flex-end;
           gap: 8px;
@@ -1438,13 +1552,13 @@
           padding-top: 14px;
         }
 
-        html[data-urge-layout="spread"] .notice-body > .actions .btn {
+        html:is([data-urge-layout="spread"], [data-urge-layout="map"]) .notice-body > .actions .btn {
           min-height: 36px;
           padding: 0 12px;
           font-size: 13.5px;
         }
 
-        html[data-urge-layout="spread"] #allow-btn {
+        html:is([data-urge-layout="spread"], [data-urge-layout="map"]) #allow-btn {
           padding: 0 6px;
           border: 0;
           background: none;
@@ -1454,13 +1568,265 @@
           text-underline-offset: 3px;
         }
 
-        html[data-urge-layout="spread"] #allow-btn:hover {
+        html:is([data-urge-layout="spread"], [data-urge-layout="map"]) #allow-btn:hover {
           color: var(--ink);
           background: none;
         }
 
-        html[data-urge-layout="spread"] .allow-result {
+        html:is([data-urge-layout="spread"], [data-urge-layout="map"]) .allow-result {
           text-align: right;
+        }
+      }
+
+      /* ---- The map (Sieve Pro, the river) ---------------------------------------
+         With the river on a wide screen, its board is a map across the whole
+         page (pro/designs.js deals it 10 by 5): the headline and the plan
+         above it; where the river stands, with the map's key, and the two
+         things to do now below it; then the proof, the streak and the things
+         to try. The quiet row beneath is the spread's. */
+      @media (min-width: 1024px) {
+        html[data-urge-layout="map"] .letterhead,
+        html[data-urge-layout="map"] .notice,
+        html[data-urge-layout="map"] .foot {
+          width: min(1344px, 100%);
+        }
+
+        html[data-urge-layout="map"] .notice {
+          padding-top: 8px;
+          padding-bottom: 8px;
+        }
+
+        /* Where the river stands and the two things to do share the row
+           under the map: the river's on the left, the buttons laid over its
+           right end. */
+        html[data-urge-layout="map"] .urge {
+          grid-column: 1 / -1;
+          display: grid;
+          grid-template-columns: minmax(0, 1fr) minmax(0, 470px);
+          grid-template-areas:
+            "kicker  plan"
+            "title   plan"
+            "lede    why"
+            "hour    why"
+            "map     map"
+            "bottom  bottom"
+            "proof   instead"
+            "streak  instead"
+            "debrief debrief";
+          column-gap: 56px;
+          margin-bottom: 0;
+          padding-bottom: 12px;
+          border-bottom: 1px solid var(--rule);
+        }
+
+        html[data-urge-layout="map"] .urge-design {
+          display: contents;
+        }
+
+        html[data-urge-layout="map"] .urge-words > .kicker {
+          grid-area: kicker;
+          margin-bottom: 10px;
+        }
+
+        html[data-urge-layout="map"] .urge h1 {
+          grid-area: title;
+          font-size: 56px;
+          letter-spacing: -0.03em;
+        }
+
+        html[data-urge-layout="map"] #urge-lede {
+          grid-area: lede;
+          max-width: none;
+          margin-top: 12px;
+        }
+
+        html[data-urge-layout="map"] .urge-hour {
+          grid-area: hour;
+        }
+
+        /* The plan and the reason, as one block beside the headline. */
+        html[data-urge-layout="map"] .urge-plan,
+        html[data-urge-layout="map"] .urge-why {
+          margin: 0;
+          padding: 0 0 0 24px;
+          border: 0;
+          border-left: 1px solid var(--rule);
+        }
+
+        html[data-urge-layout="map"] .urge-plan {
+          grid-area: plan;
+          align-self: end;
+          padding-bottom: 6px;
+        }
+
+        html[data-urge-layout="map"] .urge-why {
+          grid-area: why;
+          align-self: start;
+          gap: 14px;
+        }
+
+        /* If, Then and Why down one column, as a key; the two headings the
+           block has elsewhere would make it taller than the headline. */
+        html[data-urge-layout="map"] .urge-plan > .origin-label,
+        html[data-urge-layout="map"] .urge-why .origin-label {
+          display: none;
+        }
+
+        html[data-urge-layout="map"] .urge-plan-text {
+          grid-template-columns: 36px minmax(0, 1fr);
+          gap: 2px 12px;
+          margin: 0;
+        }
+
+        html[data-urge-layout="map"] .urge-why figcaption {
+          position: relative;
+          padding-left: 48px;
+        }
+
+        html[data-urge-layout="map"] .urge-reason {
+          display: inline;
+        }
+
+        html[data-urge-layout="map"] .urge-why figcaption::before {
+          content: "Why";
+          position: absolute;
+          top: 5px;
+          left: 0;
+          font-family: var(--font-mono);
+          font-size: 10.5px;
+          letter-spacing: 0.1em;
+          text-transform: uppercase;
+          color: var(--ink-3);
+        }
+
+        html[data-urge-layout="map"] .urge-plan-text dd,
+        html[data-urge-layout="map"] .urge-reason {
+          font-size: 18px;
+          line-height: 1.45;
+        }
+
+        html[data-urge-layout="map"] .urge-photo {
+          width: 64px;
+          height: 64px;
+        }
+
+        html[data-urge-layout="map"] .urge-voice,
+        html[data-urge-layout="map"] .urge-try {
+          min-height: 30px;
+          padding: 0;
+          border: 0;
+          background: none;
+          font-weight: 400;
+          text-decoration: underline;
+          text-underline-offset: 3px;
+        }
+
+        html[data-urge-layout="map"] .urge-voice {
+          display: inline-flex;
+          min-height: 0;
+          margin: 0 0 0 10px;
+          font-weight: 500;
+          vertical-align: baseline;
+        }
+
+        html[data-urge-layout="map"] .urge-voice:hover,
+        html[data-urge-layout="map"] .urge-try:hover {
+          background: none;
+        }
+
+        html[data-urge-layout="map"] .river-play {
+          grid-area: map;
+          justify-self: center;
+          width: min(100%, 1000px);
+          margin-top: 14px;
+        }
+
+        html[data-urge-layout="map"] .river-foot {
+          grid-area: bottom;
+          display: flex;
+          flex-wrap: wrap;
+          align-items: center;
+          gap: 6px 24px;
+          min-width: 0;
+          margin-top: 12px;
+          padding-right: 290px;
+        }
+
+        html[data-urge-layout="map"] .river-status {
+          font-size: 23px;
+          line-height: 1.2;
+        }
+
+        html[data-urge-layout="map"] .river-tally {
+          margin: 0;
+        }
+
+        html[data-urge-layout="map"] .river-again {
+          margin-top: 0;
+        }
+
+        html[data-urge-layout="map"] .urge-actions {
+          grid-area: bottom;
+          justify-self: end;
+          align-self: center;
+          margin-top: 12px;
+        }
+
+        html[data-urge-layout="map"] .urge-actions .btn {
+          min-height: 46px;
+          padding: 0 20px;
+          font-size: 15px;
+        }
+
+        html[data-urge-layout="map"] .urge-proof {
+          grid-area: proof;
+          margin-top: 8px;
+          font-size: 14px;
+        }
+
+        html[data-urge-layout="map"] .urge-streak {
+          grid-area: streak;
+          margin-top: 2px;
+          font-size: 13.5px;
+          color: var(--ink-3);
+        }
+
+        /* Things to try, as a line of links in the corner. */
+        html[data-urge-layout="map"] .urge-instead {
+          grid-area: instead;
+          justify-self: end;
+          display: flex;
+          flex-wrap: wrap;
+          align-items: baseline;
+          justify-content: flex-end;
+          gap: 2px 16px;
+          margin: 8px 0 0;
+        }
+
+        html[data-urge-layout="map"] .urge-tries {
+          display: contents;
+        }
+
+        html[data-urge-layout="map"] .urge-try {
+          min-height: 26px;
+        }
+
+        html[data-urge-layout="map"] .urge-try[aria-pressed="true"] {
+          box-shadow: none;
+          font-weight: 600;
+          text-decoration: none;
+        }
+
+        html[data-urge-layout="map"] .urge-works {
+          flex-basis: 100%;
+          margin: 0;
+          font-size: 13.5px;
+          text-align: right;
+        }
+
+        html[data-urge-layout="map"] .urge-debrief,
+        html[data-urge-layout="map"] .urge-debrief-done {
+          grid-area: debrief;
         }
       }
 
