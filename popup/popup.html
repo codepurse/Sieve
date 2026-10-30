@@ -17,20 +17,61 @@
         </span>
         <span class="wordmark">Sieve</span>
       </span>
-      <span class="version" id="version">v—</span>
+      <!-- Protection summary: a stamp with the status light and the count.
+           Filled in by popup.js → updateStatusBanner(). -->
+      <span class="status-stamp" id="status" role="status">
+        <span class="status-light" aria-hidden="true"></span>
+        <span id="status-title">Checking…</span>
+      </span>
     </header>
 
-    <!-- Protection summary: a status light, then the count. Filled in by
-         popup.js → updateStatusBanner(). -->
-    <div class="status" id="status" role="status">
-      <span class="status-light" aria-hidden="true"></span>
-      <span class="status-text">
-        <span class="status-title" id="status-title">Checking…</span>
-        <span class="status-meta" id="status-meta"></span>
-        <!-- A running seal, and Sieve Pro's tracked streaks (updateProLines). -->
-        <span class="status-pro" id="status-pro" hidden></span>
-      </span>
-    </div>
+    <!-- With every filter off, that comes first, in words. -->
+    <p class="status-off" id="status-off" hidden>Protection is off. Every filter is switched off.</p>
+
+    <!-- The top (popup.js → updateTop): a running seal, which is free
+         (common/seal.js). With Sieve Pro, tonight: where the hardest hours
+         stand against the clock, the plan for them and what tends to help
+         (pro/coach.js), and the streaks. Without it, until dismissed, a word
+         about what Pro would show here. -->
+    <section class="top" id="top" hidden>
+      <div class="seal" id="seal" hidden>
+        <div class="seal-head"><span class="kicker">Sealed</span><span class="kicker" id="seal-until"></span></div>
+        <p class="seal-figure"><span class="seal-days" id="seal-days"></span><span class="seal-sub">to go</span></p>
+        <div class="holes" id="seal-holes" aria-hidden="true"></div>
+      </div>
+
+      <div class="tonight" id="tonight" hidden>
+        <p class="kicker" id="tonight-when"></p>
+        <p class="tonight-title" id="tonight-title"></p>
+        <div class="day" id="tonight-day" aria-hidden="true" hidden></div>
+        <div class="tonight-plan" id="tonight-plan" hidden>
+          <span class="kicker" id="tonight-plan-label"></span>
+          <dl class="plan-text">
+            <dt>If</dt>
+            <dd id="tonight-if"></dd>
+            <dt>Then</dt>
+            <dd id="tonight-then"></dd>
+          </dl>
+        </div>
+        <p class="tonight-works" id="tonight-works" hidden></p>
+        <div class="stamps" id="tonight-stamps"></div>
+        <p class="tonight-kept" id="tonight-kept" hidden></p>
+        <button class="status-pro-link" id="tonight-progress" type="button"></button>
+      </div>
+
+      <div class="pro-hint" id="pro-hint" hidden>
+        <div class="pro-hint-head">
+          <span class="kicker">When it gets hard</span>
+          <button class="pro-hint-close" id="pro-hint-close" type="button" aria-label="Hide this for good">&times;</button>
+        </div>
+        <div class="day is-empty" id="pro-hint-day" aria-hidden="true"></div>
+        <p class="pro-hint-text">
+          Sieve already keeps, on this device, when a blocked site stopped you. Sieve Pro turns
+          that into your hardest hours, here, with your plan for them.
+        </p>
+        <button class="status-pro-link" id="pro-hint-open" type="button">See Sieve Pro &rarr;</button>
+      </div>
+    </section>
 
     <!-- On this page — what the page tried and what Sieve did about each thing:
          the Dark Pattern Blocker's findings on the tab you are looking at.
@@ -155,7 +196,10 @@
     <footer class="foot">
       <button id="open-settings" class="settings-link" type="button">
         <span>All settings</span>
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+        <span class="settings-end">
+          <span class="version" id="version">v—</span>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+        </span>
       </button>
     </footer>
 
@@ -166,7 +210,11 @@
     <script src="../common/seal.js"></script>
     <script src="../common/guardian-prompt.js"></script>
     <script src="../common/pro.js"></script>
+    <script src="../common/attempts.js"></script>
+    <script src="../pro/features.js"></script>
     <script src="../pro/streaks.js"></script>
+    <script src="../pro/insights.js"></script>
+    <script src="../pro/coach.js"></script>
     <script src="popup.js"></script>
   </body>
 </html>
