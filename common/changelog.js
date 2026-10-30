@@ -14,6 +14,20 @@
 
 const SIEVE_CHANGELOG = [
   {
+    version: "1.6.0",
+    date: "November 2026",
+    items: [
+      "New, and free: the Seal, in Settings › Lock. It locks your protection until a date you choose: a week, 30 days, 90 days or a year. Until then nothing that weakens it can be changed, not with your PIN and not by waiting out a cool-off. Extending a seal is always allowed; shortening one is not.",
+      "The way out early is held by a witness: someone you trust scans a QR code into the authenticator app they already use, and you ask them for the six digits it shows. They also keep eight recovery codes in case their phone is lost. Nothing is sent anywhere, and five wrong codes lock entry for a while. The seal only starts once their app has shown a code that works. If there is nobody to ask, choose a printed emergency key instead.",
+      "A running seal shows in the toolbar popup, with the day it ends.",
+      "New: Sieve Pro, a one-time purchase with no subscription. Every protection stays free, the Seal included, and always will. Pro adds two things on top, for the hard moments and for seeing how far you have come, running on your device like the rest of Sieve.",
+      "The urge screen changes what you see when Sieve stops you at a blocked site. Instead of a notice, the page leads with ninety seconds of breathing, then your own reason in your own words, a photo if you chose one, and one tap to text, call or email someone you trust. Go back and Allow stay underneath, exactly as before.",
+      "Streaks count the days since you last tried to open a gambling site, a dating site, or any other kind you track, and what it would have cost: “23 days · about $1,140 kept”. They show in the toolbar popup and in settings, with your best run and the next milestone.",
+      "Sieve Pro is sold by Polar, who send the licence key with your receipt. One key works in up to three browsers at once, and “Remove from this browser” frees a place for another. Entering it sends that key and a plain name for the browser to Polar to check it, and again about once a week when you open the settings. Firefox asks your permission first. The privacy policy explains exactly what is sent.",
+      "A fix for the Protection Dashboard: blocks from the gambling list built into Sieve were not being counted, only those from the downloaded list.",
+    ],
+  },
+  {
     version: "1.5.1",
     date: "October 2026",
     items: [

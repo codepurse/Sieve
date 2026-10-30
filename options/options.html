@@ -70,6 +70,10 @@
           <p class="nav-group">Controls</p>
           <a class="nav-link" href="#section-security" data-target="section-security"><span class="nav-num">09</span><span class="nav-name">Lock</span></a>
           <a class="nav-link" href="#section-advanced" data-target="section-advanced"><span class="nav-num">10</span><span class="nav-name">Advanced</span></a>
+
+          <!-- Shown once Sieve Pro is on sale, or a licence is stored (setupPro). -->
+          <p class="nav-group" id="nav-pro-group" hidden>Pro</p>
+          <a class="nav-link" href="#section-pro" data-target="section-pro" id="nav-pro" hidden><span class="nav-num">11</span><span class="nav-name">Sieve Pro</span></a>
         </nav>
 
         <div class="sidebar-foot">
@@ -1539,6 +1543,128 @@
             </div>
           </section>
 
+          <section class="group" id="seal-card">
+            <div class="group-head">
+              <h2 class="group-title">Seal <span class="badge" id="seal-badge">Off</span></h2>
+              <p class="group-desc">
+                For when you have decided, on a good day, that nothing gets weaker for a while. Until
+                the date you pick, nothing that weakens your protection can be changed &mdash; not
+                with your PIN, and not by waiting out a cool-off.
+              </p>
+            </div>
+            <div class="group-body">
+              <div class="field">
+                <!-- One of these four shows at a time. -->
+                <div id="seal-start">
+                  <label class="sub-label" for="seal-length">Seal for</label>
+                  <select class="input input-auto" id="seal-length">
+                    <option value="7">A week</option>
+                    <option value="30" selected>30 days &mdash; recommended</option>
+                    <option value="90">90 days</option>
+                    <option value="365">A year</option>
+                  </select>
+                  <span class="sub-label" id="seal-exit-title">Who holds the way out</span>
+                  <div class="radio-group seal-exits" role="radiogroup" aria-labelledby="seal-exit-title">
+                    <label class="radio">
+                      <input type="radio" name="sealExit" value="witness" checked />
+                      <span>A witness</span> <span class="eg">recommended</span>
+                    </label>
+                    <label class="radio">
+                      <input type="radio" name="sealExit" value="key" />
+                      <span>A printed key</span> <span class="eg">for when there is nobody to ask</span>
+                    </label>
+                  </div>
+                  <p class="hint">
+                    A witness is someone you trust. They scan a code into the authenticator app they
+                    already use (Google Authenticator, Aegis, 1Password), and to end the seal early you
+                    ask them for the six digits it shows. Nothing is sent anywhere. A printed key is
+                    one long key, shown once, for you to put away.
+                  </p>
+                  <div class="actions">
+                    <button class="btn btn-primary" id="seal-begin" type="button">Seal my protection</button>
+                  </div>
+                  <p class="hint">
+                    Extending a seal is always allowed; shortening it is not. The pause
+                    screen&rsquo;s &ldquo;15 more minutes&rdquo; still works. Removing Sieve removes
+                    the seal too, which Extension Guard, below, prevents.
+                  </p>
+                </div>
+
+                <div id="seal-confirm" hidden>
+                  <p class="prose" id="seal-confirm-text"></p>
+
+                  <!-- The witness's half: shown once, while pairing, and cleared after. -->
+                  <div id="seal-witness" class="seal-witness" hidden>
+                    <p class="print-only seal-print-head" id="seal-witness-print-head"></p>
+                    <h3 class="field-title">1 &middot; Your witness scans this</h3>
+                    <p class="hint">
+                      With your witness beside you, they open their authenticator app, add an account,
+                      and scan the code. It shows up as &ldquo;Sieve: Seal&rdquo;.
+                    </p>
+                    <div class="seal-qr" id="seal-qr" role="img" aria-label="QR code for your witness's authenticator app"></div>
+                    <p class="meta">Can&rsquo;t scan? Type this key into the app instead: <span class="seal-secret" id="seal-secret"></span></p>
+
+                    <h3 class="field-title">2 &middot; They keep these recovery codes</h3>
+                    <p class="hint">
+                      If their phone is lost, each code ends the seal once. Give them all eight, on
+                      paper or in a message. Sieve keeps only scrambled copies, so it cannot show
+                      them again.
+                    </p>
+                    <ol class="seal-recovery" id="seal-recovery"></ol>
+
+                    <h3 class="field-title no-print">3 &middot; Type the code their app shows now</h3>
+                    <div class="add-row no-print">
+                      <input class="input seal-code-input" id="seal-witness-code" type="text" inputmode="numeric"
+                             autocomplete="off" spellcheck="false" maxlength="7" placeholder="123456"
+                             aria-label="The six digits your witness's app shows now" />
+                    </div>
+                    <p class="error no-print" id="seal-witness-error" role="alert"></p>
+                    <p class="hint no-print">
+                      That proves the scan worked, so the seal cannot start without a way out. That
+                      code is used up here; to end the seal they will read you a newer one.
+                    </p>
+                  </div>
+
+                  <div class="actions no-print">
+                    <button class="btn" id="seal-cancel" type="button">Not now</button>
+                    <button class="btn" id="seal-print-witness" type="button" hidden>Print for your witness</button>
+                    <button class="btn btn-primary" id="seal-go" type="button">Yes, seal it</button>
+                  </div>
+                </div>
+
+                <div id="seal-key-box" class="seal-key-box" hidden>
+                  <p class="print-only seal-print-head" id="seal-print-head"></p>
+                  <h3 class="field-title">Your emergency key</h3>
+                  <p class="seal-key" id="seal-key"></p>
+                  <p class="hint">
+                    This is the only time it is shown. Print it or write it down, give it to someone
+                    you trust or put it somewhere you will not reach in a weak moment. Sieve keeps
+                    only a scrambled copy, so it cannot show it again.
+                  </p>
+                  <div class="actions no-print">
+                    <button class="btn" id="seal-print" type="button">Print</button>
+                    <button class="btn btn-primary" id="seal-key-done" type="button">I have kept it safe</button>
+                  </div>
+                </div>
+
+                <div id="seal-running" hidden>
+                  <p class="prose" id="seal-running-text"></p>
+                  <label class="sub-label" for="seal-extend-length">Add to it</label>
+                  <select class="input input-auto" id="seal-extend-length">
+                    <option value="7">A week</option>
+                    <option value="30">30 days</option>
+                    <option value="90">90 days</option>
+                    <option value="365">A year</option>
+                  </select>
+                  <div class="actions">
+                    <button class="btn" id="seal-extend" type="button">Extend the seal</button>
+                  </div>
+                  <p class="hint" id="seal-running-hint"></p>
+                </div>
+              </div>
+            </div>
+          </section>
+
           <section class="group" id="desktop-guard-card">
             <div class="group-head">
               <h2 class="group-title">Extension Guard <span class="badge badge-new">New</span></h2>
@@ -1655,6 +1781,147 @@
           </section>
         </section>
 
+        <!-- ============================ 11 Sieve Pro ========================== -->
+        <!-- New features on top of everything that was free, which stays free.
+             common/pro.js holds the licence; each feature's own module holds its
+             state. Its nav link stays hidden until Pro is on sale or a licence
+             is stored (setupPro); setupNav shows and hides the section itself. -->
+        <section class="section" id="section-pro" aria-labelledby="h-pro">
+          <header class="section-head">
+            <p class="section-num kicker">11 &middot; Pro</p>
+            <h1 class="section-title" id="h-pro">Sieve Pro</h1>
+            <p class="section-desc">Sieve blocks it. Pro helps you stay stopped. One payment, yours to keep &mdash; everything else in Sieve stays free.</p>
+          </header>
+
+          <section class="group" id="pro-card">
+            <div class="group-head">
+              <h2 class="group-title">Your licence <span class="badge" id="pro-badge">Free</span></h2>
+              <p class="group-desc">
+                The urge screen and streaks are Sieve Pro: <span class="pro-price">$24.99</span> once,
+                no subscription. Every protection, the Seal included, stays free. Bought it? Paste
+                the licence key from your receipt email.
+              </p>
+            </div>
+            <div class="group-body">
+              <div class="field" id="pro-buy-field">
+                <div class="actions" id="pro-buy-actions" hidden>
+                  <a class="btn btn-primary" id="pro-buy" target="_blank" rel="noopener noreferrer">Get Sieve Pro &mdash; <span class="pro-price">$24.99</span> once</a>
+                </div>
+                <label class="sub-label" for="pro-key">Licence key</label>
+                <div class="add-row">
+                  <input id="pro-key" class="input" type="text" placeholder="SIEVE-&hellip;" autocomplete="off" spellcheck="false" />
+                  <button id="pro-activate" class="btn" type="button">Activate</button>
+                </div>
+                <p class="error" id="pro-error" role="alert"></p>
+                <p class="hint">
+                  Activating sends the key and a plain name for this browser to Polar, who sell Sieve
+                  Pro, to check it. Sieve checks again about once a week when you open these settings.
+                  Pro features run on this device like the rest of Sieve.
+                </p>
+              </div>
+              <div class="field" id="pro-owned-field" hidden>
+                <p class="prose" id="pro-owned-text"></p>
+                <p class="meta" id="pro-checked"></p>
+                <div class="actions">
+                  <button class="btn btn-quiet" id="pro-forget" type="button">Remove from this browser</button>
+                  <a class="btn btn-quiet" id="pro-portal" target="_blank" rel="noopener noreferrer">Your purchases page</a>
+                </div>
+                <p class="error" id="pro-forget-error" role="alert"></p>
+                <p class="hint" id="pro-forget-hint" hidden>
+                  Removing it gives this browser&rsquo;s place on the key back, so the key can be
+                  used in another browser.
+                </p>
+              </div>
+            </div>
+          </section>
+
+          <section class="group pro-feature" id="urge-card">
+            <div class="group-head">
+              <h2 class="group-title">Urge screen <span class="badge" id="urge-badge">Off</span></h2>
+              <p class="group-desc">
+                When you land on a blocked site, the page leads with ninety seconds of breathing
+                instead of a notice, then your own reason, in your own words, and one tap to someone
+                you trust. Go back and Allow stay underneath, as they are now.
+              </p>
+              <p class="pro-note" hidden>Part of Sieve Pro. <a href="#pro-card">Unlock it</a></p>
+            </div>
+            <div class="group-body">
+              <div class="field">
+                <div class="switch-row">
+                  <div class="switch-label">
+                    <span class="label">Show the urge screen</span>
+                    <span class="description">On the block page, for the kinds of site below.</span>
+                  </div>
+                  <label class="switch">
+                    <input type="checkbox" id="urge-enabled" class="pro-control" />
+                    <span class="slider"></span>
+                  </label>
+                </div>
+              </div>
+              <div class="field">
+                <h3 class="field-title">Show it for</h3>
+                <div id="urge-habits"></div>
+              </div>
+              <div class="field">
+                <label class="sub-label" for="urge-reason-input">Why you&rsquo;re doing this</label>
+                <textarea class="input pro-control" id="urge-reason-input" rows="3" maxlength="600"
+                          placeholder="In your own words. You will read it at the moment it matters."></textarea>
+                <p class="meta" id="urge-reason-status"></p>
+
+                <span class="sub-label">A photo</span>
+                <img class="urge-preview" id="urge-photo-preview" alt="Your chosen photo" hidden />
+                <div class="actions">
+                  <button class="btn pro-control" id="urge-photo-pick" type="button">Choose a photo</button>
+                  <button class="btn btn-quiet pro-control" id="urge-photo-remove" type="button" hidden>Remove it</button>
+                  <input type="file" id="urge-photo-input" accept="image/png,image/jpeg,image/webp" hidden />
+                </div>
+                <p class="error" id="urge-photo-error" role="alert"></p>
+              </div>
+              <div class="field">
+                <h3 class="field-title">Someone to reach</h3>
+                <div class="urge-contact-row">
+                  <label class="urge-contact-cell">
+                    <span class="sub-label">Name</span>
+                    <input class="input pro-control" id="urge-contact-name" type="text" maxlength="40" autocomplete="off" placeholder="Sam" />
+                  </label>
+                  <label class="urge-contact-cell">
+                    <span class="sub-label">How</span>
+                    <select class="input pro-control" id="urge-contact-method">
+                      <option value="sms">Text</option>
+                      <option value="tel">Call</option>
+                      <option value="mailto">Email</option>
+                    </select>
+                  </label>
+                  <label class="urge-contact-cell urge-contact-value">
+                    <span class="sub-label" id="urge-contact-value-label">Number</span>
+                    <input class="input pro-control" id="urge-contact-value" type="text" maxlength="120" autocomplete="off" />
+                  </label>
+                </div>
+                <p class="meta" id="urge-contact-status"></p>
+                <p class="hint">
+                  The button opens your own phone, messaging or email app. Sieve sends nothing.
+                </p>
+              </div>
+            </div>
+          </section>
+
+          <section class="group pro-feature" id="streaks-card">
+            <div class="group-head">
+              <h2 class="group-title">Streaks</h2>
+              <p class="group-desc">
+                How long since you last tried to open a blocked site, and what it would have cost.
+                Sieve already sees every attempt it stops; this counts them on this device.
+              </p>
+              <p class="pro-note" hidden>Part of Sieve Pro. <a href="#pro-card">Unlock it</a></p>
+            </div>
+            <div class="group-body">
+              <div class="field">
+                <ul class="streak-list" id="streak-list"></ul>
+              </div>
+            </div>
+          </section>
+        </section>
+
         <!-- =============================== About =============================== -->
         <section class="section" id="section-about" aria-labelledby="h-about">
           <header class="section-head">
@@ -1715,7 +1982,14 @@
     <script src="../common/doomscroll-sites.js"></script>
     <script src="../common/access-code.js"></script>
     <script src="../common/cooloff.js"></script>
+    <script src="../common/totp.js"></script>
+    <script src="../common/qr.js"></script>
+    <script src="../common/seal.js"></script>
     <script src="../common/guardian-prompt.js"></script>
+    <script src="../common/pro.js"></script>
+    <script src="../pro/features.js"></script>
+    <script src="../pro/streaks.js"></script>
+    <script src="../pro/settings.js"></script>
     <script src="../common/keyword-pattern.js"></script>
     <script src="../common/search-filter.js"></script>
     <script src="../common/toxic-model-cache.js"></script>

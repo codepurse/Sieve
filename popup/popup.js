@@ -64,8 +64,10 @@ document.addEventListener("DOMContentLoaded", () => {
 
   // Summary banner — reflect how many modules are active, live.
   updateStatusBanner();
+  updateProLines();
   chrome.storage.onChanged.addListener((changes, area) => {
     if (area === "local" && MODULE_KEYS.some((k) => changes[k])) updateStatusBanner();
+    if (area === "local" && PRO_LINE_KEYS.some((k) => changes[k])) updateProLines();
   });
 });
 
@@ -139,6 +141,43 @@ async function updateStatusBanner() {
     meta.textContent = `${active} filter${active === 1 ? "" : "s"} running`;
     el.className = "status enabled";
   }
+}
+
+// Under the summary: a running seal (free, common/seal.js), then each streak
+// tracked with Sieve Pro, with the money kept. Without Pro — or in an
+// open-source build, where pro/streaks.js is an empty stand-in — only the seal.
+const PRO_LINE_KEYS = ["proLicence", "proSeal", "proHabits", "habitAttempts"];
+
+async function updateProLines() {
+  const el = document.getElementById("status-pro");
+  const P = window.SievePro;
+  const S = window.SieveSeal;
+  const ST = window.SieveStreaks;
+  if (!el) return;
+  const now = Date.now();
+  const lines = [];
+  try {
+    if (S) {
+      const seal = await S.check(now);
+      if (seal.sealed) lines.push(`Sealed until ${S.formatDay(seal.until)}`);
+    }
+    if (P && ST && (await P.isPro(now))) {
+      for (const row of (await ST.summary(now)).slice(0, 3)) {
+        const parts = [row.label, row.days === 0 ? "starting today" : ST.daysLabel(row.days)];
+        if (row.keptLabel) parts.push(`about ${row.keptLabel} kept`);
+        lines.push(parts.join(" · "));
+      }
+    }
+  } catch (err) {
+    console.warn("[Sieve] popup: could not read the seal or streaks:", err);
+  }
+  el.textContent = "";
+  for (const line of lines) {
+    const span = document.createElement("span");
+    span.textContent = line;
+    el.appendChild(span);
+  }
+  el.hidden = lines.length === 0;
 }
 
 // Name the site the bottom block acts on, so "this page" means something.

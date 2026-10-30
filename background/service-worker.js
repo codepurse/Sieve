@@ -553,6 +553,8 @@ const DOOMSCROLL_CS_FILES = [
   "common/doomscroll-sites.js",
   "common/access-code.js",
   "common/cooloff.js",
+  "common/totp.js",
+  "common/seal.js",
   "common/theme.js",
   "common/guardian-prompt.js",
   "content/pause-overlay.js",

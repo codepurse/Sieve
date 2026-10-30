@@ -46,6 +46,7 @@ tracking, nothing leaves your browser.
 - **Doomscroll Stopper** — a daily time limit on endless feeds, with a gentle pause overlay.
 - **Guardian self-lock** — an optional PIN that gates *weakening* your protection (turning things off, allowlisting) while strengthening it stays free.
 - **Cool-off** — an optional wait (1 hour to 7 days) before anything that weakens your protection unlocks. The change is asked for first and unlocks only once the wait is over, for that one change, once, for a day; nothing turns off by itself, and a request can be called off at any time. Works with or without a PIN.
+- **Seal** — lock your protection until a date (a week, 30 or 90 days, a year). Until then nothing that weakens it can be changed, not with the PIN and not after a cool-off. The only way out early is held by a **witness** — someone you trust scans a QR code into their authenticator app, and you ask them for the six digits it shows (standard TOTP, no server; eight hashed recovery codes for a lost phone; five wrong codes lock entry for a while) — or, for someone with nobody to ask, by an emergency key shown once and stored only as a hash. Extending is always allowed, shortening never. Like BlockNSFW's Pact.
 - **Protection Dashboard** — a today/this-week breakdown of everything Sieve blocked for you, including an **Ads** section counting ad-network requests, the YouTube and Facebook ads removed, the ad-blocker walls cleared and the empty ad slots hidden. Only running totals are stored — never which site or which ad network. The request counter reads back which of Sieve's own block rules fired, which Chrome allows and Firefox does not, so they stay at zero on Firefox while the blocking itself is unaffected.
 - **Usage Insights** — an opt-in screen-time report: total time, a per-day and per-hour curve, and which sites took it. Only the tab you are looking at counts, the clock stops when you step away, and the record never leaves your device (7/30/90-day retention, clearable at any time).
 
@@ -187,3 +188,9 @@ licensed under [CC BY-SA 3.0](https://creativecommons.org/licenses/by-sa/3.0/), 
 Sieve elects the CC arm of EasyList's GPLv3 / CC BY-SA 3.0 dual licence; BY-SA's
 "Collection" clause is what keeps the rest of the project MIT. Editing that one file
 means editing a BY-SA file — see [`data/ATTRIBUTION-easylist.md`](data/ATTRIBUTION-easylist.md).
+
+**Sieve Pro** (the urge screen and streaks) is not open source and is not in
+this repository: [`pro/`](pro/README.md) holds empty stand-ins, and the store versions
+of Sieve carry the real files. Every protection is here, so a build from this
+repository blocks exactly what the store version does. Build one with
+`build-chrome.ps1 -OpenSource` (or `build-firefox.ps1 -OpenSource`).

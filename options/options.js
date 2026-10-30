@@ -592,6 +592,14 @@ function optionsDefaults() {
     seenWhatsNewVersion: "",
     // Warden band on the Overview — folded to its one-line bar by the ×
     wardenFolded: false,
+    // The Seal (common/seal.js), and Sieve Pro: the licence (common/pro.js),
+    // the urge screen and streaks (pro/streaks.js). The urge screen's photo
+    // has its own key, read separately, so this batch never carries an image.
+    proLicence: null,
+    proSeal: null,
+    proUrge: {},
+    proHabits: {},
+    habitAttempts: {},
   };
   for (const t of DARK_PATTERN_TYPES) {
     d[t.key] = t.default !== undefined ? t.default : true;
@@ -725,6 +733,8 @@ async function applyStoredSettings(store) {
   setupGuardian(store);            // self-lock PIN status panel
   setupAccessCode();               // optional second layer over that PIN
   setupCooloff(store);             // a wait before any weakening change unlocks
+  setupSeal(store);                // lock protection until a date (free)
+  setupPro(store);                 // Sieve Pro: licence, urge screen, streaks
   setupDarkPatterns(store);        // Module 3A — relocated from the popup
   setupToxicSites(store);          // per-site toggles — relocated from the popup
 
@@ -2155,6 +2165,448 @@ function setupCooloff(store) {
 
   renderConfig(CO.normalizeConfig(store.cooloffConfig));
   renderRequests();
+}
+
+// ===========================================================================
+// The Seal — lock protection until a date (common/seal.js). Free, like every
+// other protection. Starting or extending a seal strengthens protection, so
+// neither goes through the Guardian gate; there is no control that shortens
+// one. Refusing weakening changes while it runs happens in the gate itself
+// (common/guardian-prompt.js), so this group only starts, shows and extends.
+// ===========================================================================
+
+const SEAL_DAY_MS = 24 * 60 * 60 * 1000;
+const SVG_NS = "http://www.w3.org/2000/svg";
+
+// The witness's QR code, drawn as one SVG path (common/qr.js). Always dark
+// on white, whatever the page's theme: that is what a camera reads.
+function drawSealQr(container, text) {
+  const qr = window.SieveQr.encode(text);
+  const span = qr.size + 8; // the four-module quiet zone on each side
+  const svg = document.createElementNS(SVG_NS, "svg");
+  svg.setAttribute("viewBox", `0 0 ${span} ${span}`);
+  svg.setAttribute("shape-rendering", "crispEdges");
+  svg.setAttribute("aria-hidden", "true");
+  const paper = document.createElementNS(SVG_NS, "rect");
+  paper.setAttribute("width", String(span));
+  paper.setAttribute("height", String(span));
+  paper.setAttribute("fill", "#ffffff");
+  const ink = document.createElementNS(SVG_NS, "path");
+  ink.setAttribute("d", window.SieveQr.toPath(qr));
+  ink.setAttribute("fill", "#000000");
+  svg.append(paper, ink);
+  container.replaceChildren(svg);
+}
+
+// Print one part of the seal (its key, or the witness's sheet) and nothing
+// else on the page (options.css, html.print-seal).
+function printSealPart(el) {
+  const root = document.documentElement;
+  el.classList.add("is-printing");
+  root.classList.add("print-seal");
+  window.addEventListener(
+    "afterprint",
+    () => {
+      root.classList.remove("print-seal");
+      el.classList.remove("is-printing");
+    },
+    { once: true },
+  );
+  window.print();
+}
+
+function setupSeal(store) {
+  const S = window.SieveSeal;
+  const badge = document.getElementById("seal-badge");
+  const boxes = {
+    start: document.getElementById("seal-start"),
+    confirm: document.getElementById("seal-confirm"),
+    key: document.getElementById("seal-key-box"),
+    running: document.getElementById("seal-running"),
+  };
+  const lengthEl = document.getElementById("seal-length");
+  const beginBtn = document.getElementById("seal-begin");
+  const confirmText = document.getElementById("seal-confirm-text");
+  const cancelBtn = document.getElementById("seal-cancel");
+  const goBtn = document.getElementById("seal-go");
+  const witnessBox = document.getElementById("seal-witness");
+  const witnessHead = document.getElementById("seal-witness-print-head");
+  const qrBox = document.getElementById("seal-qr");
+  const secretEl = document.getElementById("seal-secret");
+  const recoveryList = document.getElementById("seal-recovery");
+  const codeInput = document.getElementById("seal-witness-code");
+  const codeError = document.getElementById("seal-witness-error");
+  const printWitnessBtn = document.getElementById("seal-print-witness");
+  const keyBox = boxes.key;
+  const keyEl = document.getElementById("seal-key");
+  const printHead = document.getElementById("seal-print-head");
+  const printBtn = document.getElementById("seal-print");
+  const doneBtn = document.getElementById("seal-key-done");
+  const runningText = document.getElementById("seal-running-text");
+  const runningHint = document.getElementById("seal-running-hint");
+  const extendLength = document.getElementById("seal-extend-length");
+  const extendBtn = document.getElementById("seal-extend");
+
+  let current = S.stateOf(store.proSeal) === "sealed" ? S.normalizeSeal(store.proSeal) : null;
+  // "start" | "confirm" | "key". The key stays on screen until it is put away,
+  // even though the seal is already running underneath it.
+  let mode = "start";
+  // The witness's key and recovery codes while pairing, and only then: never
+  // stored until their app shows a code that works, and wiped from the page
+  // once the seal starts or the pairing is called off.
+  let pairing = null;
+
+  const exitChosen = () => {
+    const picked = document.querySelector('input[name="sealExit"]:checked');
+    return picked ? picked.value : "witness";
+  };
+
+  function show(name) {
+    for (const [k, box] of Object.entries(boxes)) box.hidden = k !== name;
+  }
+
+  function clearPairing() {
+    pairing = null;
+    qrBox.replaceChildren();
+    secretEl.textContent = "";
+    recoveryList.replaceChildren();
+    witnessHead.textContent = "";
+    codeInput.value = "";
+    codeError.textContent = "";
+    witnessBox.hidden = true;
+    printWitnessBtn.hidden = true;
+  }
+
+  function render() {
+    const now = Date.now();
+    const sealed = !!current && now < current.until;
+    // A running seal is a protection switched on, so it is the green badge.
+    badge.textContent = sealed ? "On" : "Off";
+    badge.classList.toggle("on", sealed);
+    if (mode === "key") return show("key");
+    if (sealed) {
+      mode = "start";
+      const days = Math.ceil((current.until - now) / SEAL_DAY_MS);
+      runningText.textContent =
+        `Sealed until ${S.formatWhen(current.until)} — ${days === 1 ? "1 day" : `${days} days`} to go.`;
+      if (current.exit === "witness") {
+        const left = current.witness.recovery.filter((r) => !r.used).length;
+        runningHint.textContent =
+          "Your witness holds the way out. To end it early, try any protected change, choose " +
+          `“Ask your witness” and type the code their app shows (or one of their ${left} recovery codes). ` +
+          "Your PIN and cool-off apply again after it.";
+      } else {
+        runningHint.textContent =
+          "Your printed key is the way out. To end it early, try any protected change and choose " +
+          "“Use emergency key”. Your PIN and cool-off apply again after it.";
+      }
+      return show("running");
+    }
+    show(mode === "confirm" ? "confirm" : "start");
+  }
+
+  beginBtn.addEventListener("click", () => {
+    const until = Date.now() + Number(lengthEl.value) * SEAL_DAY_MS;
+    const exit = exitChosen();
+    confirmText.textContent =
+      `Seal your protection until ${S.formatWhen(until)}? Until then you will not be able to ` +
+      "switch a blocker off, allow a site, remove your PIN or shorten your cool-off. " +
+      (exit === "witness" ? "Only a code from your witness will end it early." : "Only the emergency key will end it early.");
+    clearPairing();
+    if (exit === "witness") {
+      pairing = S.pairWitness();
+      drawSealQr(qrBox, pairing.uri);
+      secretEl.textContent = window.SieveTotp.formatSecret(pairing.secret);
+      for (const code of pairing.recoveryCodes) {
+        const li = document.createElement("li");
+        li.textContent = code;
+        recoveryList.appendChild(li);
+      }
+      witnessHead.textContent =
+        `Sieve · you are the witness for a seal that ends ${S.formatWhen(until)}. When they ask, ` +
+        "read them the six digits your authenticator app shows for “Sieve: Seal”, or one of these codes.";
+      witnessBox.hidden = false;
+      printWitnessBtn.hidden = false;
+    }
+    mode = "confirm";
+    render();
+    (exit === "witness" ? codeInput : goBtn).focus();
+  });
+
+  cancelBtn.addEventListener("click", () => {
+    clearPairing();
+    mode = "start";
+    render();
+    beginBtn.focus();
+  });
+
+  goBtn.addEventListener("click", async () => {
+    const days = Number(lengthEl.value);
+    goBtn.disabled = true;
+    let result;
+    try {
+      result = pairing ? await S.startWithWitness(days, pairing, codeInput.value) : await S.start(days);
+    } catch (err) {
+      console.warn("[Sieve] could not start the seal:", err);
+      result = { ok: false };
+    }
+    goBtn.disabled = false;
+    if (result.reason === "wrong-code") {
+      codeError.textContent = "That code doesn't match. Check the app shows “Sieve: Seal”, and type the newest code.";
+      codeInput.select();
+      return;
+    }
+    if (!result.ok) {
+      clearPairing();
+      mode = "start";
+      render();
+      return;
+    }
+    if (pairing) {
+      // Running now; the witness's key and codes leave the page.
+      clearPairing();
+      mode = "start";
+      render();
+      return;
+    }
+    keyEl.textContent = result.key;
+    printHead.textContent =
+      `Sieve · emergency key for the seal that ends ${S.formatWhen(result.until)}. ` +
+      "Typing it into Sieve ends the seal early.";
+    mode = "key";
+    render();
+    doneBtn.focus();
+  });
+
+  codeInput.addEventListener("keydown", (e) => {
+    if (e.key === "Enter") goBtn.click();
+  });
+
+  // Print one part of the seal alone, not the settings page around it.
+  printBtn.addEventListener("click", () => printSealPart(keyBox));
+  printWitnessBtn.addEventListener("click", () => printSealPart(witnessBox));
+
+  doneBtn.addEventListener("click", () => {
+    // Gone from the page as well as from storage: it was shown once.
+    keyEl.textContent = "";
+    printHead.textContent = "";
+    mode = "start";
+    render();
+  });
+
+  extendBtn.addEventListener("click", async () => {
+    try {
+      await S.extend(Number(extendLength.value));
+    } catch (err) {
+      console.warn("[Sieve] could not extend the seal:", err);
+    }
+  });
+
+  chrome.storage.onChanged.addListener((changes, area) => {
+    if (area !== "local" || !changes[S.SEAL_KEY]) return;
+    const next = changes[S.SEAL_KEY].newValue;
+    current = S.stateOf(next) === "sealed" ? S.normalizeSeal(next) : null;
+    render();
+  });
+
+  // Days to go, and the moment a seal ends.
+  setInterval(render, 60 * 1000);
+
+  return { render };
+}
+
+// ===========================================================================
+// Sieve Pro — the licence box, and the section the Pro features live in.
+// Everything that protects stays free and open source, the Seal included. The
+// Pro features (the urge screen, streaks) are not: a store build copies them
+// from a private repository over the empty stand-ins in pro/ (see
+// pro/README.md). An open-source build keeps the stand-ins, so this section is
+// taken out of the page, and every protection works exactly the same.
+//
+// In a store build the groups are shown to everyone and work only with a
+// licence.
+// ===========================================================================
+
+function proShortDate(ms) {
+  try {
+    return new Date(ms).toLocaleDateString(undefined, { day: "numeric", month: "short", year: "numeric" });
+  } catch {
+    return new Date(ms).toDateString();
+  }
+}
+
+function setupPro(store) {
+  const P = window.SievePro;
+  // pro/features.js names the features this build carries: null in an
+  // open-source build, where pro/settings.js is an empty stand-in as well.
+  const carried = Array.isArray(window.SieveProFeatures) && window.SieveProFeatures.length > 0;
+  if (!P || !carried || !window.SieveProSettings) {
+    // Gone before setupNav and setupFinder run, so no link, search or deep
+    // link can open a section with nothing in it.
+    const section = document.getElementById("section-pro");
+    if (section) section.remove();
+    return;
+  }
+
+  let pro = P.isProState(store.proLicence);
+
+  for (const el of document.querySelectorAll(".pro-price")) el.textContent = P.CONFIG.priceLabel;
+
+  // The section's link appears once Pro is on sale, or once a key is stored,
+  // so a build shipped before the shop opens shows nobody a dead end.
+  const navShown = P.isConfigured() || !!P.normalizeLicence(store.proLicence);
+  document.getElementById("nav-pro-group").hidden = !navShown;
+  document.getElementById("nav-pro").hidden = !navShown;
+
+  const { urge, streaks } = window.SieveProSettings.setup(store);
+  enhanceSwitchRows(document.getElementById("section-pro"));
+
+  function applyPro() {
+    for (const card of document.querySelectorAll(".pro-feature")) {
+      card.classList.toggle("is-locked", !pro);
+      const note = card.querySelector(".pro-note");
+      if (note) note.hidden = pro;
+      for (const control of card.querySelectorAll(".pro-control")) control.disabled = !pro;
+    }
+    urge.render(pro);
+    streaks.render(pro);
+  }
+
+  setupLicence(store, (next) => {
+    pro = next;
+    applyPro();
+  });
+  applyPro();
+}
+
+function setupLicence(store, onChange) {
+  const P = window.SievePro;
+  const badge = document.getElementById("pro-badge");
+  const buyActions = document.getElementById("pro-buy-actions");
+  const buyLink = document.getElementById("pro-buy");
+  const buyField = document.getElementById("pro-buy-field");
+  const ownedField = document.getElementById("pro-owned-field");
+  const ownedText = document.getElementById("pro-owned-text");
+  const checkedEl = document.getElementById("pro-checked");
+  const keyInput = document.getElementById("pro-key");
+  const activateBtn = document.getElementById("pro-activate");
+  const errorEl = document.getElementById("pro-error");
+  const forgetBtn = document.getElementById("pro-forget");
+  const forgetError = document.getElementById("pro-forget-error");
+  const forgetHint = document.getElementById("pro-forget-hint");
+  const portalLink = document.getElementById("pro-portal");
+
+  if (P.checkoutUrl()) {
+    buyLink.href = P.checkoutUrl();
+    buyActions.hidden = false;
+  }
+  portalLink.href = P.portalUrl();
+
+  const CONSENT_MSG = "Firefox asks before Sieve sends the key to Polar to check it. Press Activate again and choose Allow.";
+
+  function render(raw) {
+    const licence = P.normalizeLicence(raw);
+    const on = P.isProState(licence);
+    badge.textContent = on ? "Pro" : "Free";
+    badge.classList.toggle("badge-new", on);
+    buyField.hidden = on;
+    ownedField.hidden = !licence;
+    if (!licence) return;
+    const key = licence.displayKey;
+    if (on) {
+      const places = licence.limit
+        ? ` It works in up to ${licence.limit} browsers at once; this one is “${P.deviceLabel()}”.`
+        : "";
+      ownedText.textContent = `Pro is on, with key ${key}.${places} Thank you for supporting Sieve.`;
+    } else if (licence.status === "removed") {
+      ownedText.textContent =
+        `This browser's place on key ${key} was given back, so Pro is off here. ` +
+        "Enter the key again to take a place back, if one is free.";
+    } else if (licence.status === "revoked" || licence.status === "disabled") {
+      ownedText.textContent =
+        `Key ${key} was refunded or turned off, so Pro is off. ` +
+        "A seal you already started still runs to its date.";
+    } else {
+      ownedText.textContent = `Key ${key} is not a Sieve Pro key, so Pro is off.`;
+    }
+    forgetHint.hidden = !(on && licence.activationId);
+    checkedEl.textContent = licence.checkedAt ? `Last checked ${proShortDate(licence.checkedAt)}` : "";
+  }
+
+  async function activate() {
+    const key = keyInput.value.trim();
+    errorEl.textContent = "";
+    if (!key) {
+      errorEl.textContent = "Paste the licence key from your receipt email.";
+      return;
+    }
+    // Firefox's question has to come straight from this click, before
+    // anything else is awaited. Everywhere else it is a yes at once.
+    const consent = P.askConsent();
+    activateBtn.disabled = true;
+    activateBtn.textContent = "Checking…";
+    let result;
+    try {
+      result = (await consent) ? await P.activate(key) : { ok: false, offline: true, reason: "no-consent" };
+    } catch {
+      result = { ok: false, offline: true };
+    }
+    activateBtn.disabled = false;
+    activateBtn.textContent = "Activate";
+    if (result.ok) {
+      keyInput.value = ""; // the storage listener below shows the rest
+    } else if (result.reason === "not-configured") {
+      errorEl.textContent = "Sieve Pro is not on sale yet.";
+    } else if (result.reason === "no-consent") {
+      errorEl.textContent = CONSENT_MSG;
+    } else if (result.offline) {
+      errorEl.textContent = "Could not reach the licence check. Check your connection and try again.";
+    } else if (result.status === "full") {
+      const where = result.limit === 1 ? "one browser" : `${result.limit || "as many"} browsers`;
+      errorEl.textContent =
+        `That key is already in ${where}, as many as it allows. Remove it from one of them first: ` +
+        "in Sieve's settings there, or on your purchases page.";
+    } else if (result.status === "revoked" || result.status === "disabled") {
+      errorEl.textContent = "That key was refunded or turned off.";
+    } else {
+      errorEl.textContent = "That key was not recognised. Check it against your receipt email.";
+    }
+  }
+
+  activateBtn.addEventListener("click", activate);
+  keyInput.addEventListener("keydown", (e) => {
+    if (e.key === "Enter") activate();
+  });
+
+  // Pro going away weakens no protection, so taking the key out is not gated.
+  forgetBtn.addEventListener("click", async () => {
+    forgetError.textContent = "";
+    forgetBtn.disabled = true;
+    let result;
+    try {
+      result = await P.release();
+    } catch {
+      result = { ok: false, offline: true };
+    }
+    forgetBtn.disabled = false;
+    if (!result.ok) {
+      forgetError.textContent =
+        result.reason === "no-consent"
+          ? "Firefox no longer lets Sieve send the key, so this browser keeps its place. Allow it in Firefox's add-on settings, or free the place on your purchases page."
+          : "Could not reach the licence check, so this browser keeps its place. Try again when you're online.";
+    }
+  });
+
+  chrome.storage.onChanged.addListener((changes, area) => {
+    if (area !== "local" || !changes[P.LICENCE_KEY]) return;
+    const next = changes[P.LICENCE_KEY].newValue;
+    render(next);
+    onChange(P.isProState(next));
+  });
+
+  render(store.proLicence);
+  // The weekly re-check: a no-op on most loads, and never in the page's way.
+  P.refreshIfDue().catch((err) => console.warn("[Sieve] licence check failed:", err));
 }
 
 // ===========================================================================

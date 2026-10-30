@@ -2393,3 +2393,243 @@ html.preload .loading-veil {
     flex: 1 0 calc(100% - 64px);
   }
 }
+
+/* ==========================================================================
+   The Seal (free, in Lock), and Sieve Pro — the licence, the urge screen,
+   streaks
+   ========================================================================== */
+
+/* Without a licence the Pro groups stay visible but asleep, with a line in
+   the margin saying why. As everywhere, nothing is green unless it is on. */
+.pro-feature.is-locked .group-body {
+  opacity: 0.55;
+}
+
+.pro-note {
+  margin-top: 10px;
+  font-family: var(--font-mono);
+  font-size: 11.5px;
+  line-height: 1.5;
+  color: var(--ink-3);
+}
+
+.pro-note a {
+  color: var(--ink);
+}
+
+/* The Seal's four states each sit in their own box inside one field, so the
+   field's own spacing rules (.field > .hint) do not reach them. */
+#seal-card .hint {
+  margin-top: 12px;
+}
+
+.pro-feature .field > .sub-label:first-child {
+  margin-top: 0;
+}
+
+/* The emergency key: read off the screen once, then off paper. */
+.seal-key {
+  margin: 0 0 12px;
+  padding: 14px 16px;
+  font-family: var(--font-mono);
+  font-size: 20px;
+  line-height: 1.4;
+  letter-spacing: 0.12em;
+  overflow-wrap: anywhere;
+  color: var(--ink);
+  background: var(--raised);
+  border: 1px dashed var(--rule-strong);
+  border-radius: var(--r-1);
+  user-select: all;
+}
+
+.print-only {
+  display: none;
+}
+
+/* Choosing who holds the way out, and pairing a witness. */
+.seal-exits {
+  margin-bottom: 4px;
+}
+
+.seal-witness {
+  margin-top: 20px;
+  padding-top: 18px;
+  border-top: 1px solid var(--rule);
+}
+
+.seal-witness .field-title {
+  margin-top: 20px;
+}
+
+.seal-witness .field-title:first-of-type {
+  margin-top: 0;
+}
+
+/* The QR code stays dark on white in either theme: that is what cameras read. */
+.seal-qr {
+  width: 200px;
+  margin: 4px 0 10px;
+  border: 1px solid var(--rule);
+  border-radius: var(--r-1);
+  overflow: hidden;
+}
+
+.seal-qr svg {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+.seal-secret {
+  font-family: var(--font-mono);
+  letter-spacing: 0.06em;
+  color: var(--ink);
+  user-select: all;
+  overflow-wrap: anywhere;
+}
+
+.seal-recovery {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(8.5rem, 1fr));
+  gap: 6px 16px;
+  margin: 0 0 4px;
+  padding-left: 1.4em;
+  font-family: var(--font-mono);
+  font-size: 14px;
+  letter-spacing: 0.08em;
+  color: var(--ink);
+}
+
+.seal-code-input {
+  max-width: 11rem;
+  font-family: var(--font-mono);
+  font-size: 18px;
+  letter-spacing: 0.2em;
+}
+
+/* Print sends one part of the seal alone (its key, or the witness's sheet):
+   everything else is hidden, and that part is lifted out of the page so
+   nothing around it takes up the sheet. options.js printSealPart. */
+@media print {
+  html.print-seal body * {
+    visibility: hidden;
+  }
+
+  html.print-seal .is-printing,
+  html.print-seal .is-printing * {
+    visibility: visible;
+  }
+
+  html.print-seal .is-printing {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    padding: 24px;
+  }
+
+  html.print-seal .print-only {
+    display: block;
+    margin-bottom: 16px;
+    font-size: 13px;
+  }
+
+  html.print-seal .no-print {
+    display: none;
+  }
+}
+
+.urge-preview {
+  display: block;
+  width: 120px;
+  height: 120px;
+  margin-bottom: 4px;
+  object-fit: cover;
+  border: 1px solid var(--rule);
+  border-radius: var(--r-1);
+}
+
+.urge-contact-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1.4fr);
+  gap: var(--s-2);
+}
+
+.urge-contact-cell .sub-label {
+  margin-top: 0;
+}
+
+.streak-list {
+  list-style: none;
+}
+
+.streak-row + .streak-row {
+  border-top: 1px solid var(--rule);
+}
+
+.streak-list .streak-row:first-child > .switch-row {
+  padding-top: 0;
+}
+
+.streak-detail {
+  padding: 0 0 18px;
+}
+
+.streak-figure {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 2px 12px;
+}
+
+.streak-days {
+  font-family: var(--font-serif);
+  font-size: 30px;
+  line-height: 1.15;
+  letter-spacing: -0.015em;
+  color: var(--ink);
+}
+
+.streak-kept {
+  font-size: 14px;
+  color: var(--ink-2);
+}
+
+.streak-detail > .meta {
+  margin-top: 2px;
+}
+
+.streak-inputs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0 24px;
+}
+
+.streak-cell .sub-label {
+  margin: 14px 0 6px;
+}
+
+.streak-cell .input[type="date"] {
+  width: auto;
+}
+
+.streak-cost-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s-2);
+}
+
+.streak-cost-row .input {
+  width: auto;
+}
+
+.streak-cost-row input.input {
+  width: 7.5rem;
+}
+
+@container (max-width: 560px) {
+  .urge-contact-row {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}

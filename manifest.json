@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "Sieve – Content Filter & Site Blocker",
   "short_name": "Sieve",
-  "version": "1.5.1",
+  "version": "1.6.0",
   "description": "Clean Internet Suite — blocks gambling, dark patterns, and doomscrolling.",
   "icons": {
     "16": "icons/icon-16.png",
@@ -95,6 +95,8 @@
         "common/doomscroll-sites.js",
         "common/access-code.js",
         "common/cooloff.js",
+        "common/totp.js",
+        "common/seal.js",
         "common/theme.js",
         "common/guardian-prompt.js",
         "content/pause-overlay.js",
