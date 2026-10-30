@@ -43,11 +43,15 @@ const OPTIONS = read("../options/options.js");
 // --- helpers ----------------------------------------------------------------
 
 // Every { key: "…" } inside the YouTube card's definition on the settings page.
+// SITE_CLEANUP_SITES holds one card per site, so the slice runs from the
+// YouTube entry to the next site's entry (Google Search) or the list's end.
 function settingsKeys() {
-  const start = OPTIONS.indexOf("const SITE_CLEANUP_SITES");
-  const end = OPTIONS.indexOf("function scRow");
-  assert.ok(start > 0 && end > start, "SITE_CLEANUP_SITES not found in options.js");
-  const block = OPTIONS.slice(start, end);
+  const list = OPTIONS.indexOf("const SITE_CLEANUP_SITES");
+  const start = OPTIONS.indexOf('id: "youtube"', list);
+  const listEnd = OPTIONS.indexOf("function scRow");
+  assert.ok(list > 0 && start > list && listEnd > start, "the YouTube card was not found in options.js");
+  const next = OPTIONS.indexOf('    id: "', start + 1);
+  const block = OPTIONS.slice(start, next > 0 && next < listEnd ? next : listEnd);
   return [...block.matchAll(/\{ key: "(\w+)"/g)].map((m) => m[1]);
 }
 

@@ -1289,7 +1289,8 @@
         <!-- Per-site page surgery: hides parts of a site you'd rather not see,
              without blocking the whole site. One group per site; the toggle rows
              are rendered by options.js → setupSiteCleanup() from
-             SITE_CLEANUP_SITES, and applied by content/site-cleanup.js. -->
+             SITE_CLEANUP_SITES, and applied by content/site-cleanup.js
+             (YouTube) and content/google-clean.js (Google Search). -->
         <section class="section" id="section-site-cleanup" aria-labelledby="h-site-cleanup">
           <header class="section-head">
             <p class="section-num kicker">07 &middot; Filters</p>
@@ -1307,6 +1308,17 @@
               </p>
             </div>
             <div class="group-body" id="sc-youtube-body"></div>
+          </section>
+
+          <section class="group group-wide">
+            <div class="group-head">
+              <h2 class="group-title">Google Search</h2>
+              <p class="group-desc">
+                Just the results you searched for. Hide the AI Overview and AI Mode, and the boxes
+                Google fills the page with — or skip them all and open every search on the Web tab.
+              </p>
+            </div>
+            <div class="group-body" id="sc-google-body"></div>
           </section>
         </section>
 

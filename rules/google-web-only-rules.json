@@ -1,0 +1,28 @@
+[
+  {
+    "id": 1,
+    "priority": 3,
+    "action": {
+      "type": "redirect",
+      "redirect": {
+        "transform": {
+          "queryTransform": {
+            "addOrReplaceParams": [
+              {
+                "key": "udm",
+                "value": "14"
+              }
+            ]
+          }
+        }
+      }
+    },
+    "condition": {
+      "regexFilter": "^https://www\\.google\\.[a-z]+(?:\\.[a-z]+)?/search\\?(?:(?:[^&tu][^&]*|u(?:d(?:m(?:[^&=][^&]*)?|[^&m][^&]*)?|[^&d][^&]*)?|t(?:b(?:m(?:[^&=][^&]*)?|[^&m][^&]*)?|[^&b][^&]*)?)?(?:&|$))+$",
+      "isUrlFilterCaseSensitive": true,
+      "resourceTypes": [
+        "main_frame"
+      ]
+    }
+  }
+]

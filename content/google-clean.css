@@ -1,0 +1,93 @@
+/* content/google-clean.css
+ * Sieve — Google Search cleanup (Site Cleanup module).
+ *
+ * The manifest injects this file on www.google.<any country>/ pages at
+ * document_start, next to content/google-clean.js. Every rule is scoped to a
+ * class on <html> that the script adds from the user's settings, so the file is
+ * inert until a switch is turned on, and hiding never waits on JavaScript.
+ *
+ * This is the ONLY place that knows Google's results markup. Google renames its
+ * classes often, so the rules lean on what a block LINKS TO rather than what it
+ * is called: most boxes end in a "more" link to their own tab, and those tab
+ * names (udm=forums, udm=vids, tbm=nws …) are part of Google's URLs, the same in
+ * every language. Heading text is never used — it is translated.
+ *
+ * Verified on www.google.com, October 2026:
+ *   result block     #rso div.MjjYud (one per result or box; never nested)
+ *   AI Overview      #rcnt > div[jsname] beside #center_col, holding #Odp5De >
+ *                    div.hdzaWe, with a "Dive deeper" link to udm=50 (AI Mode).
+ *                    Google sometimes drops one into the results instead, as a
+ *                    block of its own with the same udm=50 link.
+ *   AI Mode          the udm=50 tab in div[role=list]; button[jsname=B6rgad] in
+ *                    the search box (results page and home page alike)
+ *   People also ask  [data-initq] (holds the original query; no AI Mode link,
+ *                    even with answers opened)
+ *   forums           block linking to udm=forums      (udm=18 before)
+ *   short videos     block linking to udm=short_vids  (udm=39 before)
+ *   videos           block linking to udm=vids        (udm=7 before)
+ *   top stories      block linking to tbm=nws
+ *   product grids    [data-num-of-products] (only the shopping grids carry it)
+ *   related          [data-abe] ("People also search for", in and under results)
+ *
+ * Each "block" rule also requires :not(:has(div.MjjYud)), so it only ever
+ * matches the innermost block. If Google starts wrapping several results in one
+ * block, a rule then finds nothing and the page stays as it was, rather than
+ * taking real results down with a box. A missed box is visible and harmless; a
+ * hidden result is neither.
+ *
+ * :has() needs Chrome 105+ / Firefox 121+. On anything older those rules are
+ * ignored and the page stays usable.
+ */
+
+/* ==========================================================================
+   AI
+   ========================================================================== */
+
+html.sv-g-hide-ai-overview #rcnt > div:not(#center_col):not(#rhs):has(a[href*="udm=50"], #Odp5De, .hdzaWe),
+html.sv-g-hide-ai-overview #rso div.MjjYud:has(a[href*="udm=50"], .hdzaWe):not(:has(div.MjjYud)),
+html.sv-g-hide-ai-overview #Odp5De,
+html.sv-g-hide-ai-overview div.hdzaWe {
+  display: none !important;
+}
+
+/* The tab, and the button in the search box. A link into AI Mode from
+   anywhere else still opens it; this only stops Google offering it. */
+html.sv-g-hide-ai-mode div[role="list"] > div[role="listitem"]:has(a[href*="udm=50"]),
+html.sv-g-hide-ai-mode button[jsname="B6rgad"] {
+  display: none !important;
+}
+
+/* ==========================================================================
+   Boxes in the results
+   ========================================================================== */
+
+html.sv-g-hide-paa #rso div.MjjYud:has([data-initq]):not(:has(div.MjjYud)),
+html.sv-g-hide-paa [data-initq] {
+  display: none !important;
+}
+
+html.sv-g-hide-forums #rso div.MjjYud:has(a[href*="udm=forums"], a[href*="udm=18&"], a[href$="udm=18"]):not(:has(div.MjjYud)) {
+  display: none !important;
+}
+
+html.sv-g-hide-short-videos #rso div.MjjYud:has(a[href*="udm=short_vids"], a[href*="udm=39&"], a[href$="udm=39"]):not(:has(div.MjjYud)) {
+  display: none !important;
+}
+
+html.sv-g-hide-videos #rso div.MjjYud:has(a[href*="udm=vids"], a[href*="udm=7&"], a[href$="udm=7"]):not(:has(div.MjjYud)) {
+  display: none !important;
+}
+
+html.sv-g-hide-top-stories #rso div.MjjYud:has(a[href*="tbm=nws"]):not(:has(div.MjjYud)) {
+  display: none !important;
+}
+
+html.sv-g-hide-products #rso div.MjjYud:has([data-num-of-products]):not(:has(div.MjjYud)),
+html.sv-g-hide-products [data-num-of-products] {
+  display: none !important;
+}
+
+html.sv-g-hide-related #rso div.MjjYud:has([data-abe]):not(:has(div.MjjYud)),
+html.sv-g-hide-related #botstuff [data-abe] {
+  display: none !important;
+}

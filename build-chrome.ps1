@@ -70,6 +70,9 @@ $RequiredAssets = @(
     "rules\youtube-suggest-rules.json",
     "rules\youtube-restrict-moderate-rules.json",
     "rules\youtube-restrict-strict-rules.json",
+    "rules\google-web-only-rules.json",
+    "content\google-clean.js",
+    "content\google-clean.css",
     "popup\popup.html",
     "options\options.html"
 )
