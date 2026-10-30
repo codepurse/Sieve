@@ -1,6 +1,7 @@
 // test/search-filter-serp-test.mjs
-// End-to-end test for content/search-filter.js against Google-, Bing- and
-// DuckDuckGo-shaped results pages. Run: node test/search-filter-serp-test.mjs
+// End-to-end test for content/search-filter.js against Google-, Bing-,
+// DuckDuckGo-, Brave-, Swisscows- and Yahoo-shaped results pages.
+// Run: node test/search-filter-serp-test.mjs
 //
 // Each page is served under the engine's real hostname (Chrome's
 // --host-resolver-rules points it at the local server), so the content script
@@ -111,6 +112,17 @@ const REPORTER = (titleSelector, settleMs = 400) => `
         scrolls: getComputedStyle(list).overflowY,
         visible: list.getBoundingClientRect().height > 0,
       };
+      // At rest, nothing in the notice may be written. Each write is a change
+      // the filter's own observer answers with another pass, and a notice
+      // rewritten on every pass kept the filter running on every frame. Only
+      // pages with a frame clock (see DDG_TAB_SWITCH) can show it: without
+      // one, headless Chrome never draws the frames the loop runs on.
+      let writes = 0;
+      const watch = new MutationObserver((records) => (writes += records.length));
+      watch.observe(notice, { childList: true, subtree: true, characterData: true });
+      await new Promise((r) => setTimeout(r, 200));
+      watch.disconnect();
+      out.noticeWrites = writes;
     }
     const noticeText = () => {
       const n = document.getElementById("sv-sf-notice");
@@ -121,7 +133,8 @@ const REPORTER = (titleSelector, settleMs = 400) => `
     const coloured = document.querySelector('[data-sv-sf="c1"]');
     if (coloured) {
       const cs = getComputedStyle(coloured);
-      out.colourStyle = { outline: cs.outlineStyle + " " + cs.outlineWidth, offset: cs.outlineOffset, paddingLeft: cs.paddingLeft };
+      out.colourStyle = { outline: cs.outlineStyle + " " + cs.outlineWidth, offset: cs.outlineOffset,
+        paddingLeft: cs.paddingLeft, marginLeft: cs.marginLeft };
     }
     const probe = document.querySelector("[data-probe]");
     out.probe = probe ? probe.getAttribute("data-sv-sf") : "(absent)";
@@ -142,6 +155,12 @@ const REPORTER = (titleSelector, settleMs = 400) => `
       const top = document.elementFromPoint(b.left + b.width / 2, b.top + b.height / 2);
       out.hitTestTop = top ? top.tagName + (top.className ? "." + String(top.className).split(" ")[0] : "") : null;
       out.markerIsClickable = !!top && (top === visibleMarker || visibleMarker.contains(top));
+      // The engine's own controls under the marker, which it would be
+      // sitting on top of. Being clickable itself says nothing about that.
+      out.markerCovers = document.elementsFromPoint(b.left + b.width / 2, b.top + b.height / 2)
+        .filter((e) => e !== visibleMarker && !visibleMarker.contains(e) && !e.contains(visibleMarker) && e.matches("button"))
+        .map((e) => e.getAttribute("aria-label") || e.tagName).join(",");
+      out.markerParent = visibleMarker.parentElement.tagName;
     }
     out.markerOnSeen = !!document.querySelector('[data-sv-sf="seen"] .sv-sf-why');
     const readPopover = async (block) => {
@@ -399,6 +418,151 @@ const DDG_DARK = (themed) =>
   `<style>html,body{background:#1c1c1c}${themed ? "ol.react-results--main{color:#e3e3e3}" : ""}</style>` +
   DDG.match(/<ol class="react-results--main">[\s\S]*?<\/ol>/)[0];
 
+// --- DuckDuckGo's html version ----------------------------------------------
+// Read off html.duckduckgo.com in October 2026: a div.result per result in
+// #links, an h2 title. Opened from a ?q= link, every link in a result is the
+// protocol-relative //duckduckgo.com/l/?uddg=…, which resultUrl() used to
+// refuse as "not absolute" before the redirect could be unwrapped. Searched
+// from its own box, the form POSTs to /html/ (no ?q= at all) and the links
+// come back direct.
+const ddgHtmlResult = ([href, title], wrapped) => {
+  const link = wrapped ? `//duckduckgo.com/l/?uddg=${encodeURIComponent(href)}&amp;rut=abc123` : href;
+  return `<div class="result results_links results_links_deep web-result"><div class="links_main links_deep result__body">
+     <h2 class="result__title"><a rel="nofollow" class="result__a" href="${link}">${title}</a></h2>
+     <div class="result__extras"><div class="result__extras__url"><span class="result__icon"><a rel="nofollow" href="${link}"><img class="result__icon__img" alt=""></a></span>
+       <a class="result__url" href="${link}">${new URL(href).hostname}</a></div></div>
+     <a class="result__snippet" href="${link}">Description.</a><div class="clear"></div></div></div>`;
+};
+const DDG_HTML = (wrapped) => page("test at DuckDuckGo",
+  `<div id="links" class="results">${SOURCES.map((s) => ddgHtmlResult(s, wrapped)).join("")}
+     <div class="nav-link"><form action="/html/" method="post"><input type="submit" value="Next"></form></div></div>`,
+  "h2");
+
+// --- Brave Search --------------------------------------------------------------
+// Read off search.brave.com in October 2026: a div.snippet[data-type="web"] per
+// result in section#mixed-main, a div.title inside the one link, which goes
+// straight to the site. Snippets of other types share the list; a discussions
+// box here, with a title and a link of its own, is not a result.
+const braveResult = ([href, title]) =>
+  `<div class="snippet svelte-jmfu5f" data-type="web" data-keynav="true"><div class="result-body"><div class="result-wrapper"><div class="result-content">
+     <a href="${href}" class="svelte-14r20fy l1"><div class="site-name-wrapper"><div class="site-name-content">
+       <div class="t-secondary">${new URL(href).hostname}</div><cite class="snippet-url"><span>› path</span></cite></div></div>
+       <div class="title search-snippet-title" title="${title}">${title}</div></a>
+     <div class="generic-snippet"><div class="content">Description.</div></div>
+   </div></div></div></div>`;
+
+const BRAVE_MAIN = `<main id="search-page"><section id="mixed-main">
+     ${SOURCES.map(braveResult).join("")}
+     <div id="discussions" class="snippet svelte-jmfu5f" data-probe="discussions"><div class="title">Discussions</div>
+       <a href="https://www.harvard.edu/forum">A thread</a></div>
+   </section></main>`;
+
+// Brave puts its results on the page twice: once in the HTML, then again as
+// its script starts, as fresh copies of the same results. A running total
+// counted each hidden result twice ("Sieve hid 4 results" over two). Here the
+// list is rebuilt from its own HTML 300ms in, with the frame clock that
+// DDG_TAB_SWITCH explains.
+const BRAVE_RERENDER = page(
+  "test - Brave Search",
+  `${BRAVE_MAIN}
+   <script>
+     window.requestAnimationFrame = (cb) => setTimeout(() => cb(performance.now()), 16);
+     const fresh = document.querySelector("#mixed-main").innerHTML;
+     setTimeout(() => { document.querySelector("#mixed-main").innerHTML = fresh; }, 300);
+   </script>`,
+  ".title",
+  1000
+);
+
+// --- Swisscows -----------------------------------------------------------------
+// Read off swisscows.com in October 2026: an article.item per result in
+// div.web-results, an h1 inside a direct link. Its own buttons are pinned
+// absolutely into the result's top-right corner, where the marker would
+// otherwise float, so the styles that do that are copied here too. The video
+// carousel in the same list is article.video-object, which is not a result.
+const SWISSCOWS_STYLE = `<style>
+  .web-results article.item{position:relative;display:block;margin:0 0 16px}
+  .web-results article.item header{position:relative}
+  .web-results .actions{position:absolute;top:2px;right:0;display:flex;gap:8px}
+  .web-results .actions button{width:24px;height:24px;padding:0}
+  .web-results article.item footer{display:flex;justify-content:flex-end;align-items:center;gap:8px}
+</style>`;
+
+const swisscowsResult = ([href, title]) =>
+  `<article class="item web-page"><header>
+     <a href="${href}"><div class="thumbnail"><img alt=""></div></a>
+     <a class="mainlink" href="${href}"><h1 class="title">${title}</h1></a>
+     <div class="actions"><div class="button-dropdown"><button type="button" aria-label="Like">+</button></div>
+       <div class="button-dropdown"><button type="button" aria-label="Share">s</button></div>
+       <div class="button-dropdown"><button type="button" aria-label="More">…</button></div></div>
+   </header><p class="description">Description.</p>
+   <footer><div class="site"><a href="${href}"><img class="favicon" alt=""></a></div>
+     <button class="button" type="button"><span>Preview</span></button></footer></article>`;
+
+const SWISSCOWS_RESULTS = (results) => `<div class="web-results content">
+     ${results.map(swisscowsResult).join("")}
+     <section class="widget widget-video"><header class="widget-header"><h1 class="widget-title">Video</h1></header>
+       <div class="swiper"><div class="swiper-wrapper"><div class="swiper-slide"><article class="video-object" data-probe="video">
+         <a href="https://www.harvard.edu/video"><h2>A video</h2></a></article></div></div></div></section>
+   </div>`;
+
+// Searched from the home page, the way most people get there: Swisscows shows
+// the results without loading a page, so the script started on a page that
+// was not a results page. Then a second search from the results page, which
+// swaps one search's results for the next and keeps the list they sit in.
+const SECOND_SEARCH = [
+  ["https://junk.cyou/other", "More Deals"],
+  ["https://www.harvard.edu/news", "Harvard News"],
+  ["https://example.org/", "Example"],
+];
+const SWISSCOWS_SPA = page(
+  "Your private and anonymous search engine Swisscows",
+  `${SWISSCOWS_STYLE}<div class="main"><form action="/en/web"><input type="search" name="query"></form></div>
+   <script>
+     window.requestAnimationFrame = (cb) => setTimeout(() => cb(performance.now()), 16);
+     setTimeout(() => {
+       history.pushState({}, "", "/en/web?query=test");
+       document.querySelector(".main").insertAdjacentHTML("beforeend", ${JSON.stringify(SWISSCOWS_RESULTS(SOURCES))});
+     }, 400);
+     setTimeout(() => {
+       history.pushState({}, "", "/en/web?query=more");
+       const list = document.querySelector(".web-results");
+       for (const old of list.querySelectorAll("article.item")) old.remove();
+       list.querySelector(".widget").insertAdjacentHTML("beforebegin", ${JSON.stringify(SECOND_SEARCH.map(swisscowsResult).join(""))});
+     }, 900);
+   </script>`,
+  "h1",
+  1500
+);
+
+// --- Yahoo ---------------------------------------------------------------------
+// Read off search.yahoo.com (and uk., fr.) in October 2026: a div.algo per
+// result in #web, one h3, direct links. search.yahoo.com wraps the h3 in its
+// link; the regional versions put the link inside the h3, as Harvard's does
+// here.
+// Yahoo's own stylesheet beats the colour bar's negative margin, which the
+// #web rule below reproduces. A result-shaped block outside #web is not a
+// result.
+const yahooResult = ([href, title], linkInside) => {
+  const heading = linkInside
+    ? `<h3 class="title"><a href="${href}">${title}</a></h3>`
+    : `<a class="d-ib va-top" href="${href}"><div class="d-ib p-abs"><span>${new URL(href).hostname}</span></div>
+         <h3 class="title"><span>${title}</span></h3></a>`;
+  return `<li><div class="dd algo algo-sr relsrch"><div class="compTitle options-toggle">${heading}</div>
+     <div class="compText"><p>Description.</p></div>
+     <div class="compList"><ul><li><a href="${href}/more">More from this site</a></li></ul></div></div></li>`;
+};
+
+const YAHOO = page(
+  "test - Yahoo Search Results",
+  `<style>#web .dd{margin-left:0}</style>
+   <ol class="searchCenterTopAds"><li><div class="dd algo" data-probe="outside"><h3><a href="https://www.harvard.edu/ad">Outside</a></h3></div></li></ol>
+   <div id="web" class="web-res"><ol class="reg searchCenterMiddle">
+     ${SOURCES.map((s) => yahooResult(s, s[1] === "Harvard")).join("")}
+   </ol></div>`,
+  "h3"
+);
+
 // What every tile case asserts beyond the shared checks.
 function checkTiles(id, r) {
   eq(r.marked, 5, `${id}: one mark per tile, none on the grid's rows`);
@@ -420,10 +584,49 @@ function checkBlocklist(id, r) {
   }
 }
 
+// `tls`: the case needs the self-signed certificate below (HSTS), and is
+// skipped without openssl.
 const CASES = [
   { id: "google", host: "www.google.com", url: "/search?q=test", body: GOOGLE },
-  { id: "bing", host: "www.bing.com", url: "/search?q=test", body: BING },
+  { id: "bing", host: "www.bing.com", url: "/search?q=test", body: BING, tls: true },
   { id: "duckduckgo", host: "duckduckgo.com", url: "/?q=test", body: DDG },
+  // Opened from a ?q= link: every link wrapped in //duckduckgo.com/l/?uddg=…
+  { id: "duckduckgo-html", host: "html.duckduckgo.com", url: "/html/?q=test", body: DDG_HTML(true) },
+  // Searched from its own box: a POST to /html/, so no ?q= in the address.
+  { id: "duckduckgo-html-post", host: "html.duckduckgo.com", url: "/html/", body: DDG_HTML(false) },
+  { id: "brave", host: "search.brave.com", url: "/search?q=test", body: page("test - Brave Search", BRAVE_MAIN, ".title"), tls: true },
+  {
+    id: "swisscows", host: "swisscows.com", url: "/en/web?query=test", tls: true,
+    body: page("Web pages for test - Swisscows", SWISSCOWS_STYLE + SWISSCOWS_RESULTS(SOURCES), "h1"),
+  },
+  { id: "yahoo", host: "search.yahoo.com", url: "/search?p=test", body: YAHOO, tls: true },
+  {
+    id: "brave-rerender", host: "search.brave.com", url: "/search?q=test&rr=1", body: BRAVE_RERENDER, tls: true,
+    check: (r) => {
+      const t = r.byTitle || {};
+      eq(r.threw, undefined, `brave-rerender: page threw: ${r.threw}`);
+      eq(t["Cheap Deals"], "hidden", "brave-rerender: the fresh copies are filtered");
+      eq(t.Harvard, "c1", "brave-rerender: and coloured");
+      eq(r.hidden, 2, "brave-rerender: two results hidden on the page");
+      eq(r.notices, 1, "brave-rerender: one notice");
+      eq(r.notice, "Sieve hid 2 results", "brave-rerender: each hidden result counted once, not once per copy");
+      eq(r.noticeWrites, 0, "brave-rerender: at rest, the notice and its By site list are left alone");
+    },
+  },
+  {
+    id: "swisscows-spa", host: "swisscows.com", url: "/en", body: SWISSCOWS_SPA, tls: true,
+    check: (r) => {
+      const t = r.byTitle || {};
+      eq(r.threw, undefined, `swisscows-spa: page threw: ${r.threw}`);
+      eq(t["More Deals"], "hidden", "swisscows-spa: started on the home page, the filter still reaches the results");
+      eq(t["Harvard News"], "c1", "swisscows-spa: a colour rule applies too");
+      eq(t.Example, "seen", "swisscows-spa: an unmatched result is left alone");
+      eq(r.marked, 3, "swisscows-spa: only the latest search's results are on the page");
+      eq(r.notices, 1, "swisscows-spa: one notice");
+      eq(r.notice, "Sieve hid 1 result", "swisscows-spa: the count is this search's, not the one before it as well");
+      eq(r.noticeWrites, 0, "swisscows-spa: at rest, the notice is left alone");
+    },
+  },
   {
     id: "duckduckgo-images", host: "duckduckgo.com", url: "/?q=test&ia=images&iax=images",
     body: page("example at DuckDuckGo", IMAGES_GRID, "h3"), tiles: true,
@@ -445,6 +648,7 @@ const CASES = [
       eq(r.notices, 1, "duckduckgo-tab-switch: one notice, not one per tab");
       eq(r.noticeIn, "zci-images", "duckduckgo-tab-switch: and it is the Images tab's");
       eq(r.notice, "Sieve hid 2 results", "duckduckgo-tab-switch: counting this tab, not the web results left behind");
+      eq(r.noticeWrites, 0, "duckduckgo-tab-switch: at rest, the notice is left alone");
     },
   },
   {
@@ -613,9 +817,12 @@ server.listen(0, "127.0.0.1", async () => {
   const { port } = server.address();
   try {
     // SF_ONLY=duckduckgo-images runs one page, for working on one engine.
-    const running = (tls ? CASES : CASES.filter((c) => c.id !== "bing"))
+    const running = CASES.filter((c) => tls || !c.tls)
       .filter((c) => !process.env.SF_ONLY || c.id === process.env.SF_ONLY);
-    if (!tls) console.log("search-filter-serp: NOTE — openssl not found, skipping Bing (needs TLS for HSTS)");
+    if (!tls) {
+      const skipped = CASES.filter((c) => c.tls).map((c) => c.id).join(", ");
+      console.log(`search-filter-serp: NOTE — openssl not found, skipping ${skipped} (need TLS for HSTS)`);
+    }
     for (const kase of running) {
       const r = await run(kase, port);
       if (kase.check) {
@@ -698,6 +905,30 @@ server.listen(0, "127.0.0.1", async () => {
         eq(r.marked, 6, "duckduckgo: nested article/li must count once each");
         eq(t.Yale, "c1", "duckduckgo: a /l/?uddg= redirect should be unwrapped");
         eq(r.colourStyle.paddingLeft, "10px", "duckduckgo: a row of text keeps its colour bar");
+      }
+      if (kase.id.startsWith("duckduckgo-html")) {
+        // Reaching c1/hidden at all on the ?q= page proves the //…/l/?uddg=
+        // links were taken: refused, nothing on the page would match.
+        eq(r.marked, 5, `${kase.id}: one mark per result`);
+        eq(r.noticeParentTag, "DIV", `${kase.id}: the notice sits at the top of #links`);
+      }
+      if (kase.id === "brave") {
+        eq(r.probe, null, "brave: a snippet that is not a web result is left alone");
+        eq(r.marked, 5, "brave: only the five web results are marked");
+      }
+      if (kase.id === "swisscows") {
+        eq(r.probe, null, "swisscows: the video carousel is not a result");
+        eq(r.marked, 5, "swisscows: only the five results are marked");
+        eq(r.markerParent, "FOOTER", "swisscows: the marker goes in the result's footer");
+        eq(r.markerCovers, "", "swisscows: and covers none of Swisscows' own buttons");
+      }
+      if (kase.id === "yahoo") {
+        eq(r.probe, null, "yahoo: a result-shaped block outside #web is left alone");
+        eq(r.marked, 5, "yahoo: only the five results are marked");
+        // Yahoo's stylesheet beats the margin, not the padding. Half the pair
+        // shifted every coloured result 10px to the right.
+        eq(r.colourStyle.paddingLeft, "10px", "yahoo: the colour bar's padding applies");
+        eq(r.colourStyle.marginLeft, "-10px", "yahoo: and so does the margin that keeps the text in place");
       }
       if (kase.tiles) checkTiles(kase.id, r);
     }

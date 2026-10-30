@@ -39,6 +39,15 @@ const SIEVE_CHANGELOG = [
     ],
   },
   {
+    version: "1.5.2",
+    date: "November 2026",
+    items: [
+      "The Search Result Filter now works on Brave Search, Yahoo and Swisscows, as well as Google, Bing and DuckDuckGo. Your hide and colour rules, your Blocked list and your subscribed lists all apply there, and the “?” beside a changed result explains it the same way.",
+      "A fix for DuckDuckGo's no-JavaScript version, html.duckduckgo.com, where the filter did nothing. A search typed on that page leaves no search in the address, which is what the filter looked for, and a search opened from a link sends every result through a DuckDuckGo redirect that the filter would not read. Both now work.",
+      "A fix for results pages where the filter had hidden something: it rewrote its “Sieve hid …” line on every frame, about sixty times a second, for as long as the page was open, keeping the browser busy for nothing. It now writes the line only when something in it changes.",
+    ],
+  },
+  {
     version: "1.5.1",
     date: "October 2026",
     items: [
