@@ -62,10 +62,13 @@ document.addEventListener("DOMContentLoaded", () => {
   setupToxicHider();
   setupPopupHijack();
 
-  // Summary banner — reflect how many modules are active, live.
+  // The status stamp and the top under it, kept live.
+  setupTop();
   updateStatusBanner();
+  updateTop();
   chrome.storage.onChanged.addListener((changes, area) => {
     if (area === "local" && MODULE_KEYS.some((k) => changes[k])) updateStatusBanner();
+    if (area === "local" && TOP_KEYS.some((k) => changes[k])) updateTop();
   });
 });
 
@@ -121,24 +124,270 @@ function fillVersion() {
   if (el) el.textContent = "v" + chrome.runtime.getManifest().version;
 }
 
+// The status, as a stamp in the top bar: green with the count when anything
+// is on, and in words under it when nothing is.
 async function updateStatusBanner() {
   const el = document.getElementById("status");
   if (!el) return;
   const title = document.getElementById("status-title");
-  const meta = document.getElementById("status-meta");
+  const off = document.getElementById("status-off");
   const stored = await chrome.storage.local.get({ ...MODULE_DEFAULTS });
   const active = MODULE_KEYS.filter((k) => stored[k]).length;
   if (active === 0) {
-    title.textContent = "Protection is off";
-    meta.textContent = "Every filter is switched off";
-    el.className = "status disabled";
+    title.textContent = "Off";
+    el.className = "status-stamp disabled";
+    el.setAttribute("aria-label", "Protection is off. Every filter is switched off.");
+    if (off) off.hidden = false;
   } else {
     // No "of N" denominator: most protections are opt-in by design, so a
     // fraction would misread deliberate opt-outs as gaps. Show just the count.
-    title.textContent = "Protection is on";
-    meta.textContent = `${active} filter${active === 1 ? "" : "s"} running`;
-    el.className = "status enabled";
+    const filters = `${active} filter${active === 1 ? "" : "s"}`;
+    title.textContent = `On · ${filters}`;
+    el.className = "status-stamp enabled";
+    el.setAttribute("aria-label", `Protection is on. ${filters} running.`);
+    if (off) off.hidden = true;
   }
+}
+
+// Under the top bar: a running seal (free, common/seal.js). With Sieve Pro,
+// tonight (pro/coach.js): where the hardest hours stand against the clock,
+// the plan for them and what tends to help, then the seal and the streaks as
+// stamps and a way to Your progress (saying so when last month's letter is
+// waiting). Without Pro, until dismissed, a word about what Pro would show
+// here. In an open-source build the Pro files are empty stand-ins, nothing is
+// for sale, and there is only the seal.
+const PRO_HINT_KEY = "popupProHintHidden";
+const TOP_KEYS = [
+  "proLicence",
+  "proSeal",
+  "proHabits",
+  "habitAttempts",
+  "proMonthSeen",
+  "sieveAttempts",
+  "proPlans",
+  "proTries",
+  PRO_HINT_KEY,
+];
+const DAY_MS = 24 * 60 * 60 * 1000;
+// Stamps are short: the habits by one word.
+const HABIT_SHORT = {
+  gambling: "Gambling",
+  dating: "Dating",
+  custom: "Blocked sites",
+  games: "Games",
+  ai: "AI tools",
+  trading: "Trading",
+};
+
+// The month just ended, as "2026-10", and its name, while its letter is new:
+// the first week of the next month, if the attempt record began before it
+// ended and the letter has not been opened.
+async function waitingLetter(now) {
+  const d = new Date(now);
+  if (d.getDate() > 7) return null;
+  const prev = new Date(d.getFullYear(), d.getMonth() - 1, 1);
+  const key = `${prev.getFullYear()}-${String(prev.getMonth() + 1).padStart(2, "0")}`;
+  const stored = await chrome.storage.local.get(["proMonthSeen", "sieveAttempts"]);
+  const since = stored.sieveAttempts && stored.sieveAttempts.since;
+  const thisMonth = new Date(d.getFullYear(), d.getMonth(), 1).getTime();
+  if (stored.proMonthSeen === key || !Number.isFinite(since) || since >= thisMonth) return null;
+  return prev.toLocaleDateString([], { month: "long" });
+}
+
+function openProgress(hash) {
+  chrome.tabs.create({ url: chrome.runtime.getURL(`pages/progress.html${hash || ""}`) });
+  window.close();
+}
+
+function topEl(tag, className, text) {
+  const node = document.createElement(tag);
+  if (className) node.className = className;
+  if (text !== undefined) node.textContent = text;
+  return node;
+}
+
+// The seal's days as holes, gone ones filled and a ring round today; a seal
+// longer than a month as a thin bar.
+function drawSealDays(host, seal, now) {
+  host.textContent = "";
+  const total = Math.max(1, Math.round((seal.until - seal.startedAt) / DAY_MS));
+  const gone = Math.min(total, Math.max(0, Math.floor((now - seal.startedAt) / DAY_MS)));
+  if (total > 31) {
+    const bar = topEl("span", "bar");
+    const fill = topEl("span");
+    fill.style.width = `${Math.round((gone / total) * 100)}%`;
+    bar.appendChild(fill);
+    host.appendChild(bar);
+    return;
+  }
+  for (let i = 0; i < total; i++) {
+    host.appendChild(topEl("i", i < gone ? "hole is-done" : i === gone ? "hole is-now" : "hole"));
+  }
+}
+
+// Twenty-four hours round now, an hour a cell. With `day` (from pro/coach.js
+// tonight()): the hours gone, now, and the hardest two, hatched where they
+// really come and only outlined on days they don't. The strip reaches far
+// enough ahead to hold the next ones, so hours that start after midnight are
+// drawn after now, not back at the start of today. Without `day`, empty.
+const HOUR_MS = 60 * 60 * 1000;
+function drawDay(host, day) {
+  host.textContent = "";
+  const hours = topEl("div", "day-hours");
+  if (!day) {
+    for (let i = 0; i < 24; i++) hours.appendChild(topEl("i", "day-h"));
+    host.appendChild(hours);
+    return;
+  }
+  const I = window.SieveInsights;
+  // Hours shown after now: the next ones' end, between 4 and 14 hours away.
+  const toEnd = day.next ? Math.ceil((day.next + 2 * HOUR_MS - day.at) / HOUR_MS) : 4;
+  const ahead = Math.min(14, Math.max(4, toEnd));
+  const nowIndex = 23 - ahead;
+  const thisHour = new Date(day.at);
+  thisHour.setMinutes(0, 0, 0);
+  const first = thisHour.getTime() - nowIndex * HOUR_MS;
+  const scale = topEl("div", "day-scale");
+  const LABELS = { 0: "12a", 6: "6a", 12: "12p", 18: "6p" };
+  for (let i = 0; i < 24; i++) {
+    const t = first + i * HOUR_MS;
+    const h = new Date(t).getHours();
+    const into = (((h - day.start) % 24) + 24) % 24;
+    let cls = "day-h";
+    if (i === nowIndex) cls += " is-now";
+    else if (into < 2) cls += day.days.includes(I.weekdayOf(t - into * HOUR_MS)) ? " is-hard is-due" : " is-hard";
+    else if (i < nowIndex) cls += " is-past";
+    hours.appendChild(topEl("i", cls));
+    if (LABELS[h] && i < 22) {
+      const label = topEl("span", "", LABELS[h]);
+      label.style.left = `${(i / 24) * 100}%`;
+      scale.appendChild(label);
+    }
+  }
+  const now = topEl("span", "day-now", "now");
+  now.style.left = `${((nowIndex + new Date(day.at).getMinutes() / 60 + 0.5) / 24) * 100}%`;
+  const hard = topEl("span", "day-hard", `Hard · ${I.hourLabel(day.start)}–${I.hourLabel(day.start + 2)}`);
+  host.append(now, hours, scale, hard);
+}
+
+async function updateTop() {
+  const top = document.getElementById("top");
+  if (!top) return;
+  const P = window.SievePro;
+  const S = window.SieveSeal;
+  const ST = window.SieveStreaks;
+  const C = window.SieveCoach;
+  const A = window.SieveAttempts;
+  const now = Date.now();
+  const sealBox = document.getElementById("seal");
+  const tonightBox = document.getElementById("tonight");
+  const hintBox = document.getElementById("pro-hint");
+  let sealed = null;
+  let pro = false;
+
+  try {
+    if (S) {
+      const seal = await S.check(now);
+      if (seal.sealed) sealed = seal;
+    }
+
+    if (P && ST && (await P.isPro(now))) {
+      pro = true;
+      const stamps = document.getElementById("tonight-stamps");
+      stamps.textContent = "";
+      if (sealed) stamps.appendChild(topEl("span", "stamp", `Sealed → ${S.formatDay(sealed.until)}`));
+      let kept = "";
+      for (const row of (await ST.summary(now)).slice(0, 3)) {
+        const days = row.days === 0 ? "from today" : ST.daysLabel(row.days);
+        stamps.appendChild(topEl("span", "stamp", `${HABIT_SHORT[row.id] || row.label} · ${days}`));
+        if (!kept && row.keptLabel) {
+          kept = `About ${row.keptLabel} kept`;
+          if (row.goalProgress) {
+            kept += row.goalProgress.reached
+              ? `, enough for ${row.goal.name}`
+              : ` · ${Math.floor(row.goalProgress.share * 100)}% of the way to ${row.goal.name}`;
+          }
+        }
+      }
+      const keptEl = document.getElementById("tonight-kept");
+      keptEl.textContent = kept;
+      keptEl.hidden = !kept;
+
+      // Tonight, from what Sieve Pro reads in the attempt record.
+      const said = C && A ? await readTonight(C, A, now) : null;
+      document.getElementById("tonight-when").hidden = !said;
+      document.getElementById("tonight-title").hidden = !said;
+      const dayEl = document.getElementById("tonight-day");
+      const planEl = document.getElementById("tonight-plan");
+      const worksEl = document.getElementById("tonight-works");
+      dayEl.hidden = !(said && said.day);
+      planEl.hidden = !(said && said.plan);
+      worksEl.hidden = !(said && said.works);
+      if (said) {
+        document.getElementById("tonight-when").textContent = said.when;
+        document.getElementById("tonight-title").textContent = said.title;
+        if (said.day) drawDay(dayEl, said.day);
+        if (said.plan) {
+          document.getElementById("tonight-plan-label").textContent = said.planLabel;
+          document.getElementById("tonight-if").textContent = said.plan.if;
+          document.getElementById("tonight-then").textContent = said.plan.then;
+        }
+        if (said.works) worksEl.textContent = said.works;
+      }
+
+      const month = await waitingLetter(now);
+      const link = document.getElementById("tonight-progress");
+      link.textContent = month ? `Your ${month} letter is ready →` : "Your progress →";
+      link.dataset.hash = month ? "#month" : "";
+    }
+  } catch (err) {
+    console.warn("[Sieve] popup: could not read the seal, streaks or tonight:", err);
+  }
+
+  // With Pro the seal is one of the stamps; without, it has the top to itself.
+  sealBox.hidden = pro || !sealed;
+  if (sealed && !pro) {
+    const left = Math.max(1, Math.ceil((sealed.until - now) / DAY_MS));
+    document.getElementById("seal-until").textContent = `Until ${S.formatDay(sealed.until)}`;
+    document.getElementById("seal-days").textContent = left === 1 ? "1 day" : `${left} days`;
+    drawSealDays(document.getElementById("seal-holes"), sealed, now);
+  }
+  tonightBox.hidden = !pro;
+
+  // The hint: only where this build carries Pro, Pro is on sale, and it is
+  // not already on, until dismissed.
+  let hint = false;
+  const carried = Array.isArray(window.SieveProFeatures) && window.SieveProFeatures.length > 0;
+  if (!pro && carried && P && P.isConfigured()) {
+    try {
+      hint = !(await chrome.storage.local.get(PRO_HINT_KEY))[PRO_HINT_KEY];
+    } catch {
+      hint = false;
+    }
+  }
+  hintBox.hidden = !hint;
+  if (hint) drawDay(document.getElementById("pro-hint-day"), null);
+
+  top.hidden = sealBox.hidden && tonightBox.hidden && hintBox.hidden;
+}
+
+async function readTonight(C, A, now) {
+  const stored = await chrome.storage.local.get([A.KEY, C.PLANS_KEY, C.TRIES_KEY]);
+  return C.tonight(A.normalize(stored[A.KEY]), stored[C.PLANS_KEY], stored[C.TRIES_KEY], now);
+}
+
+function setupTop() {
+  document.getElementById("tonight-progress").addEventListener("click", (event) => {
+    openProgress(event.currentTarget.dataset.hash || "");
+  });
+  document.getElementById("pro-hint-open").addEventListener("click", () => {
+    chrome.tabs.create({ url: chrome.runtime.getURL("options/options.html#section-pro") });
+    window.close();
+  });
+  document.getElementById("pro-hint-close").addEventListener("click", () => {
+    document.getElementById("pro-hint").hidden = true;
+    chrome.storage.local.set({ [PRO_HINT_KEY]: true }).catch(() => {});
+  });
 }
 
 // Name the site the bottom block acts on, so "this page" means something.

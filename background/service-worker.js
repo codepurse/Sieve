@@ -24,15 +24,20 @@ import "./google-web-only.js"; // Site Cleanup — sends Google searches to the 
 import "./search-filter-subscriptions.js"; // Search Result Filter — subscribed lists, fetched and refreshed
 import "./tells.js"; // Dark Pattern Blocker — the Claim Ledger's storage, and the toolbar badge
 import "./trial-reminders.js"; // Dark Pattern Blocker — the free-trial reminders you ask for
+import "./heads-up.js"; // Sieve Pro — the heads-up before the hardest hours (shows only what Pro stored)
 // A plain script, not an ES module: importing it for its side effect is what
 // puts KeywordPattern on `self`, which is where the blocked-sites entry parser
 // lives. The settings page and the content script load the same file, so all
 // three agree on what an entry means.
 import "../common/keyword-pattern.js";
+// Also a plain script: the attempt record (when the block page stopped a habit),
+// which this worker alone writes so two block pages cannot lose an entry.
+import "../common/attempts.js";
 import { buildCustomBlockRules } from "./custom-block-rules.js"; // blocked-sites list -> dynamic rules
 import { installStatsListener, installStatsAlarmHandler, scheduleStatsMidnightAlarm } from "../common/stats.js"; // Shared Protection Dashboard stats store
 
 installStatsListener();
+self.SieveAttempts.installListener();
 installStatsAlarmHandler();
 scheduleStatsMidnightAlarm();
 
@@ -553,6 +558,8 @@ const DOOMSCROLL_CS_FILES = [
   "common/doomscroll-sites.js",
   "common/access-code.js",
   "common/cooloff.js",
+  "common/totp.js",
+  "common/seal.js",
   "common/theme.js",
   "common/guardian-prompt.js",
   "content/pause-overlay.js",

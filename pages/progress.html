@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="color-scheme" content="light dark" />
+    <title>Sieve — Your progress</title>
+    <link rel="stylesheet" href="../common/sieve-ui.css" />
+    <script src="../common/theme.js"></script>
+    <link rel="stylesheet" href="progress.css" />
+  </head>
+  <body class="paper">
+    <!-- Your progress (Sieve Pro). This page is open source; what fills it,
+         pro/progress.js, is not: in a build without Sieve Pro it is an empty
+         stand-in and the page says so. Everything here is read from this
+         browser's own storage; nothing is sent anywhere. -->
+    <main class="pg">
+      <header class="pg-letterhead">
+        <a class="pg-back" href="../options/options.html#section-pro">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19 12H5M11 18l-6-6 6-6"/></svg>
+          <span>Settings</span>
+        </a>
+        <span class="brand">
+          <span class="mark" aria-hidden="true">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M4.75 5.3H21.45a1.05 1.05 0 0 1 0 2.1H4.75a1.05 1.05 0 0 1 0 -2.1zM4.5 6.4H21.7A8.6 8.4 0 0 1 4.5 6.4ZM5.82 9.1a0.78 0.78 0 1 0 1.56 0a0.78 0.78 0 1 0 -1.56 0zM8.42 9.1a0.78 0.78 0 1 0 1.56 0a0.78 0.78 0 1 0 -1.56 0zM11.02 9.1a0.78 0.78 0 1 0 1.56 0a0.78 0.78 0 1 0 -1.56 0zM13.62 9.1a0.78 0.78 0 1 0 1.56 0a0.78 0.78 0 1 0 -1.56 0zM16.22 9.1a0.78 0.78 0 1 0 1.56 0a0.78 0.78 0 1 0 -1.56 0zM18.82 9.1a0.78 0.78 0 1 0 1.56 0a0.78 0.78 0 1 0 -1.56 0zM7.12 11.6a0.78 0.78 0 1 0 1.56 0a0.78 0.78 0 1 0 -1.56 0zM9.72 11.6a0.78 0.78 0 1 0 1.56 0a0.78 0.78 0 1 0 -1.56 0zM12.32 11.6a0.78 0.78 0 1 0 1.56 0a0.78 0.78 0 1 0 -1.56 0zM14.92 11.6a0.78 0.78 0 1 0 1.56 0a0.78 0.78 0 1 0 -1.56 0zM17.52 11.6a0.78 0.78 0 1 0 1.56 0a0.78 0.78 0 1 0 -1.56 0zM11.02 13.9a0.78 0.78 0 1 0 1.56 0a0.78 0.78 0 1 0 -1.56 0zM13.62 13.9a0.78 0.78 0 1 0 1.56 0a0.78 0.78 0 1 0 -1.56 0z"/><path d="M5.1 6.3 2.4 3.6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><path fill="currentColor" d="M10.75 18.2a1.05 1.05 0 1 0 2.1 0a1.05 1.05 0 1 0 -2.1 0zM13.8 20.7a0.8 0.8 0 1 0 1.6 0a0.8 0.8 0 1 0 -1.6 0z"/></svg>
+          </span>
+          <span class="wordmark">Sieve</span>
+        </span>
+      </header>
+
+      <header class="pg-head">
+        <p class="kicker">Sieve Pro</p>
+        <h1 class="pg-title">Your progress</h1>
+        <p class="pg-sub">
+          Read from what Sieve keeps in this browser: when a blocked site stopped you, the urges
+          you waited out, and the streaks you count. Nothing here was sent anywhere.
+        </p>
+      </header>
+
+      <!-- No Sieve Pro in this build (pro/progress.js is the stand-in). -->
+      <section class="pg-note" id="pg-absent" hidden>
+        <h2 class="pg-h">Sieve Pro isn&rsquo;t part of this build.</h2>
+        <p>
+          This copy of Sieve was built from its open-source code, which has every protection but
+          not Sieve Pro. The versions in the browser stores carry it.
+        </p>
+      </section>
+
+      <!-- Sieve Pro is here, but not unlocked. -->
+      <section class="pg-note" id="pg-locked" hidden>
+        <h2 class="pg-h">See when it gets hard, and that it passes.</h2>
+        <p>
+          Your hardest hours by weekday and hour, proof from the urges you&rsquo;ve waited out,
+          what tends to help you, and a letter after every month with your year on one calendar. Sieve has been keeping the
+          record on this device all along, so it starts from the months before. It comes with Sieve
+          Pro. Blocking is the same either way.
+        </p>
+        <div class="pg-actions">
+          <a class="btn btn-primary" href="../options/options.html#section-pro">See Sieve Pro</a>
+        </div>
+      </section>
+
+      <div id="pg-body" hidden>
+        <nav class="pg-habits" id="pg-habits" aria-label="Which habits"></nav>
+
+        <section class="pg-part" id="pg-streaks" aria-labelledby="pg-streaks-h">
+          <p class="kicker">01 &middot; Streaks</p>
+          <h2 class="pg-h" id="pg-streaks-h">Days since the last one</h2>
+          <ul class="pg-streak-list" id="pg-streak-list"></ul>
+          <p class="pg-empty" id="pg-streaks-empty" hidden>
+            No habit is counted yet. Turn one on in
+            <a href="../options/options.html#streaks-card">Settings &rsaquo; Sieve Pro &rsaquo; Streaks</a>,
+            with what it used to cost you and what you&rsquo;re saving for.
+          </p>
+        </section>
+
+        <section class="pg-part" id="pg-hardest" aria-labelledby="pg-hardest-h">
+          <p class="kicker">02 &middot; When it&rsquo;s hardest</p>
+          <h2 class="pg-h" id="pg-hardest-h"></h2>
+          <p class="pg-lede" id="pg-hardest-lede"></p>
+          <div class="heat" id="pg-heat" role="img"></div>
+          <p class="pg-meta" id="pg-hardest-meta"></p>
+          <p class="pg-try" id="pg-hardest-tip" hidden></p>
+        </section>
+
+        <section class="pg-part" id="pg-proof" aria-labelledby="pg-proof-h">
+          <p class="kicker">03 &middot; Proof it passes</p>
+          <div class="pg-proof">
+            <svg class="dial" id="pg-dial" role="img" focusable="false"></svg>
+            <div>
+              <h2 class="pg-h" id="pg-proof-h"></h2>
+              <p class="pg-lede" id="pg-proof-sub"></p>
+            </div>
+          </div>
+        </section>
+
+        <section class="pg-part" id="pg-works" aria-labelledby="pg-works-h">
+          <p class="kicker">04 &middot; What works for you</p>
+          <h2 class="pg-h" id="pg-works-h">What you tried, and how long you stayed away after.</h2>
+          <p class="pg-lede" id="pg-works-lede"></p>
+          <ul class="pg-works-list" id="pg-works-list"></ul>
+          <p class="pg-empty" id="pg-works-empty" hidden>
+            Nothing tried yet. While you wait on the urge screen, pick one of your
+            <a href="../options/options.html#urge-card">things to try instead</a>, and Sieve keeps how
+            long you stayed away after it.
+          </p>
+        </section>
+
+        <section class="pg-part" id="pg-plans" aria-labelledby="pg-plans-h">
+          <p class="kicker">05 &middot; Your plans</p>
+          <h2 class="pg-h" id="pg-plans-h">Decided while it was calm.</h2>
+          <p class="pg-lede" id="pg-plans-lede"></p>
+          <ol class="pg-plan-list" id="pg-plan-list"></ol>
+          <p class="pg-empty" id="pg-plans-empty" hidden>
+            No plans yet. Write one in
+            <a href="../options/options.html#plans-card">Settings &rsaquo; Sieve Pro &rsaquo; Plans for the hard moments</a>,
+            or answer the two questions the urge screen asks once an urge has passed.
+          </p>
+          <div class="pg-actions pg-no-print">
+            <a class="btn" href="../options/options.html#plans-card">Change your plans</a>
+          </div>
+        </section>
+
+        <section class="pg-part pg-letter" id="pg-month" aria-labelledby="pg-month-h">
+          <div class="pg-part-head">
+            <p class="kicker" id="pg-month-kind">06 &middot; Your month</p>
+            <div class="pg-nav">
+              <button class="btn btn-quiet" id="pg-month-prev" type="button" aria-label="The month before">&lsaquo;</button>
+              <span class="pg-nav-label" id="pg-month-label" aria-live="polite"></span>
+              <button class="btn btn-quiet" id="pg-month-next" type="button" aria-label="The month after">&rsaquo;</button>
+            </div>
+          </div>
+          <h2 class="pg-h pg-letter-h" id="pg-month-h"></h2>
+          <p class="pg-lede" id="pg-month-lede"></p>
+          <div class="pg-figures" id="pg-month-figures"></div>
+          <div class="cal" id="pg-month-cal" role="img"></div>
+          <div class="pg-key" aria-hidden="true">
+            <span><i class="day-mark is-clear"></i> Clear</span>
+            <span><i class="day-mark is-urge"></i> A blocked site stopped you</span>
+            <span><i class="day-mark is-before"></i> Before Sieve kept the record</span>
+          </div>
+          <p class="pg-closing" id="pg-month-closing"></p>
+          <div class="pg-actions pg-no-print">
+            <button class="btn" id="pg-print" type="button">Print this letter</button>
+          </div>
+        </section>
+
+        <section class="pg-part" id="pg-year" aria-labelledby="pg-year-h">
+          <div class="pg-part-head">
+            <p class="kicker">07 &middot; Your year</p>
+            <div class="pg-nav">
+              <button class="btn btn-quiet" id="pg-year-prev" type="button" aria-label="The year before">&lsaquo;</button>
+              <span class="pg-nav-label" id="pg-year-label" aria-live="polite"></span>
+              <button class="btn btn-quiet" id="pg-year-next" type="button" aria-label="The year after">&rsaquo;</button>
+            </div>
+          </div>
+          <h2 class="pg-h" id="pg-year-h"></h2>
+          <p class="pg-lede" id="pg-year-lede"></p>
+          <div class="year" id="pg-year-grid"></div>
+          <p class="pg-closing" id="pg-year-closing"></p>
+        </section>
+      </div>
+
+      <footer class="pg-foot">
+        <span class="perf" aria-hidden="true"></span>
+        <p class="kicker">Sieve &middot; on this device &middot; patterns, never causes</p>
+      </footer>
+    </main>
+
+    <script src="../common/pro.js"></script>
+    <script src="../common/attempts.js"></script>
+    <script src="../pro/features.js"></script>
+    <script src="../pro/streaks.js"></script>
+    <script src="../pro/insights.js"></script>
+    <script src="../pro/coach.js"></script>
+    <script src="../pro/progress.js"></script>
+    <script src="progress.js"></script>
+  </body>
+</html>

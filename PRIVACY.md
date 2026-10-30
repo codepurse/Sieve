@@ -1,6 +1,6 @@
 # Privacy Policy for Sieve
 
-**Last updated: October 8, 2026**
+**Last updated: October 29, 2026**
 
 ## The short version
 
@@ -21,8 +21,20 @@ today", so it can compare them on your next visit. It is described
 [below](#what-the-dark-pattern-blocker-remembers), stays on your device, and can
 be erased with one button.
 
+There is one exception to "nothing is sent": **Sieve Pro**, the optional one-time
+purchase. If you buy it and type in your licence key, that key is sent to Polar,
+the company that sells Sieve Pro for us, to check that it is valid, along with a
+plain name for the browser ("Sieve · Edge on Windows") so you can tell your
+browsers apart on your purchases page. That happens when you enter or remove the
+key and about once a week in between, and only from Sieve's settings page. It is
+described [below](#sieve-pro-licence-check). Without Pro, nothing changes.
+
 Sieve is open source, so anyone can verify these claims:
-<https://github.com/codepurse/Sieve>
+<https://github.com/codepurse/Sieve>. The one exception is Sieve Pro's
+features (the urge screen, plans, streaks and Your progress), which are not open source.
+They make no network requests and keep everything on your device, and the
+licence check, the only request Pro makes, is part of the open-source code
+(`common/pro.js`), so what it sends can be checked by anyone.
 
 ---
 
@@ -43,6 +55,18 @@ third party.
 | Screen-time tally, **only if you turn Usage Insights on** | Show you where your time goes | Yes |
 | What a page claimed, while the Dark Pattern Blocker is on | Tell a fake countdown or stock number from a real one on your next visit — see [below](#what-the-dark-pattern-blocker-remembers) | Yes |
 | Free-trial reminders, **only the ones you ask for** | Remind you before a free trial starts charging — see [below](#free-trial-reminders) | Yes |
+| When the block page last stopped each kind of site | One date and time per kind (gambling, dating, games, AI tools, trading, your own blocked sites) and your longest gap, for Sieve Pro's streaks — never the site or its address | Yes |
+| When the block page stopped you, for the kinds of site you block for yourself | The time and the kind (gambling, dating, games, AI tools, trading, your own blocked sites) of each stop, kept for a year, so Sieve Pro can show when it tends to get hard and write your month — never the site or its address, and never threats such as scam or malware sites. Kept for everyone, Pro or not | Yes |
+| Monthly block totals | The Protection Dashboard keeps its daily counts for 30 days; as a day leaves, its counts are added to its month, for about two years — counts only, never a site | Yes |
+| Urges waited out, **only if you press "I'm OK now"** | When, how long it took, and the kind of site, to draw Sieve Pro's Proof it passes dial | Yes |
+| A message in your own voice, **only if you record or choose one** | The recording or sound file, stored in the extension's own database in your browser, and played on the urge screen. The microphone is used only while you record | Yes |
+| Plans for the hard moments, **only if you write one** | Your two lines in your own words, the kind of site and the time each is for, to show on Sieve Pro's urge screen when that moment comes | Yes |
+| What you picked to try instead, **only if you pick one** | Your list of things to try, and for each pick on the urge screen when it was, the kind of site and which one, kept for a year, so Sieve Pro can tell you how long you tended to stay away after each | Yes |
+| A heads-up before your hardest hours, **only if you turn it on** | The times to give it and the words it says, worked out from the record above, for Sieve Pro's heads-up notification | Yes |
+| Sieve Pro licence key, **only if you enter one** | Turn on the Pro features | Kept on your device; checked with Polar — see [below](#sieve-pro-licence-check) |
+| Seal, **only if you start one** | When it ends, and its way out: either the key your witness's authenticator app shares with Sieve (needed to check their codes) and their recovery codes as **hashes**, or the emergency key as a **hash**. A witness's app works offline; nothing is sent to them, us or anyone | Yes |
+| Urge screen, **only what you fill in** | Your reason, an optional photo (shrunk to fit 800 pixels), and a contact's name and number or email address, shown on the block page | Yes |
+| Streak settings, **only for what you track** | The day you stopped, what it used to cost you, and what you are saving for, to count streaks, money kept and how close the goal is | Yes |
 
 Sieve also reads the content of web pages you visit **in the page itself** — for
 example, to mask profanity, hide toxic comments, remove dark patterns, or count
@@ -107,12 +131,42 @@ what was already measured; **Clear history** is what erases it.
 This data is never transmitted anywhere, is not used for any purpose other than
 drawing your own report back to you, and is deleted with the extension.
 
+### Sieve Pro licence check
+
+Sieve Pro is sold by Polar (polar.sh), who handle the payment, the receipt and
+the licence key. Sieve itself never sees your payment details or your email
+address.
+
+When you type a licence key into Sieve's settings, Sieve sends **that key and
+Sieve's own shop ID** to Polar's licence service (`api.polar.sh`) to ask whether
+it is valid. A key works in a few browsers at once, so entering it also takes
+one of its places for this browser, under a plain name for the browser and
+operating system ("Sieve · Edge on Windows"), never anything that identifies you
+or the machine. Sieve asks again about once a week, only when you open its
+settings page, so a refunded key stops working; that check carries the key, the
+shop ID and this browser's place on the key. **Remove from this browser** gives
+the place back (the same three things) and then deletes the key here.
+
+Nothing else is sent: not your browsing, not your settings, not anything the
+Pro features keep. Polar knows which purchase the key belongs to, because they
+sold it, and may see your IP address, as with any web request.
+
+**In Firefox**, Sieve asks your permission before it sends the key, the first
+time you press Activate, through Firefox's own question about data an
+extension sends. If you say no, nothing is sent and Pro stays off. Nobody who
+does not activate Pro is ever asked.
+
+The key is kept on your device so it can be checked again. The Pro features
+themselves (the urge screen, plans, the heads-up, streaks and Your progress) run
+entirely on your device, like the rest of Sieve.
+
 ---
 
 ## What Sieve does NOT do
 
 - It does **not** create an account or ask you to log in.
-- It does **not** collect your name, email, location, or any identifier.
+- It does **not** collect your name, email, location, or any identifier. (A Sieve
+  Pro licence key you type in is sent to Polar to check it, as described above.)
 - It does **not** upload your browsing history, the URLs you visit, page
   content, keystrokes, or activity — to us or to anyone else. (If you switch on
   Usage Insights, a site-name-and-duration tally is kept **on your device**, as
@@ -126,7 +180,8 @@ drawing your own report back to you, and is deleted with the extension.
 ## Network activity (full transparency)
 
 Sieve makes outbound network requests only to **download files to your device** —
-never to upload anything about you. Specifically:
+never to upload anything about you — with the one exception of the Sieve Pro
+licence check. Specifically:
 
 - **Blocklists** — publicly available lists (for example, known gambling, scam,
   malware, and phishing domains) are downloaded so protection stays current.
@@ -141,8 +196,12 @@ never to upload anything about you. Specifically:
   optional in-app notice to show (for example, a new feature). It sends no
   information about you, and if the file is unreachable nothing is shown. You can
   dismiss any notice permanently.
+- **Sieve Pro licence check, only if you enter a licence key** — the key,
+  Sieve's shop ID and a plain browser name are sent to Polar's licence service
+  (`api.polar.sh`) when you enter or remove it, then about once a week when you
+  open the settings page. See [above](#sieve-pro-licence-check).
 
-These are all **downloads to your device**. They do not include your identity, your
+Apart from that licence check, these are all **downloads to your device**. They do not include your identity, your
 browsing history, page content, or any personal information beyond the normal
 network request needed to fetch a file. As with any web request, the host serving
 a file (a blocklist provider, the model host, GitHub for the announcement, or the
@@ -162,6 +221,7 @@ Sieve requests only the permissions needed to filter content locally:
 - **tabs** — open the local "blocked"/settings pages and close popup/hijack tabs. It does not read your browser history. If you switch Usage Insights on, it also reads the site name of the tab you are looking at, in order to time it.
 - **idle** — used only by Usage Insights, to stop the clock when you step away or lock the screen. It reports how long it has been since you touched the keyboard or mouse; it cannot see what you typed.
 - **offscreen** — run the optional toxicity model locally, off the main page.
+- **notifications** (optional, never asked for at install) — asked for only if you turn on Sieve Pro's heads-up before your hardest hours, and used only to show it. The notification's words are worked out on your device; nothing is sent.
 - **scripting** — run Sieve's own filters in pages. For example, the Dark Pattern Blocker's on-page notes are added only to a page where it has found something to show, rather than to every page.
 - **host access (all sites)** — required because harmful content can appear on any site; used only to run the local filters. No browsing data is collected.
 
@@ -170,17 +230,21 @@ Sieve requests only the permissions needed to filter content locally:
 ## Chrome Web Store data disclosure
 
 In the Chrome Web Store's terms, "collect" means transferring data off the
-user's device. Sieve transfers nothing, so it declares that it does **not**
-collect any of the following: personally identifiable information, health
-information, financial and payment information, authentication information,
-personal communications, location, web history, user activity, or website
-content.
+user's device. The only thing Sieve transfers is a Sieve Pro licence key, if you
+enter one, to Polar to check it. Sieve declares that as **authentication
+information**, used only to check the licence, never sold, and never used for
+anything else. It declares that it does **not** collect any of the following:
+personally identifiable information, health information, financial and payment
+information, personal communications, location, web history, user activity, or
+website content.
 
-To be plain about the three cases where that wording could mislead: if you switch
+To be plain about the cases where that wording could mislead: if you switch
 on Usage Insights, a tally of site names and durations is written **to your own
 browser storage**; the Dark Pattern Blocker writes the numbers described
-above under scrambled codes; and a free-trial reminder you ask for keeps that
-site's name and dates. You can erase any of them at any time. Nothing about
+above under scrambled codes; a free-trial reminder you ask for keeps that
+site's name and dates; the block page keeps when it stopped you, by kind of
+site; and Sieve Pro's streaks, urge screen and voice message keep what is
+listed in the table above. You can erase any of them at any time. Nothing about
 them is ever sent to us or to a third party, which is why the declaration above
 is still accurate.
 

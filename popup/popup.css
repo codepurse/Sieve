@@ -56,64 +56,402 @@ body {
   font-variant-numeric: tabular-nums;
 }
 
-/* ---- Status light --------------------------------------------------------- */
+/* ---- The masthead: a pine band -------------------------------------------------
+   The name, the status and the top sit on pine, as BlockNSFW's popup does, so
+   the two read as one family. Pine is the band's colour, not Sieve's "on"
+   green (the same exception as the Warden band in Settings): inside it the
+   page's own tokens are set again for paper on pine, and "on" becomes a light
+   mint, still the only green that means something is running. */
 
-.status {
-  display: flex;
-  align-items: flex-start;
-  gap: 12px;
-  margin-top: 8px;
-  padding: 10px 18px 12px;
+.masthead {
+  --paper: #0d3b31;
+  --ink: #fbf9f4;
+  --ink-2: #cdd9d3;
+  --ink-3: #9db3aa;
+  --rule: rgba(255, 255, 255, 0.14);
+  --rule-strong: rgba(255, 255, 255, 0.28);
+  --wash: rgba(255, 255, 255, 0.06);
+  --wash-strong: rgba(255, 255, 255, 0.12);
+  --on: #a3dbbd;
+  --on-ink: #0d3b31;
+  --danger: #f2a58e;
+  background: var(--paper);
+  color: var(--ink);
+  padding-bottom: 4px;
+  margin-bottom: 10px;
 }
 
-/* A lamp: lit green when anything is on, an empty ring when nothing is. */
-.status-light {
-  flex-shrink: 0;
-  width: 10px;
-  height: 10px;
-  margin-top: 5px;
-  border-radius: 50%;
-  border: 1.5px solid var(--ink-3);
-  transition: background-color var(--t-state) var(--ease), border-color var(--t-state) var(--ease),
-    box-shadow var(--t-state) var(--ease);
+/* Dark: written twice, as every dark palette is (see sieve-ui.css). */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .masthead {
+    --paper: #1f3a32;
+    --ink: #f1ede3;
+    --ink-2: #c9d4ce;
+    --ink-3: #9db3aa;
+    --rule: rgba(241, 237, 227, 0.13);
+    --rule-strong: rgba(241, 237, 227, 0.26);
+    --on: #a3dbbd;
+    --on-ink: #1f3a32;
+  }
 }
 
-.status.enabled .status-light {
-  background: var(--on);
-  border-color: var(--on);
-  box-shadow: 0 0 0 3px var(--on-wash);
+:root[data-theme="dark"] .masthead {
+  --paper: #1f3a32;
+  --ink: #f1ede3;
+  --ink-2: #c9d4ce;
+  --ink-3: #9db3aa;
+  --rule: rgba(241, 237, 227, 0.13);
+  --rule-strong: rgba(241, 237, 227, 0.26);
+  --on: #a3dbbd;
+  --on-ink: #1f3a32;
 }
 
-.status.disabled .status-light {
-  border-color: var(--danger);
-}
-
-.status-text {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  min-width: 0;
-}
-
-.status-title {
-  font-family: var(--font-serif);
-  font-size: 18px;
-  line-height: 1.2;
+.masthead .mark,
+.masthead .wordmark {
   color: var(--ink);
 }
 
-.status.disabled .status-title {
+/* ---- Status: a stamp in the top bar ------------------------------------------
+   Green when anything is on (rule 1), in the danger colour when nothing is. */
+
+.status-stamp {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 22px;
+  padding: 0 7px;
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  color: var(--ink-3);
+  border: 1px solid var(--rule-strong);
+  border-radius: 2px;
+  font-variant-numeric: tabular-nums;
+}
+
+.status-light {
+  flex-shrink: 0;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  border: 1.5px solid currentColor;
+  box-sizing: border-box;
+}
+
+.status-stamp.enabled {
+  color: var(--on);
+  border-color: var(--on);
+}
+
+.status-stamp.enabled .status-light {
+  background: var(--on);
+}
+
+.status-stamp.disabled {
+  color: var(--danger);
+  border-color: var(--danger);
+}
+
+.status-off {
+  margin: 14px 18px 0;
+  font-family: var(--font-serif);
+  font-size: 18px;
+  line-height: 1.3;
   color: var(--danger);
 }
 
-.status-meta {
+/* ---- The top: the seal, tonight, or the hint -------------------------------- */
+
+.top {
+  padding: 16px 18px 14px;
+}
+
+/* A rule between two parts, never above the first one showing. */
+.top > :not([hidden]) ~ :not([hidden]) {
+  margin-top: 14px;
+  padding-top: 12px;
+  border-top: 1px solid var(--rule-strong);
+}
+
+.seal-head,
+.pro-hint-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.seal-figure {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  margin: 6px 0 0;
+}
+
+.seal-days {
+  font-family: var(--font-serif);
+  font-size: 26px;
+  line-height: 1.1;
+  letter-spacing: -0.015em;
+  color: var(--ink);
+}
+
+.seal-sub {
+  font-size: 12.5px;
+  color: var(--ink-2);
+}
+
+/* The seal's days as holes: filled once gone, a ring round today. A seal
+   longer than a month is a thin bar instead. */
+.holes {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  margin-top: 9px;
+}
+
+.hole {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  border: 1.5px solid var(--rule-strong);
+  box-sizing: border-box;
+}
+
+.hole.is-done {
+  background: var(--ink);
+  border-color: var(--ink);
+}
+
+.hole.is-now {
+  border-color: var(--ink);
+  box-shadow: 0 0 0 2px var(--paper), 0 0 0 3.5px var(--ink-3);
+}
+
+.holes .bar {
+  flex: 1;
+  height: 5px;
+  border-radius: 3px;
+  background: var(--rule);
+  overflow: hidden;
+}
+
+.holes .bar span {
+  display: block;
+  height: 100%;
+  background: var(--ink);
+}
+
+.tonight-title {
+  margin: 6px 0 0;
+  font-family: var(--font-serif);
+  font-size: 21px;
+  line-height: 1.2;
+  letter-spacing: -0.01em;
+  color: var(--ink);
+  text-wrap: balance;
+}
+
+/* Hours round now: gone, now, and the hardest two hatched where they come
+   (outlined only on days they don't). */
+.day {
+  position: relative;
+  margin-top: 14px;
+}
+
+.day-hours {
+  display: grid;
+  grid-template-columns: repeat(24, 1fr);
+  gap: 2px;
+}
+
+.day-h {
+  height: 16px;
+  border-radius: 2px;
+  background: var(--wash-strong);
+}
+
+.day-h.is-past {
+  background: var(--rule);
+}
+
+.day-h.is-now {
+  background: var(--ink);
+}
+
+.day-h.is-hard {
+  box-shadow: inset 0 0 0 1px var(--ink);
+}
+
+.day-h.is-hard.is-due {
+  background: repeating-linear-gradient(135deg, var(--ink) 0 2px, transparent 2px 5px);
+}
+
+/* Clock labels where 12a, 6a, 12p and 6p fall in the strip. */
+.day-scale {
+  position: relative;
+  height: 12px;
+  margin-top: 5px;
   font-family: var(--font-mono);
-  font-size: 11px;
+  font-size: 9.5px;
   color: var(--ink-3);
 }
 
-.status-meta:empty {
+.day-scale span {
+  position: absolute;
+  top: 0;
+}
+
+.day-now {
+  position: absolute;
+  top: -15px;
+  transform: translateX(-50%);
+  font-family: var(--font-mono);
+  font-size: 9.5px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--ink);
+}
+
+.day-hard {
+  display: block;
+  margin-top: 3px;
+  text-align: right;
+  font-family: var(--font-mono);
+  font-size: 9.5px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--ink);
+}
+
+.day.is-empty {
+  margin-top: 10px;
+}
+
+.day.is-empty .day-h {
+  height: 12px;
+}
+
+.tonight-plan {
+  margin-top: 14px;
+  padding: 12px 0 10px;
+  border-top: 1px solid var(--rule-strong);
+  border-bottom: 1px solid var(--rule);
+}
+
+.plan-text {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 4px 12px;
+  margin: 8px 0 0;
+}
+
+.plan-text dt {
+  padding-top: 3px;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+}
+
+.plan-text dd {
+  margin: 0;
+  font-family: var(--font-serif);
+  font-size: 16px;
+  line-height: 1.35;
+  color: var(--ink);
+  overflow-wrap: anywhere;
+}
+
+.tonight-works,
+.tonight-kept,
+.pro-hint-text {
+  margin: 9px 0 0;
+  font-size: 12.5px;
+  line-height: 1.45;
+  color: var(--ink-2);
+}
+
+.stamps {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 12px;
+}
+
+.stamps:empty {
   display: none;
+}
+
+.stamp {
+  display: inline-flex;
+  align-items: center;
+  height: 22px;
+  padding: 0 7px;
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  color: var(--ink);
+  border: 1px solid var(--rule-strong);
+  border-radius: 2px;
+}
+
+.tonight .status-pro-link,
+.pro-hint .status-pro-link {
+  display: block;
+  margin-top: 10px;
+  font-size: 12.5px;
+}
+
+.pro-hint-close {
+  display: grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  margin-right: -4px;
+  padding: 0;
+  font-size: 15px;
+  line-height: 1;
+  color: var(--ink-3);
+  background: none;
+  border: 0;
+  border-radius: var(--r-1);
+  cursor: pointer;
+}
+
+.pro-hint-close:hover {
+  color: var(--ink);
+  background: var(--wash);
+}
+
+.status-pro-link {
+  align-self: flex-start;
+  margin-top: 2px;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--ink);
+  font: inherit;
+  text-decoration: underline;
+  text-decoration-color: var(--rule-strong);
+  text-underline-offset: 3px;
+  cursor: pointer;
+}
+
+.status-pro-link:hover {
+  text-decoration-color: var(--ink);
+}
+
+.status-pro-link:focus-visible {
+  outline: 2px solid var(--ink);
+  outline-offset: 2px;
+  border-radius: 2px;
 }
 
 /* ---- Blocks of switches --------------------------------------------------- */
@@ -525,6 +863,12 @@ body {
 
 .settings-link:focus-visible {
   outline-offset: -3px;
+}
+
+.settings-end {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
 }
 
 .settings-link svg {

@@ -10,11 +10,23 @@
 #             `npm install` to have been run.
 #   -Zip      Also produce dist/sieve-firefox.zip (forward-slash entry paths,
 #             which Firefox / AMO require).
+#   -OpenSource
+#             Build without Sieve Pro, on purpose: pro\ keeps its empty
+#             stand-ins. What CI builds, and what anyone can build from GitHub.
+#   -Sandbox  A test build whose Pro uses Polar's sandbox store (with -Zip, a
+#             test package). Never upload one.
+#
+# Sieve Pro comes from a private repository checked out at pro-private\ (see
+# pro\README.md and build-pro.mjs). A plain build includes it when that
+# checkout is there; a store package (-Zip) refuses to build without it, or
+# while common\pro.js cannot sell through Polar's live store yet.
 
 [CmdletBinding()]
 param(
     [switch]$Bundle,
-    [switch]$Zip
+    [switch]$Zip,
+    [switch]$OpenSource,
+    [switch]$Sandbox
 )
 
 $ErrorActionPreference = "Stop"
@@ -24,6 +36,8 @@ $SrcDir      = $ScriptDir
 $OutDir      = Join-Path $ScriptDir "dist\firefox"
 $ManifestSrc = Join-Path $SrcDir "manifest.firefox.json"
 $ManifestDst = Join-Path $OutDir "manifest.json"
+
+$ProKind = if ($OpenSource) { "open-source" } elseif ($Sandbox) { "sandbox" } elseif ($Zip) { "store" } else { "dev" }
 
 # Whole folders copied verbatim into the build. Anything not listed here
 # (node_modules, src, vendor, cookie-rules-extra, test, _metadata, docs) is
@@ -37,6 +51,7 @@ $RuntimeFolders = @(
     "options",
     "pages",
     "popup",
+    "pro",
     "rules"
 )
 $RuntimeFiles   = @(
@@ -49,6 +64,7 @@ $RequiredAssets = @(
     "background\service-worker.js",
     "background\ad-tracker-stats.js",
     "background\retired-tracker-blocker.js",
+    "pro\features.js",
     "content\cookie-engine.bundle.js",
     "content\youtube-ads.js",
     "content\youtube-ads-bridge.js",
@@ -84,6 +100,11 @@ if ($Bundle) {
     if ($LASTEXITCODE -ne 0) { throw "build-cookie-engine.mjs failed" }
 }
 
+# Checked before anything is cleaned, so a refused package leaves dist\ as it was.
+Write-Host "==> Checking Sieve Pro ($ProKind build)" -ForegroundColor Cyan
+& node (Join-Path $SrcDir "build-pro.mjs") --check $ProKind
+if ($LASTEXITCODE -ne 0) { throw "This build cannot be made (see above)." }
+
 Write-Host "==> Cleaning $OutDir" -ForegroundColor Cyan
 if (Test-Path $OutDir) {
     Remove-Item -Path $OutDir -Recurse -Force
@@ -108,6 +129,10 @@ foreach ($file in $RuntimeFiles) {
         Copy-Item -Path $src -Destination (Join-Path $OutDir $file) -Force
     }
 }
+
+Write-Host "==> Sieve Pro" -ForegroundColor Cyan
+& node (Join-Path $SrcDir "build-pro.mjs") $OutDir $ProKind
+if ($LASTEXITCODE -ne 0) { throw "build-pro.mjs failed" }
 
 Write-Host "==> Removing Chrome-only payload" -ForegroundColor Cyan
 # content\toxic-model.bundle.js is 638 KB of TensorFlow.js, and its ONLY consumer
@@ -160,4 +185,11 @@ if ($Zip) {
 }
 
 Write-Host "==> Firefox build complete: $OutDir" -ForegroundColor Green
+# The stand-in's statement survives comment stripping; the real file's does not exist.
+if (Select-String -Path (Join-Path $OutDir "pro\features.js") -SimpleMatch "SieveProFeatures = null" -Quiet) {
+    Write-Host "==> Sieve Pro: not included" -ForegroundColor Yellow
+} else {
+    Write-Host "==> Sieve Pro: included" -ForegroundColor Green
+}
+if ($ProKind -eq "sandbox") { Write-Host "==> TEST PACKAGE: Sieve Pro may use Polar's sandbox. Never upload it to a store." -ForegroundColor Yellow }
 if ($Zip) { Write-Host "==> Zip: $ZipPath" -ForegroundColor Green }
