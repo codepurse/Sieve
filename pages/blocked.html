@@ -719,6 +719,82 @@
         stroke-width: 1.1;
       }
 
+      /* Where the seal will go, marked until it lands. */
+      .enso-seal-place {
+        display: grid;
+        border-radius: 2px;
+        outline: 1px dashed var(--rule-strong);
+        transition: outline-color 0.3s var(--ease);
+      }
+
+      .enso-stage[data-phase="done"] .enso-seal-place {
+        outline-color: transparent;
+      }
+
+      /* How far through the breath (pro/designs.js): in for four seconds,
+         out for six, filled from the stage's phase, as the brush is. */
+      .enso-timing {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        margin-top: 8px;
+      }
+
+      .enso-time-label {
+        font-family: var(--font-mono);
+        font-size: 10px;
+        letter-spacing: 0.1em;
+        text-transform: uppercase;
+        color: var(--ink-3);
+      }
+
+      .enso-time-in,
+      .enso-time-out {
+        position: relative;
+        display: block;
+        height: 2px;
+        background: var(--rule);
+        overflow: hidden;
+      }
+
+      .enso-time-in {
+        width: 64px;
+      }
+
+      .enso-time-out {
+        width: 96px;
+      }
+
+      .enso-time-in > span,
+      .enso-time-out > span {
+        position: absolute;
+        top: 0;
+        bottom: 0;
+        left: 0;
+        width: 0;
+        background: var(--ink);
+      }
+
+      .enso-stage[data-phase="in"] ~ .enso-timing .enso-time-in > span {
+        width: 100%;
+        transition: width 4s linear;
+      }
+
+      .enso-stage[data-phase="out"] ~ .enso-timing .enso-time-in > span,
+      .enso-stage[data-phase="rest"] ~ .enso-timing .enso-time-in > span,
+      .enso-stage[data-phase="rest"] ~ .enso-timing .enso-time-out > span {
+        width: 100%;
+      }
+
+      .enso-stage[data-phase="out"] ~ .enso-timing .enso-time-out > span {
+        width: 100%;
+        transition: width 6s linear;
+      }
+
+      .enso-stage[data-phase="done"] ~ .enso-timing {
+        display: none;
+      }
+
       .enso-phase {
         margin: 16px 0 0;
         min-height: 1.3em;
@@ -1135,12 +1211,12 @@
         }
       }
 
-      /* ---- The spread (Sieve Pro, the breathing ring) ---------------------------
-         With the breathing ring leading on a wide screen (urge.js sets
-         data-urge-layout), the urge screen is two facing pages: the words on
-         the left, the dial on the right with the two things to do now under
-         it. The address, Go back, Close and Allow step down to one quiet row
-         beneath both. Narrower than this, and for the ensō and the river, the
+      /* ---- The spread (Sieve Pro, the breathing ring and the ensō) ------------
+         With the breathing ring or the ensō leading on a wide screen (urge.js
+         sets data-urge-layout), the urge screen is two facing pages: the words
+         on the left, the dial or the circle on the right with the two things
+         to do now under it. The address, Go back, Close and Allow step down to
+         one quiet row beneath both. Narrower than this, and for the river, the
          page stays the one column above. */
       @media (min-width: 1024px) {
         html[data-urge-layout="spread"] .letterhead,
@@ -1219,6 +1295,51 @@
 
         html[data-urge-layout="spread"] .urge-stage.has-dial .breath-word {
           font-size: 18px;
+        }
+
+        /* The ensō as the instrument page: the circle at 420px with its
+           inscription and seal beside it, the breath named under it. */
+        html[data-urge-layout="spread"] .urge-design {
+          width: min(480px, 100%);
+          margin-top: 0;
+        }
+
+        html[data-urge-layout="spread"] .enso-stage {
+          justify-content: center;
+        }
+
+        html[data-urge-layout="spread"] .enso-frame {
+          width: min(calc(100% - 3rem), 400px);
+        }
+
+        /* Tucked into the paper under the circle, which its box leaves
+           empty, so the whole spread still fits one screen. */
+        html[data-urge-layout="spread"] .enso-phase {
+          margin-top: -10px;
+          font-size: 24px;
+          line-height: 1.2;
+        }
+
+        html[data-urge-layout="spread"] .enso-timing,
+        html[data-urge-layout="spread"] .enso-tally,
+        html[data-urge-layout="spread"] .enso-done {
+          justify-content: center;
+        }
+
+        html[data-urge-layout="spread"] .enso-tally {
+          margin-top: 16px;
+        }
+
+        html[data-urge-layout="spread"] .enso-done:not([hidden]) {
+          display: flex;
+          flex-wrap: wrap;
+          align-items: baseline;
+          gap: 0 12px;
+          margin-top: 10px;
+        }
+
+        html[data-urge-layout="spread"] .enso-done .btn-link {
+          margin-top: 0;
         }
 
         /* A ring of sieve holes just outside the dial's numbers, fading out
