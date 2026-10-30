@@ -56,6 +56,61 @@ body {
   font-variant-numeric: tabular-nums;
 }
 
+/* ---- The masthead: a pine band -------------------------------------------------
+   The name, the status and the top sit on pine, as BlockNSFW's popup does, so
+   the two read as one family. Pine is the band's colour, not Sieve's "on"
+   green (the same exception as the Warden band in Settings): inside it the
+   page's own tokens are set again for paper on pine, and "on" becomes a light
+   mint, still the only green that means something is running. */
+
+.masthead {
+  --paper: #0d3b31;
+  --ink: #fbf9f4;
+  --ink-2: #cdd9d3;
+  --ink-3: #9db3aa;
+  --rule: rgba(255, 255, 255, 0.14);
+  --rule-strong: rgba(255, 255, 255, 0.28);
+  --wash: rgba(255, 255, 255, 0.06);
+  --wash-strong: rgba(255, 255, 255, 0.12);
+  --on: #a3dbbd;
+  --on-ink: #0d3b31;
+  --danger: #f2a58e;
+  background: var(--paper);
+  color: var(--ink);
+  padding-bottom: 4px;
+  margin-bottom: 10px;
+}
+
+/* Dark: written twice, as every dark palette is (see sieve-ui.css). */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .masthead {
+    --paper: #1f3a32;
+    --ink: #f1ede3;
+    --ink-2: #c9d4ce;
+    --ink-3: #9db3aa;
+    --rule: rgba(241, 237, 227, 0.13);
+    --rule-strong: rgba(241, 237, 227, 0.26);
+    --on: #a3dbbd;
+    --on-ink: #1f3a32;
+  }
+}
+
+:root[data-theme="dark"] .masthead {
+  --paper: #1f3a32;
+  --ink: #f1ede3;
+  --ink-2: #c9d4ce;
+  --ink-3: #9db3aa;
+  --rule: rgba(241, 237, 227, 0.13);
+  --rule-strong: rgba(241, 237, 227, 0.26);
+  --on: #a3dbbd;
+  --on-ink: #1f3a32;
+}
+
+.masthead .mark,
+.masthead .wordmark {
+  color: var(--ink);
+}
+
 /* ---- Status: a stamp in the top bar ------------------------------------------
    Green when anything is on (rule 1), in the danger colour when nothing is. */
 
