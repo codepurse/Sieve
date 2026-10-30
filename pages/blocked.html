@@ -380,7 +380,39 @@
          tap to someone they trust. Ink only — nothing here is "on". */
 
       .urge {
+        display: flex;
+        flex-direction: column;
         margin-bottom: 36px;
+      }
+
+      /* The markup holds two pages, the words and the instrument, for the
+         spread below. In one column they step aside and the order puts the
+         ring back under the headline, where it has always been. */
+      .urge-words,
+      .urge-instrument {
+        display: contents;
+      }
+
+      .urge-stage,
+      .urge-design,
+      .urge-count,
+      .urge-proof {
+        order: 1;
+      }
+
+      .urge-instead,
+      .urge-debrief,
+      .urge-debrief-done,
+      .urge-why {
+        order: 2;
+      }
+
+      .urge-streak {
+        order: 3;
+      }
+
+      .urge-actions {
+        order: 4;
       }
 
       .urge-hour {
@@ -1103,6 +1135,214 @@
         }
       }
 
+      /* ---- The spread (Sieve Pro, the breathing ring) ---------------------------
+         With the breathing ring leading on a wide screen (urge.js sets
+         data-urge-layout), the urge screen is two facing pages: the words on
+         the left, the dial on the right with the two things to do now under
+         it. The address, Go back, Close and Allow step down to one quiet row
+         beneath both. Narrower than this, and for the ensō and the river, the
+         page stays the one column above. */
+      @media (min-width: 1024px) {
+        html[data-urge-layout="spread"] .letterhead,
+        html[data-urge-layout="spread"] .notice,
+        html[data-urge-layout="spread"] .foot {
+          width: min(1280px, 100%);
+          padding-left: 48px;
+          padding-right: 48px;
+        }
+
+        html[data-urge-layout="spread"] .notice {
+          padding-top: 32px;
+          padding-bottom: 32px;
+        }
+
+        html[data-urge-layout="spread"] .notice-body {
+          flex: 1;
+          display: grid;
+          grid-template-columns: minmax(0, 1fr) auto;
+          align-items: center;
+          column-gap: 24px;
+          max-width: none;
+          padding-left: 0;
+          border-left: 0;
+        }
+
+        /* The plate beside the headline gives way to one round the dial. */
+        html[data-urge-layout="spread"] .notice-body::before {
+          content: none;
+        }
+
+        html[data-urge-layout="spread"] .urge {
+          grid-column: 1 / -1;
+          display: grid;
+          grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+          margin-bottom: 0;
+          padding-bottom: 28px;
+          border-bottom: 1px solid var(--rule);
+        }
+
+        html[data-urge-layout="spread"] .urge-words,
+        html[data-urge-layout="spread"] .urge-instrument {
+          display: flex;
+          flex-direction: column;
+          justify-content: center;
+          min-width: 0;
+        }
+
+        html[data-urge-layout="spread"] .urge-words > *,
+        html[data-urge-layout="spread"] .urge-instrument > * {
+          order: 0;
+        }
+
+        html[data-urge-layout="spread"] .urge-words {
+          padding-right: 56px;
+        }
+
+        html[data-urge-layout="spread"] .urge-instrument {
+          position: relative;
+          isolation: isolate;
+          align-items: center;
+          padding-left: 56px;
+          border-left: 1px solid var(--rule);
+          text-align: center;
+        }
+
+        html[data-urge-layout="spread"] .urge h1 {
+          font-size: clamp(56px, 5.4vw, 76px);
+          letter-spacing: -0.03em;
+        }
+
+        html[data-urge-layout="spread"] .urge-stage.has-dial {
+          width: min(430px, 100%);
+          margin-top: 0;
+        }
+
+        html[data-urge-layout="spread"] .urge-stage.has-dial .breath-word {
+          font-size: 18px;
+        }
+
+        /* A ring of sieve holes just outside the dial's numbers, fading out
+           both ways so no edge of it shows, and gone by the dial's foot so the
+           count and the line under it sit on plain paper. */
+        html[data-urge-layout="spread"] .urge-stage.has-dial::before {
+          content: "";
+          position: absolute;
+          z-index: -1;
+          inset: -16%;
+          pointer-events: none;
+          background-image:
+            radial-gradient(circle, var(--holes) 1.7px, transparent 2.2px),
+            radial-gradient(circle, var(--holes) 1.7px, transparent 2.2px);
+          background-size: 16px 14px;
+          background-position: 0 0, 8px 7px;
+          -webkit-mask-image:
+            radial-gradient(closest-side, transparent 72%, #000 84%, transparent 100%),
+            linear-gradient(to bottom, #000 55%, transparent 78%);
+          -webkit-mask-composite: source-in;
+          mask-image:
+            radial-gradient(closest-side, transparent 72%, #000 84%, transparent 100%),
+            linear-gradient(to bottom, #000 55%, transparent 78%);
+          mask-composite: intersect;
+        }
+
+        html[data-urge-layout="spread"] .urge-stage.has-dial + .urge-design + .urge-count {
+          width: auto;
+        }
+
+        html[data-urge-layout="spread"] .urge-count {
+          margin-top: 14px;
+          font-size: 26px;
+          letter-spacing: 0.02em;
+          color: var(--ink);
+        }
+
+        html[data-urge-layout="spread"] .urge-proof {
+          margin-top: 6px;
+          max-width: 40ch;
+        }
+
+        html[data-urge-layout="spread"] .urge-actions {
+          justify-content: center;
+          margin-top: 22px;
+        }
+
+        html[data-urge-layout="spread"] .urge-actions .btn {
+          min-height: 46px;
+          padding: 0 20px;
+          font-size: 15px;
+        }
+
+        html[data-urge-layout="spread"] .urge-streak {
+          margin-top: 16px;
+          font-size: 13.5px;
+          color: var(--ink-3);
+        }
+
+        html[data-urge-layout="spread"] .urge-plan {
+          margin-top: 30px;
+        }
+
+        html[data-urge-layout="spread"] .urge-instead,
+        html[data-urge-layout="spread"] .urge-debrief {
+          margin-top: 26px;
+        }
+
+        html[data-urge-layout="spread"] .urge-why {
+          margin-top: 26px;
+          padding-bottom: 0;
+          border-bottom: 0;
+        }
+
+        /* The quiet row: where you were going, and the ways out. */
+        html[data-urge-layout="spread"] .origin {
+          display: flex;
+          flex-wrap: wrap;
+          align-items: baseline;
+          gap: 4px 12px;
+          min-width: 0;
+          margin: 0;
+          padding: 14px 0 0;
+          border: 0;
+        }
+
+        html[data-urge-layout="spread"] .origin-label {
+          margin: 0;
+        }
+
+        html[data-urge-layout="spread"] .notice-body > .actions {
+          grid-column: 2;
+          justify-content: flex-end;
+          gap: 8px;
+          margin-top: 0;
+          padding-top: 14px;
+        }
+
+        html[data-urge-layout="spread"] .notice-body > .actions .btn {
+          min-height: 36px;
+          padding: 0 12px;
+          font-size: 13.5px;
+        }
+
+        html[data-urge-layout="spread"] #allow-btn {
+          padding: 0 6px;
+          border: 0;
+          background: none;
+          color: var(--ink-2);
+          font-weight: 400;
+          text-decoration: underline;
+          text-underline-offset: 3px;
+        }
+
+        html[data-urge-layout="spread"] #allow-btn:hover {
+          color: var(--ink);
+          background: none;
+        }
+
+        html[data-urge-layout="spread"] .allow-result {
+          text-align: right;
+        }
+      }
+
       /* ---- Foot --------------------------------------------------------------- */
 
       .foot {
@@ -1170,7 +1410,7 @@
         </span>
         <span class="wordmark">Sieve</span>
       </span>
-      <span class="stamp">Block notice</span>
+      <span class="stamp" id="block-stamp">Block notice</span>
     </header>
 
     <main class="notice">
@@ -1178,88 +1418,95 @@
         <!-- Sieve Pro's urge screen (pro/urge.js). When it shows, the
              notice's own kicker, headline and message are hidden. -->
         <section class="urge" id="urge" aria-labelledby="urge-title" hidden>
-          <p class="kicker">Ride it out</p>
-          <h1 id="urge-title">This will pass.</h1>
-          <p class="message" id="urge-lede">
-            An urge rises, peaks and fades, usually within a few minutes. Breathe with the
-            circle until it does.
-          </p>
-
-          <p class="urge-hour" id="urge-hour" hidden></p>
-
-          <!-- The plan for this moment, if one fits its habit and hour
-               (pro/coach.js). -->
-          <div class="urge-plan" id="urge-plan" hidden>
-            <span class="origin-label">Your plan</span>
-            <dl class="urge-plan-text">
-              <dt>If</dt>
-              <dd id="urge-plan-if"></dd>
-              <dt>Then</dt>
-              <dd id="urge-plan-then"></dd>
-            </dl>
-          </div>
-
-          <!-- The breathing ring, with the Proof it passes dial round it
-               (pro/insights.js), or a design in #urge-design instead
-               (pro/designs.js). -->
-          <div class="urge-stage" id="urge-stage">
-            <svg class="dial" id="urge-dial" aria-hidden="true" focusable="false" hidden></svg>
-            <div class="breath">
-              <span class="breath-ring" aria-hidden="true"></span>
-              <span class="breath-word" id="urge-breath-word">Breathe in</span>
-            </div>
-          </div>
-          <div class="urge-design" id="urge-design" hidden></div>
-          <p class="urge-count" id="urge-count" role="timer">1:30</p>
-          <p class="urge-proof" id="urge-proof" aria-live="polite" hidden></p>
-
-          <!-- Things to do instead, the person's own list, and what has tended
-               to help them so far (pro/coach.js). -->
-          <div class="urge-instead" id="urge-instead" hidden>
-            <span class="origin-label" id="urge-instead-title">While you wait, try one</span>
-            <div class="urge-tries" id="urge-tries" role="group" aria-labelledby="urge-instead-title"></div>
-            <p class="urge-works" id="urge-works" aria-live="polite" hidden></p>
-          </div>
-
-          <!-- After "I'm OK now": a plan for next time, from what just happened. -->
-          <form class="urge-debrief" id="urge-debrief" hidden>
-            <span class="origin-label">While it&rsquo;s fresh</span>
-            <p class="urge-debrief-lede">
-              What was going on, and what could you do first next time? Sieve will show you this
-              the next time it gets hard at this hour.
+          <!-- Two pages: the words, and the instrument (the ring or a
+               design). Side by side as the spread on a wide screen with the
+               ring; one column otherwise, in the order the CSS gives. -->
+          <div class="urge-words">
+            <p class="kicker">Ride it out</p>
+            <h1 id="urge-title">This will pass.</h1>
+            <p class="message" id="urge-lede">
+              An urge rises, peaks and fades, usually within a few minutes. Breathe with the
+              circle until it does.
             </p>
-            <label class="urge-field">
-              <span class="urge-field-label">What was going on</span>
-              <input class="urge-input" id="urge-debrief-if" type="text" maxlength="140" autocomplete="off"
-                     placeholder="it was late and I was bored in bed" />
-            </label>
-            <label class="urge-field">
-              <span class="urge-field-label">What you&rsquo;ll do first next time</span>
-              <input class="urge-input" id="urge-debrief-then" type="text" maxlength="140" autocomplete="off"
-                     placeholder="put my phone on the kitchen charger" />
-            </label>
-            <div class="actions">
-              <button class="btn btn-primary" id="urge-debrief-save" type="submit">Keep it as my plan</button>
-              <button class="btn" id="urge-debrief-skip" type="button">Not now</button>
+
+            <p class="urge-hour" id="urge-hour" hidden></p>
+
+            <!-- The plan for this moment, if one fits its habit and hour
+                 (pro/coach.js). -->
+            <div class="urge-plan" id="urge-plan" hidden>
+              <span class="origin-label">Your plan</span>
+              <dl class="urge-plan-text">
+                <dt>If</dt>
+                <dd id="urge-plan-if"></dd>
+                <dt>Then</dt>
+                <dd id="urge-plan-then"></dd>
+              </dl>
             </div>
-          </form>
-          <p class="urge-debrief-done" id="urge-debrief-done" role="status" hidden></p>
 
-          <figure class="urge-why" id="urge-why" hidden>
-            <img class="urge-photo" id="urge-photo" alt="" hidden />
-            <figcaption>
-              <span class="origin-label">Why you're doing this</span>
-              <p class="urge-reason" id="urge-reason"></p>
-              <button class="btn urge-voice" id="urge-voice" type="button" hidden>Play your message</button>
-            </figcaption>
-          </figure>
+            <!-- Things to do instead, the person's own list, and what has tended
+                 to help them so far (pro/coach.js). -->
+            <div class="urge-instead" id="urge-instead" hidden>
+              <span class="origin-label" id="urge-instead-title">While you wait, try one</span>
+              <div class="urge-tries" id="urge-tries" role="group" aria-labelledby="urge-instead-title"></div>
+              <p class="urge-works" id="urge-works" aria-live="polite" hidden></p>
+            </div>
 
-          <p class="urge-streak" id="urge-streak" hidden></p>
+            <!-- After "I'm OK now": a plan for next time, from what just happened. -->
+            <form class="urge-debrief" id="urge-debrief" hidden>
+              <span class="origin-label">While it&rsquo;s fresh</span>
+              <p class="urge-debrief-lede">
+                What was going on, and what could you do first next time? Sieve will show you this
+                the next time it gets hard at this hour.
+              </p>
+              <label class="urge-field">
+                <span class="urge-field-label">What was going on</span>
+                <input class="urge-input" id="urge-debrief-if" type="text" maxlength="140" autocomplete="off"
+                       placeholder="it was late and I was bored in bed" />
+              </label>
+              <label class="urge-field">
+                <span class="urge-field-label">What you&rsquo;ll do first next time</span>
+                <input class="urge-input" id="urge-debrief-then" type="text" maxlength="140" autocomplete="off"
+                       placeholder="put my phone on the kitchen charger" />
+              </label>
+              <div class="actions">
+                <button class="btn btn-primary" id="urge-debrief-save" type="submit">Keep it as my plan</button>
+                <button class="btn" id="urge-debrief-skip" type="button">Not now</button>
+              </div>
+            </form>
+            <p class="urge-debrief-done" id="urge-debrief-done" role="status" hidden></p>
 
-          <div class="actions">
-            <a class="btn btn-primary" id="urge-contact" hidden></a>
-            <button class="btn" id="urge-ok" type="button" hidden>I&rsquo;m OK now</button>
-            <button class="btn" id="urge-close" type="button">Close this tab</button>
+            <figure class="urge-why" id="urge-why" hidden>
+              <img class="urge-photo" id="urge-photo" alt="" hidden />
+              <figcaption>
+                <span class="origin-label">Why you're doing this</span>
+                <p class="urge-reason" id="urge-reason"></p>
+                <button class="btn urge-voice" id="urge-voice" type="button" hidden>Play your message</button>
+              </figcaption>
+            </figure>
+          </div>
+
+          <div class="urge-instrument">
+            <!-- The breathing ring, with the Proof it passes dial round it
+                 (pro/insights.js), or a design in #urge-design instead
+                 (pro/designs.js). -->
+            <div class="urge-stage" id="urge-stage">
+              <svg class="dial" id="urge-dial" aria-hidden="true" focusable="false" hidden></svg>
+              <div class="breath">
+                <span class="breath-ring" aria-hidden="true"></span>
+                <span class="breath-word" id="urge-breath-word">Breathe in</span>
+              </div>
+            </div>
+            <div class="urge-design" id="urge-design" hidden></div>
+            <p class="urge-count" id="urge-count" role="timer">1:30</p>
+            <p class="urge-proof" id="urge-proof" aria-live="polite" hidden></p>
+
+            <div class="actions urge-actions">
+              <a class="btn btn-primary" id="urge-contact" hidden></a>
+              <button class="btn" id="urge-ok" type="button" hidden>I&rsquo;m OK now</button>
+              <button class="btn" id="urge-close" type="button">Close this tab</button>
+            </div>
+
+            <p class="urge-streak" id="urge-streak" hidden></p>
           </div>
         </section>
 
