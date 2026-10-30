@@ -35,16 +35,11 @@ const SIEVE_CHANGELOG = [
       "With Sieve Pro the popup knows what time it is: “Your hard hours start in 20 minutes”, the day drawn hour by hour with your hardest ones marked, your plan for them, and what tends to help you, with your streaks underneath. On a day they don't come, it says when they next do.",
       "To make that possible, the block page now keeps when it stopped you, as well as how many times, for the kinds of site you block for yourself (never threats such as scam sites, and never the site's address). It is kept on your device for a year, for everyone, so Pro can show the months before you bought it.",
       "Sieve Pro is sold by Polar, who send the licence key with your receipt. One key works in up to three browsers at once, and “Remove from this browser” frees a place for another. Entering it sends that key and a plain name for the browser to Polar to check it, and again about once a week when you open the settings. Firefox asks your permission first. The privacy policy explains exactly what is sent.",
-      "A fix for the Protection Dashboard: blocks from the gambling list built into Sieve were not being counted, only those from the downloaded list.",
-    ],
-  },
-  {
-    version: "1.5.2",
-    date: "November 2026",
-    items: [
+      "New in Site Cleanup: Google Search, beside YouTube. Ten switches behind “Clean up Google Search”, each off until you turn it on. “Show web results only” opens every search on Google's Web tab, a plain list of links; Images, News and the other tabs still open when you ask for them. The rest hide AI Overviews and AI Mode, “People also ask”, “Discussions and forums”, short videos, the video row, Top stories, product grids and “People also search for”. They find each box by where it leads rather than by its heading, so they work in any language.",
       "The Search Result Filter now works on Brave Search, Yahoo and Swisscows, as well as Google, Bing and DuckDuckGo. Your hide and colour rules, your Blocked list and your subscribed lists all apply there, and the “?” beside a changed result explains it the same way.",
       "A fix for DuckDuckGo's no-JavaScript version, html.duckduckgo.com, where the filter did nothing. A search typed on that page leaves no search in the address, which is what the filter looked for, and a search opened from a link sends every result through a DuckDuckGo redirect that the filter would not read. Both now work.",
       "A fix for results pages where the filter had hidden something: it rewrote its “Sieve hid …” line on every frame, about sixty times a second, for as long as the page was open, keeping the browser busy for nothing. It now writes the line only when something in it changes.",
+      "A fix for the Protection Dashboard: blocks from the gambling list built into Sieve were not being counted, only those from the downloaded list.",
     ],
   },
   {
