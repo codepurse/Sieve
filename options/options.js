@@ -2538,6 +2538,10 @@ function setupLicence(store, onChange) {
         ? ` It works in up to ${licence.limit} browsers at once; this one is “${P.deviceLabel()}”.`
         : "";
       ownedText.textContent = `You're a Supporter, with key ${key}.${places} Thank you for supporting Sieve.`;
+    } else if (P.awaitsCheck(licence)) {
+      ownedText.textContent =
+        `Key ${key} has not been confirmed by Polar in this browser, so Supporter stays off until it is. ` +
+        "Sieve checks it while these settings are open and you're online.";
     } else if (licence.status === "removed") {
       ownedText.textContent =
         `This browser's place on key ${key} was given back, so Supporter is off here. ` +

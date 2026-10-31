@@ -36,7 +36,9 @@
 //
 // Like the PIN, this lives in this browser's storage. It is not copy
 // protection: anyone can edit an extension's code. The people who pay are the
-// honest ones, and this is built for them.
+// honest ones, and this is built for them. It only refuses to be talked into
+// Pro by one line typed into storage: a licence opens Pro once Polar has
+// answered for it here (isProState), and one that was not is checked again.
 
 (() => {
   "use strict";
@@ -124,11 +126,29 @@
     return tail ? `****-${tail}` : "****";
   }
 
-  // A pure decision, so it can be tested without storage.
+  // How far ahead of this browser's clock a check may say it happened before
+  // it reads as written by hand: a clock put right after a check is not.
+  const CLOCK_SLACK_MS = DAY;
+
+  // A pure decision, so it can be tested without storage. Only a licence Polar
+  // answered for opens Pro: activate() and refreshIfDue() write the time of
+  // that answer and the benefit it named. One with no check, a check dated
+  // more than a day ahead, or a benefit this store does not sell was not
+  // written by them, and stays shut until the settings page checks it again
+  // (refreshIfDue checks such a licence at once).
   function isProState(licence, now = Date.now()) {
     const l = normalizeLicence(licence);
     if (!l || l.status !== "granted") return false;
+    if (!(l.checkedAt > 0) || l.checkedAt > now + CLOCK_SLACK_MS) return false;
+    if (!store().benefitIds.includes(l.benefitId)) return false;
     return l.expiresAt === null || now < l.expiresAt;
+  }
+
+  // Granted, but not (yet) confirmed by Polar from this browser: what the
+  // settings page says while it checks.
+  function awaitsCheck(licence, now = Date.now()) {
+    const l = normalizeLicence(licence);
+    return !!l && l.status === "granted" && !isProState(l, now) && (l.expiresAt === null || now < l.expiresAt);
   }
 
   function isConfigured() {
@@ -372,9 +392,10 @@
     const licence = await getLicence();
     if (!licence || licence.status !== "granted") return { checked: false };
     // A clock moved backwards would otherwise postpone the check for as long
-    // as it was moved; checking early costs nothing.
+    // as it was moved; checking early costs nothing. Nor does checking a
+    // licence that isProState will not trust: Polar's answer settles it.
     const age = now - licence.checkedAt;
-    if (age >= 0 && age < REFRESH_EVERY_MS) return { checked: false };
+    if (age >= 0 && age < REFRESH_EVERY_MS && !awaitsCheck(licence, now)) return { checked: false };
 
     const { key, activationId } = licence;
     const done = async (next) => ({ checked: true, status: (await keep(next)).status });
@@ -432,6 +453,7 @@
     normalizeLicence,
     maskKey,
     isProState,
+    awaitsCheck,
     isConfigured,
     price,
     apiBase,

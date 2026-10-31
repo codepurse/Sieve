@@ -9,7 +9,9 @@
 #             engine) so the copied artifacts are guaranteed fresh. Requires
 #             `npm install` to have been run.
 #   -Zip      Also produce dist/sieve-firefox.zip (forward-slash entry paths,
-#             which Firefox / AMO require).
+#             which Firefox / AMO require). With Sieve Pro, which ships
+#             minified, also dist/sieve-firefox-source.zip: the source, for
+#             AMO's reviewers only.
 #   -OpenSource
 #             Build without Sieve Pro, on purpose: pro\ keeps its empty
 #             stand-ins. What CI builds, and what anyone can build from GitHub.
@@ -184,6 +186,64 @@ if ($Zip) {
     }
 }
 
+# Sieve Pro ships minified (build-pro.mjs), and Firefox Add-ons asks for the
+# source of minified code. A store package therefore comes with
+# dist/sieve-firefox-source.zip for Mozilla's reviewers, who keep it to
+# themselves: the files both repositories track, as they are on disk (what
+# was just built), and how to build them. Upload it with the package, where
+# AMO asks for source code; never publish it. Left out: store-assets\ and
+# models\, which are pictures and model weights, not code, and not in the
+# Firefox package.
+$ProIncluded = -not (Select-String -Path (Join-Path $OutDir "pro\features.js") -SimpleMatch "SieveProFeatures = null" -Quiet)
+$SourceZip = $null
+if ($Zip -and $ProIncluded -and $ProKind -eq "store") {
+    $SourceZip = Join-Path $ScriptDir "dist\sieve-firefox-source.zip"
+    if (Test-Path $SourceZip) { Remove-Item $SourceZip -Force }
+    Write-Host "==> Creating $SourceZip (for Mozilla's reviewers only)" -ForegroundColor Cyan
+    $Version = (Get-Content $ManifestSrc -Raw | ConvertFrom-Json).version
+    $PrivateDir = Join-Path $SrcDir "pro-private"
+    $Sources = @()
+    foreach ($rel in (& git -C $SrcDir -c core.quotepath=off ls-files)) {
+        if ($rel -match '^(store-assets|models)/') { continue }
+        $Sources += ,@((Join-Path $SrcDir $rel), $rel)
+    }
+    foreach ($rel in (& git -C $PrivateDir -c core.quotepath=off ls-files)) {
+        $Sources += ,@((Join-Path $PrivateDir $rel), "pro-private/$rel")
+    }
+    $Readme = @"
+Sieve ${Version}: the source of sieve-firefox.zip, for Mozilla's reviewers
+
+Most of Sieve is open source at https://github.com/codepurse/Sieve. Sieve Pro
+is not: it is in pro-private/ here for review only. Please do not publish it.
+
+In the package, only pro/*.js is minified (build-pro.mjs, with esbuild).
+Every other file is its source here with the comments removed
+(build-strip-comments.mjs), one statement per line as written.
+
+To build it (Windows, Node.js 22 or later, Windows PowerShell 5.1):
+  1. npm ci
+  2. powershell -ExecutionPolicy Bypass -File .\build-firefox.ps1
+The result, dist\firefox, holds the same files as the package. (Run it
+without -Zip: a store package also checks that pro-private is a clean git
+checkout, which this archive is not.)
+
+Left out because they are not code and not in the Firefox package:
+store-assets/ (store images) and models/ (toxicity model weights).
+"@
+    $ZipStream = [System.IO.Compression.ZipFile]::Open($SourceZip, "Create")
+    try {
+        foreach ($s in $Sources) {
+            if (Test-Path -LiteralPath $s[0] -PathType Leaf) {
+                [System.IO.Compression.ZipFileExtensions]::CreateEntryFromFile($ZipStream, $s[0], $s[1], "Optimal") | Out-Null
+            }
+        }
+        $Writer = New-Object System.IO.StreamWriter(($ZipStream.CreateEntry("SOURCE-README.txt")).Open())
+        try { $Writer.Write($Readme) } finally { $Writer.Dispose() }
+    } finally {
+        $ZipStream.Dispose()
+    }
+}
+
 Write-Host "==> Firefox build complete: $OutDir" -ForegroundColor Green
 # The stand-in's statement survives comment stripping; the real file's does not exist.
 if (Select-String -Path (Join-Path $OutDir "pro\features.js") -SimpleMatch "SieveProFeatures = null" -Quiet) {
@@ -193,3 +253,4 @@ if (Select-String -Path (Join-Path $OutDir "pro\features.js") -SimpleMatch "Siev
 }
 if ($ProKind -eq "sandbox") { Write-Host "==> TEST PACKAGE: Sieve Pro may use Polar's sandbox. Never upload it to a store." -ForegroundColor Yellow }
 if ($Zip) { Write-Host "==> Zip: $ZipPath" -ForegroundColor Green }
+if ($SourceZip) { Write-Host "==> Source for AMO's reviewers: $SourceZip (upload it with the package; never publish it)" -ForegroundColor Yellow }

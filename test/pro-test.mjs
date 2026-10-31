@@ -114,15 +114,54 @@ const LIMITED = { ...GRANTED, limit_activations: 3 };
 const stored = () => backing.get(P.LICENCE_KEY);
 const endpoints = () => calls.map((c) => c.endpoint);
 
+// What activate() keeps after Polar grants the key.
+const CHECKED = { key: KEY, status: "granted", benefitId: "benefit-pro", checkedAt: T0 - DAY };
+
 test("only a granted, unexpired licence is Pro", () => {
   assert.equal(P.isProState(null, T0), false);
-  assert.equal(P.isProState({ key: KEY, status: "granted" }, T0), true);
+  assert.equal(P.isProState(CHECKED, T0), true);
   for (const status of ["revoked", "disabled", "invalid", "removed", "something new"]) {
-    assert.equal(P.isProState({ key: KEY, status }, T0), false, status);
+    assert.equal(P.isProState({ ...CHECKED, status }, T0), false, status);
   }
-  assert.equal(P.isProState({ key: "", status: "granted" }, T0), false);
-  assert.equal(P.isProState({ key: KEY, status: "granted", expiresAt: T0 + 1 }, T0), true);
-  assert.equal(P.isProState({ key: KEY, status: "granted", expiresAt: T0 }, T0), false);
+  assert.equal(P.isProState({ ...CHECKED, key: "" }, T0), false);
+  assert.equal(P.isProState({ ...CHECKED, expiresAt: T0 + 1 }, T0), true);
+  assert.equal(P.isProState({ ...CHECKED, expiresAt: T0 }, T0), false);
+});
+
+test("a licence Polar never answered for is not Pro, whatever it says", () => {
+  // The one line someone might paste into a console.
+  assert.equal(P.isProState({ key: KEY, status: "granted" }, T0), false);
+  assert.equal(P.isProState({ ...CHECKED, checkedAt: 0 }, T0), false);
+  assert.equal(P.isProState({ ...CHECKED, checkedAt: "yesterday" }, T0), false);
+  // Checked "next week": written by hand to put the weekly check off.
+  assert.equal(P.isProState({ ...CHECKED, checkedAt: T0 + 7 * DAY }, T0), false);
+  // A clock put right a little after a check still counts.
+  assert.equal(P.isProState({ ...CHECKED, checkedAt: T0 + 2 * 3600000 }, T0), true);
+  // A benefit this store does not sell, or none.
+  assert.equal(P.isProState({ ...CHECKED, benefitId: "" }, T0), false);
+  assert.equal(P.isProState({ ...CHECKED, benefitId: "some-other-product" }, T0), false);
+
+  assert.equal(P.awaitsCheck({ key: KEY, status: "granted" }, T0), true);
+  assert.equal(P.awaitsCheck(CHECKED, T0), false);
+  assert.equal(P.awaitsCheck({ ...CHECKED, status: "revoked", checkedAt: 0 }, T0), false);
+});
+
+test("the settings page checks such a licence at once, and Polar's answer settles it", async () => {
+  reset();
+  backing.set(P.LICENCE_KEY, { key: "FORGED", status: "granted", checkedAt: T0 });
+  answers.validate = reply(404);
+  const out = await P.refreshIfDue(T0 + 60000);
+  assert.deepEqual(endpoints(), ["validate"], "checked although the week is not up");
+  assert.equal(out.status, "invalid");
+  assert.equal(P.isProState(stored(), T0 + 60000), false);
+
+  // A real key that only wanted confirming comes back on.
+  reset();
+  backing.set(P.LICENCE_KEY, { ...CHECKED, checkedAt: T0 + 7 * DAY });
+  answers.validate = reply(200, GRANTED);
+  await P.refreshIfDue(T0);
+  assert.equal(stored().checkedAt, T0);
+  assert.equal(P.isProState(stored(), T0), true);
 });
 
 test("no limit: one check, sending only the key and the organisation, and the key is kept", async () => {

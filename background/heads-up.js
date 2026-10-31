@@ -71,11 +71,15 @@ export function nextAt(at, now) {
 }
 
 // Is Pro on? The same test as common/pro.js isProState, which is written for
-// pages and cannot load in a service worker: a stored key Polar granted, not
-// past its expiry. A key that lapses stops the heads-up with it.
+// pages and cannot load in a service worker: a stored key Polar granted, with
+// the time of that answer (not more than a day ahead of this clock), not past
+// its expiry. The benefit it names is checked there, against the store's
+// config; here the heads-up only shows words Pro already wrote. A key that
+// lapses stops the heads-up with it.
 export function licensed(raw, now) {
   if (!raw || typeof raw !== "object") return false;
   if (typeof raw.key !== "string" || !raw.key.trim() || raw.status !== "granted") return false;
+  if (!(Number.isFinite(raw.checkedAt) && raw.checkedAt > 0) || raw.checkedAt > now + 24 * 60 * 60 * 1000) return false;
   return !Number.isFinite(raw.expiresAt) || now < raw.expiresAt;
 }
 

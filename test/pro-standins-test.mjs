@@ -119,3 +119,15 @@ test("the builds copy pro/ and hand it to build-pro.mjs", () => {
   assert.match(ci, /build-chrome\.ps1 -Zip -OpenSource/);
   assert.match(ci, /build-firefox\.ps1 -Zip -OpenSource/);
 });
+
+test("Pro ships minified, and Firefox's reviewers get its source", () => {
+  const pro = read("build-pro.mjs");
+  assert.match(pro, /transformSync\(readFileSync\(real, "utf8"\), \{ loader: "js", minify: true, legalComments: "none"/);
+  assert.doesNotMatch(pro, /copyFileSync/, "a Pro file is never copied as written");
+  // Only after the open-source exit, so CI never needs Pro or minifies anything.
+  assert.ok(pro.indexOf('await import("esbuild")') > pro.indexOf('kind === "open-source" || !checkPrivate(kind)'));
+  const ff = read("build-firefox.ps1");
+  assert.match(ff, /if \(\$Zip -and \$ProIncluded -and \$ProKind -eq "store"\) \{/);
+  assert.match(ff, /dist\\sieve-firefox-source\.zip/);
+  assert.match(ff, /store-assets\|models/);
+});

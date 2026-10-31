@@ -16,9 +16,9 @@ The files in this folder are empty stand-ins for **Sieve Supporter** (called Pro
 | `features.js` | Which Pro features a build carries (here: none) |
 
 Sieve Supporter is not open source. It lives in a separate, private repository and
-is copied over these files when a store build is made (`build-chrome.ps1`,
-`build-firefox.ps1`). The versions of Sieve on the Chrome Web Store, Microsoft
-Edge Add-ons and Firefox Add-ons carry it.
+is copied over these files, minified, when a store build is made
+(`build-chrome.ps1`, `build-firefox.ps1`). The versions of Sieve on the Chrome
+Web Store, Microsoft Edge Add-ons and Firefox Add-ons carry it.
 
 **Every protection is open source and here**: every blocker and its lists,
 the filters, the Dark Pattern Blocker, the Doomscroll Stopper, the Guardian
