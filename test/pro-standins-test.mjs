@@ -75,6 +75,34 @@ test("everything that uses Pro checks it is there first", () => {
   assert.match(options, /if \(!P \|\| !carried \|\| !window\.SieveProSettings\) \{[\s\S]{0,300}section\.remove\(\)/);
 });
 
+test("the weekly licence check runs from the background on a timer, never from the popup or block page", () => {
+  // From the block page, its timing would tell Polar a blocked site just stopped someone.
+  const sw = read("background", "service-worker.js");
+  assert.match(sw, /^import "\.\/licence-check\.js";/m);
+  const check = read("background", "licence-check.js");
+  assert.match(check, /^import "\.\.\/common\/pro\.js";/m);
+  assert.match(check, /chrome\.alarms\.create\(ALARM, \{ periodInMinutes: EVERY_MINUTES \}\)/);
+  assert.match(check, /P\.refreshIfDue\(\)/);
+  for (const file of [["popup", "popup.js"], ["pages", "blocked.js"], ["pages", "progress.js"]]) {
+    assert.doesNotMatch(read(...file), /refreshIfDue/, `${file.join("/")} never asks Polar`);
+  }
+  // common/pro.js loads where there is no window.
+  assert.match(read("common", "pro.js"), /const root = typeof window !== "undefined" \? window : self;/);
+});
+
+test("a paused licence is never offered for sale", () => {
+  const popup = read("popup", "popup.js");
+  assert.match(popup, /hint = !bought && P\.isConfigured\(\)/);
+  assert.match(popup, /pausedBox\.hidden = !paused;/);
+  const options = read("options", "options.js");
+  assert.match(options, /buyField\.hidden = on \|\| paused;/);
+  assert.match(options, /document\.getElementById\("nav-pro-invite"\)\.hidden = on \|\| held;/);
+  for (const id of ["nav-pro-paused", "pro-recheck", "pro-recheck-error"]) {
+    assert.ok(read("options", "options.html").includes(`id="${id}"`), `options.html has #${id}`);
+  }
+  assert.ok(read("pages", "progress.html").includes('id="pg-paused"'));
+});
+
 test("pages load Pro from pro/, never from anywhere a stand-in cannot replace", () => {
   const pages = {
     "options/options.html": ["../pro/features.js", "../pro/streaks.js", "../pro/coach.js", "../pro/popup.js", "../pro/settings.js"],

@@ -103,6 +103,9 @@ test("Pro is on for a granted key that has not expired, and only then", () => {
   // Never answered for by Polar, or "checked" next week: written by hand.
   assert.equal(licensed({ key: "SIEVE-TEST", status: "granted" }, NOW), false);
   assert.equal(licensed({ ...GRANTED, checkedAt: NOW + 7 * 24 * 3600000 }, NOW), false);
+  // Paused, as in common/pro.js: no answer from Polar for 30 days.
+  assert.equal(licensed({ ...GRANTED, checkedAt: NOW - 29 * 24 * 3600000 }, NOW), true);
+  assert.equal(licensed({ ...GRANTED, checkedAt: NOW - 30 * 24 * 3600000 }, NOW), false);
 });
 
 test("the alarm is set only while it is switched on and Pro is on", async () => {

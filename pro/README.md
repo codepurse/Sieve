@@ -28,7 +28,9 @@ made from this repository protects exactly as the store version does. Without
 Pro, Settings has no Sieve Supporter section, and the block page is the plain notice.
 
 So is the licence check (`common/pro.js`), the one network request Pro makes,
-so anyone can see exactly what it sends. And so is the half of the heads-up
+so anyone can see exactly what it sends, and the timer that repeats it about
+once a week (`background/licence-check.js`). A key Polar has not confirmed in
+30 days pauses Pro until it does. And so is the half of the heads-up
 that runs in the service worker (`background/heads-up.js`): Pro works out when
 someone's hardest hours begin and stores the words; the open-source code shows
 only those, and only once they have turned the heads-up on and allowed

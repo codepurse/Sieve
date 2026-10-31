@@ -70,16 +70,21 @@ export function nextAt(at, now) {
   return best;
 }
 
-// Is Pro on? The same test as common/pro.js isProState, which is written for
-// pages and cannot load in a service worker: a stored key Polar granted, with
-// the time of that answer (not more than a day ahead of this clock), not past
+// Is Pro on? The same test as common/pro.js isProState, kept here so this file
+// and its tests need nothing else: a stored key Polar granted, with the time
+// of that answer (not more than a day ahead of this clock, and less than 30
+// days ago, after which Pro is paused until Polar answers again), not past
 // its expiry. The benefit it names is checked there, against the store's
 // config; here the heads-up only shows words Pro already wrote. A key that
-// lapses stops the heads-up with it.
+// lapses or pauses stops the heads-up with it.
+const DAY_MS = 24 * 60 * 60 * 1000;
+const UNCONFIRMED_MS = 30 * DAY_MS;
+
 export function licensed(raw, now) {
   if (!raw || typeof raw !== "object") return false;
   if (typeof raw.key !== "string" || !raw.key.trim() || raw.status !== "granted") return false;
-  if (!(Number.isFinite(raw.checkedAt) && raw.checkedAt > 0) || raw.checkedAt > now + 24 * 60 * 60 * 1000) return false;
+  if (!(Number.isFinite(raw.checkedAt) && raw.checkedAt > 0) || raw.checkedAt > now + DAY_MS) return false;
+  if (now - raw.checkedAt >= UNCONFIRMED_MS) return false;
   return !Number.isFinite(raw.expiresAt) || now < raw.expiresAt;
 }
 

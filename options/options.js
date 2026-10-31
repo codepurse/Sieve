@@ -2458,6 +2458,8 @@ function setupPro(store) {
   }
 
   let pro = P.isProState(store.proLicence);
+  // Bought, but Polar has not confirmed it in 30 days: nothing offers it for sale.
+  let paused = P.isPaused(store.proLicence);
 
   // The launch price while it lasts, and when it ends; then the full price.
   const price = P.price();
@@ -2479,15 +2481,32 @@ function setupPro(store) {
   // a key is stored, so a build shipped before the shop opens shows nobody a
   // dead end. Until Supporter is yours it says what it is for; then it thanks
   // you, numbered with the end of your key (the part Settings already shows).
+  // Paused, it says so, and never asks to be bought again.
   function renderPlate(raw) {
     const licence = P.normalizeLicence(raw);
     const on = P.isProState(licence);
+    const held = P.isPaused(licence);
     document.getElementById("nav-pro").hidden = !(P.isConfigured() || licence);
-    document.getElementById("nav-pro-invite").hidden = on;
+    document.getElementById("nav-pro-invite").hidden = on || held;
     document.getElementById("nav-pro-thanks").hidden = !on;
-    const no = on ? licence.displayKey.split("-").pop().replace(/[^A-Za-z0-9]/g, "") : "";
-    const noEl = document.getElementById("nav-pro-no");
-    noEl.textContent = no ? `No. ${no}` : "";
+    document.getElementById("nav-pro-paused").hidden = !held;
+    const no = on || held ? licence.displayKey.split("-").pop().replace(/[^A-Za-z0-9]/g, "") : "";
+    for (const el of document.querySelectorAll(".nav-pro-no")) el.textContent = no ? `No. ${no}` : "";
+  }
+
+  // The line under each Supporter group while it is asleep offers to unlock
+  // it, as written in the page; paused, it says why instead.
+  const asWritten = new Map();
+  function sayWhy(note) {
+    if (!asWritten.has(note)) asWritten.set(note, [...note.childNodes].map((n) => n.cloneNode(true)));
+    if (!paused) {
+      note.replaceChildren(...asWritten.get(note).map((n) => n.cloneNode(true)));
+      return;
+    }
+    const why = document.createElement("a");
+    why.href = "#pro-card";
+    why.textContent = "Why";
+    note.replaceChildren("Paused until Sieve can confirm your key with Polar. ", why);
   }
 
   // Each Pro group returns its render(pro); this page needs no list of them.
@@ -2498,7 +2517,10 @@ function setupPro(store) {
     for (const card of document.querySelectorAll(".pro-feature")) {
       card.classList.toggle("is-locked", !pro);
       const note = card.querySelector(".pro-note");
-      if (note) note.hidden = pro;
+      if (note) {
+        note.hidden = pro;
+        sayWhy(note);
+      }
       for (const control of card.querySelectorAll(".pro-control")) control.disabled = !pro;
     }
     for (const group of groups) if (group && typeof group.render === "function") group.render(pro);
@@ -2506,6 +2528,7 @@ function setupPro(store) {
 
   setupLicence(store, (next, raw) => {
     pro = next;
+    paused = P.isPaused(raw);
     applyPro();
     renderPlate(raw);
   });
@@ -2529,6 +2552,8 @@ function setupLicence(store, onChange) {
   const forgetError = document.getElementById("pro-forget-error");
   const forgetHint = document.getElementById("pro-forget-hint");
   const portalLink = document.getElementById("pro-portal");
+  const recheckBtn = document.getElementById("pro-recheck");
+  const recheckError = document.getElementById("pro-recheck-error");
 
   if (P.checkoutUrl()) {
     buyLink.href = P.checkoutUrl();
@@ -2538,13 +2563,19 @@ function setupLicence(store, onChange) {
 
   const CONSENT_MSG = "Firefox asks before Sieve sends the key to Polar to check it. Press Activate again and choose Allow.";
 
+  let renders = 0;
+
   function render(raw) {
     const licence = P.normalizeLicence(raw);
     const on = P.isProState(licence);
-    badge.textContent = on ? "Supporter" : "Free";
+    const paused = P.isPaused(licence);
+    const asked = ++renders;
+    badge.textContent = on ? "Supporter" : paused ? "Paused" : "Free";
     badge.classList.toggle("badge-new", on);
-    buyField.hidden = on;
+    buyField.hidden = on || paused;
     ownedField.hidden = !licence;
+    recheckBtn.hidden = !paused;
+    if (!paused) recheckError.textContent = "";
     if (!licence) return;
     const key = licence.displayKey;
     if (on) {
@@ -2552,6 +2583,19 @@ function setupLicence(store, onChange) {
         ? ` It works in up to ${licence.limit} browsers at once; this one is “${P.deviceLabel()}”.`
         : "";
       ownedText.textContent = `You're a Supporter, with key ${key}.${places} Thank you for supporting Sieve.`;
+    } else if (paused) {
+      ownedText.textContent =
+        `Supporter is paused: Sieve hasn't been able to confirm key ${key} with Polar since ` +
+        `${proShortDate(licence.checkedAt)}. It comes back by itself the next time Polar answers, ` +
+        "with everything you set up still here.";
+      // In Firefox the reason may be its own consent, taken back since.
+      P.hasConsent().then((ok) => {
+        if (!ok && asked === renders) {
+          ownedText.textContent =
+            `Supporter is paused: Firefox no longer lets Sieve send key ${key} to Polar, so it ` +
+            "can't be confirmed. Press Check again and choose Allow. Everything you set up is still here.";
+        }
+      });
     } else if (P.awaitsCheck(licence)) {
       ownedText.textContent =
         `Key ${key} has not been confirmed by Polar in this browser, so Supporter stays off until it is. ` +
@@ -2567,7 +2611,7 @@ function setupLicence(store, onChange) {
     } else {
       ownedText.textContent = `Key ${key} is not a Sieve Supporter key, so Supporter is off.`;
     }
-    forgetHint.hidden = !(on && licence.activationId);
+    forgetHint.hidden = !((on || paused) && licence.activationId);
     checkedEl.textContent = licence.checkedAt ? `Last checked ${proShortDate(licence.checkedAt)}` : "";
   }
 
@@ -2612,6 +2656,28 @@ function setupLicence(store, onChange) {
   }
 
   activateBtn.addEventListener("click", activate);
+
+  // Paused: ask Polar now rather than waiting for the timer. Firefox's
+  // question, if its consent was taken back, has to come from this click.
+  recheckBtn.addEventListener("click", async () => {
+    recheckError.textContent = "";
+    const consent = P.askConsent();
+    recheckBtn.disabled = true;
+    recheckBtn.textContent = "Checking…";
+    let result;
+    try {
+      result = (await consent) ? await P.refreshIfDue() : { checked: false, offline: true, reason: "no-consent" };
+    } catch {
+      result = { checked: false, offline: true };
+    }
+    recheckBtn.disabled = false;
+    recheckBtn.textContent = "Check again";
+    if (result.checked) return; // the storage listener below shows the rest
+    recheckError.textContent =
+      result.reason === "no-consent"
+        ? "Firefox asks before Sieve sends the key to Polar. Press Check again and choose Allow."
+        : "Still no answer from Polar. Check your connection, or whether a blocker or firewall on this computer stops api.polar.sh, and try again.";
+  });
   keyInput.addEventListener("keydown", (e) => {
     if (e.key === "Enter") activate();
   });

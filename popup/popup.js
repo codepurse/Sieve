@@ -433,20 +433,29 @@ async function updateTop() {
   beneath.hidden = !(pro && under);
 
   // The hint: only where this build carries Pro, Pro is on sale, and it is
-  // not already on, until dismissed.
+  // not already on, until dismissed. Never to someone who bought it: a key
+  // waiting on Polar, or paused because Polar has not answered in 30 days,
+  // gets a line saying so instead.
   let hint = false;
+  let paused = false;
   const carried = Array.isArray(window.SieveProFeatures) && window.SieveProFeatures.length > 0;
-  if (!pro && carried && P && P.isConfigured()) {
+  if (!pro && carried && P) {
     try {
-      hint = !(await chrome.storage.local.get(PRO_HINT_KEY))[PRO_HINT_KEY];
+      const licence = await P.getLicence();
+      paused = P.isPaused(licence, now);
+      const bought = !!licence && licence.status === "granted";
+      hint = !bought && P.isConfigured() && !(await chrome.storage.local.get(PRO_HINT_KEY))[PRO_HINT_KEY];
     } catch {
       hint = false;
     }
   }
   hintBox.hidden = !hint;
   if (hint) drawDay(document.getElementById("pro-hint-day"), null);
+  const pausedBox = document.getElementById("pro-paused");
+  pausedBox.hidden = !paused;
 
-  top.hidden = sealBox.hidden && tonightBox.hidden && leadBox.hidden && beneath.hidden && hintBox.hidden;
+  top.hidden =
+    sealBox.hidden && tonightBox.hidden && leadBox.hidden && beneath.hidden && hintBox.hidden && pausedBox.hidden;
 }
 
 async function readTonight(C, A, now) {
@@ -460,6 +469,10 @@ function setupTop() {
   });
   document.getElementById("pro-hint-open").addEventListener("click", () => {
     chrome.tabs.create({ url: chrome.runtime.getURL("options/options.html#section-pro") });
+    window.close();
+  });
+  document.getElementById("pro-paused-open").addEventListener("click", () => {
+    chrome.tabs.create({ url: chrome.runtime.getURL("options/options.html#pro-card") });
     window.close();
   });
   document.getElementById("pro-hint-close").addEventListener("click", () => {

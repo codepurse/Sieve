@@ -411,7 +411,8 @@ body {
 }
 
 .beneath .status-pro-link,
-.pro-hint .status-pro-link {
+.pro-hint .status-pro-link,
+.pro-paused .status-pro-link {
   display: block;
   margin-top: 10px;
   font-size: 12.5px;
