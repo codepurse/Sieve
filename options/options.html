@@ -71,9 +71,25 @@
           <a class="nav-link" href="#section-security" data-target="section-security"><span class="nav-num">09</span><span class="nav-name">Lock</span></a>
           <a class="nav-link" href="#section-advanced" data-target="section-advanced"><span class="nav-num">10</span><span class="nav-name">Advanced</span></a>
 
-          <!-- Shown once Sieve Pro is on sale, or a licence is stored (setupPro). -->
-          <p class="nav-group" id="nav-pro-group" hidden>Supporter</p>
-          <a class="nav-link" href="#section-pro" data-target="section-pro" id="nav-pro" hidden><span class="nav-num">11</span><span class="nav-name">Supporter</span></a>
+          <!-- Sieve Supporter: a pine plate at the end of the index, in the
+               popup's own pine. Shown once Supporter is on sale, or a licence
+               is stored; until it is yours it says what it is for, then it
+               thanks you (setupPro → renderPlate). On a narrow window it folds
+               into a pine tab at the end of the strip. -->
+          <a class="nav-link nav-plate" href="#section-pro" data-target="section-pro" id="nav-pro" hidden>
+            <svg class="nav-plate-mark" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M4.75 5.3H21.45a1.05 1.05 0 0 1 0 2.1H4.75a1.05 1.05 0 0 1 0 -2.1zM4.5 6.4H21.7A8.6 8.4 0 0 1 4.5 6.4ZM5.82 9.1a0.78 0.78 0 1 0 1.56 0a0.78 0.78 0 1 0 -1.56 0zM8.42 9.1a0.78 0.78 0 1 0 1.56 0a0.78 0.78 0 1 0 -1.56 0zM11.02 9.1a0.78 0.78 0 1 0 1.56 0a0.78 0.78 0 1 0 -1.56 0zM13.62 9.1a0.78 0.78 0 1 0 1.56 0a0.78 0.78 0 1 0 -1.56 0zM16.22 9.1a0.78 0.78 0 1 0 1.56 0a0.78 0.78 0 1 0 -1.56 0zM18.82 9.1a0.78 0.78 0 1 0 1.56 0a0.78 0.78 0 1 0 -1.56 0zM7.12 11.6a0.78 0.78 0 1 0 1.56 0a0.78 0.78 0 1 0 -1.56 0zM9.72 11.6a0.78 0.78 0 1 0 1.56 0a0.78 0.78 0 1 0 -1.56 0zM12.32 11.6a0.78 0.78 0 1 0 1.56 0a0.78 0.78 0 1 0 -1.56 0zM14.92 11.6a0.78 0.78 0 1 0 1.56 0a0.78 0.78 0 1 0 -1.56 0zM17.52 11.6a0.78 0.78 0 1 0 1.56 0a0.78 0.78 0 1 0 -1.56 0zM11.02 13.9a0.78 0.78 0 1 0 1.56 0a0.78 0.78 0 1 0 -1.56 0zM13.62 13.9a0.78 0.78 0 1 0 1.56 0a0.78 0.78 0 1 0 -1.56 0z"/><path d="M5.1 6.3 2.4 3.6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><path fill="currentColor" d="M10.75 18.2a1.05 1.05 0 1 0 2.1 0a1.05 1.05 0 1 0 -2.1 0zM13.8 20.7a0.8 0.8 0 1 0 1.6 0a0.8 0.8 0 1 0 -1.6 0z"/></svg>
+            <span class="nav-plate-top"><span class="nav-num">11</span><span class="nav-name"><span class="nav-plate-sieve">Sieve </span>Supporter</span></span>
+            <span class="nav-plate-face" id="nav-pro-invite">
+              <span class="nav-plate-title">Stay stopped.</span>
+              <span class="nav-plate-text">The urge screen, streaks, and a popup made yours.</span>
+              <span class="nav-plate-foot"><span><b class="pro-price">$34.99</b> <span id="nav-pro-terms">once</span></span><span class="nav-plate-go" aria-hidden="true">&rarr;</span></span>
+            </span>
+            <span class="nav-plate-face" id="nav-pro-thanks" hidden>
+              <span class="nav-plate-title">Thank you.</span>
+              <span class="nav-plate-text">You keep Sieve free for everyone who needs it.</span>
+              <span class="nav-plate-foot"><span id="nav-pro-no"></span><span>Yours to keep</span></span>
+            </span>
+          </a>
         </nav>
 
         <div class="sidebar-foot">

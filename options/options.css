@@ -282,6 +282,180 @@ html.preload .loading-veil {
   background: var(--ink);
 }
 
+/* ---- Sieve Supporter: the pine plate ----------------------------------------
+   The last entry in the index is a small bookplate in the popup's own pine
+   (popup.css .masthead) with Warden's brass for the price, so it is the one
+   coloured thing in the margin. Pine is not Sieve's "on" green: nothing here
+   says a protection is running. Where you are is the page number stamped, as
+   on every other entry, in the plate's paper colour. */
+.nav-plate {
+  --band: #0d3b31;
+  --band-hover: #114639;
+  --on-band: #fbf9f4;
+  --on-band-2: #9db3aa;
+  --band-signal: #c99a3a;
+  --band-rule: rgba(255, 255, 255, 0.16);
+}
+
+/* Dark: written twice, as every dark palette is (see sieve-ui.css);
+   test/theme-test.mjs keeps the two identical. */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .nav-plate {
+    --band: #1f3a32;
+    --band-hover: #24443a;
+    --on-band: #f1ede3;
+    --on-band-2: #9db3aa;
+    --band-signal: #c99a3a;
+    --band-rule: rgba(241, 237, 227, 0.16);
+  }
+}
+
+:root[data-theme="dark"] .nav-plate {
+  --band: #1f3a32;
+  --band-hover: #24443a;
+  --on-band: #f1ede3;
+  --on-band-2: #9db3aa;
+  --band-signal: #c99a3a;
+  --band-rule: rgba(241, 237, 227, 0.16);
+}
+
+.nav-link.nav-plate,
+.nav-link.nav-plate.active {
+  display: block;
+  margin: 24px -8px 0;
+  padding: 12px 14px 11px;
+  overflow: hidden;
+  font-weight: 400;
+  color: var(--on-band);
+  background: var(--band);
+}
+
+.nav-link.nav-plate:hover {
+  color: var(--on-band);
+  background: var(--band-hover);
+}
+
+/* The sieve, large and faint, in the plate's corner. */
+.nav-plate-mark {
+  position: absolute;
+  top: 4px;
+  right: -6px;
+  width: 72px;
+  height: 72px;
+  color: var(--on-band);
+  opacity: 0.1;
+  pointer-events: none;
+}
+
+.nav-plate-top {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  font-weight: 500;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--on-band-2);
+}
+
+.nav-plate .nav-num {
+  margin-left: -4px;
+  color: var(--on-band-2);
+  letter-spacing: 0;
+}
+
+.nav-link.nav-plate.active .nav-num {
+  color: var(--band);
+  background: var(--on-band);
+}
+
+.nav-plate-face {
+  display: block;
+}
+
+.nav-plate-title {
+  display: block;
+  margin-top: 9px;
+  font-family: var(--font-serif);
+  font-size: 20px;
+  line-height: 1.15;
+  color: var(--on-band);
+}
+
+.nav-plate-text {
+  display: block;
+  margin-top: 4px;
+  max-width: 14.5em;
+  font-size: 12.5px;
+  line-height: 1.45;
+  color: var(--on-band-2);
+}
+
+.nav-plate-foot {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  margin-top: 11px;
+  padding-top: 8px;
+  border-top: 1px solid var(--band-rule);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--on-band-2);
+}
+
+.nav-plate-foot b {
+  font-weight: 500;
+  color: var(--band-signal);
+}
+
+.nav-plate-go {
+  color: var(--on-band);
+  transition: transform var(--t-press) var(--ease);
+}
+
+.nav-plate:hover .nav-plate-go {
+  transform: translateX(2px);
+}
+
+/* On a narrow window the index is a strip of tabs: the plate becomes a pine
+   tab at its end, the number and the name, stamped like the others when you
+   are there rather than underlined. */
+@media (max-width: 880px) {
+  .nav-link.nav-plate,
+  .nav-link.nav-plate.active {
+    display: flex;
+    align-items: baseline;
+    align-self: center;
+    margin: 0 0 0 8px;
+    padding: 5px 10px 6px 8px;
+    border-radius: var(--r-1);
+  }
+
+  .nav-link.nav-plate.active::before,
+  .nav-plate-face,
+  .nav-plate-mark,
+  .nav-plate-sieve {
+    display: none;
+  }
+
+  .nav-plate-top {
+    gap: 6px;
+    font-family: var(--font-sans);
+    font-size: 14px;
+    font-weight: 400;
+    letter-spacing: 0;
+    text-transform: none;
+    color: var(--on-band);
+  }
+
+  .nav-plate .nav-num {
+    margin-left: -3px;
+    padding: 0 3px;
+  }
+}
+
 .sidebar-foot {
   margin-top: auto;
   padding-top: 20px;

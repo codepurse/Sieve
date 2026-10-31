@@ -2468,15 +2468,27 @@ function setupPro(store) {
     launch.textContent = ` (a launch price until ${day}, then ${price.regular})`;
     launch.hidden = false;
   }
-  // The button says it too: "$24.99 launch price", then "$34.99 once".
-  const terms = document.getElementById("pro-buy-terms");
-  if (terms && price.launch) terms.textContent = "launch price";
+  // The button says it too: "$24.99 launch price", then "$34.99 once". So does
+  // the plate in the index.
+  for (const id of ["pro-buy-terms", "nav-pro-terms"]) {
+    const terms = document.getElementById(id);
+    if (terms && price.launch) terms.textContent = "launch price";
+  }
 
-  // The section's link appears once Pro is on sale, or once a key is stored,
-  // so a build shipped before the shop opens shows nobody a dead end.
-  const navShown = P.isConfigured() || !!P.normalizeLicence(store.proLicence);
-  document.getElementById("nav-pro-group").hidden = !navShown;
-  document.getElementById("nav-pro").hidden = !navShown;
+  // The plate at the end of the index. It appears once Pro is on sale, or once
+  // a key is stored, so a build shipped before the shop opens shows nobody a
+  // dead end. Until Supporter is yours it says what it is for; then it thanks
+  // you, numbered with the end of your key (the part Settings already shows).
+  function renderPlate(raw) {
+    const licence = P.normalizeLicence(raw);
+    const on = P.isProState(licence);
+    document.getElementById("nav-pro").hidden = !(P.isConfigured() || licence);
+    document.getElementById("nav-pro-invite").hidden = on;
+    document.getElementById("nav-pro-thanks").hidden = !on;
+    const no = on ? licence.displayKey.split("-").pop().replace(/[^A-Za-z0-9]/g, "") : "";
+    const noEl = document.getElementById("nav-pro-no");
+    noEl.textContent = no ? `No. ${no}` : "";
+  }
 
   // Each Pro group returns its render(pro); this page needs no list of them.
   const groups = Object.values(window.SieveProSettings.setup(store) || {});
@@ -2492,11 +2504,13 @@ function setupPro(store) {
     for (const group of groups) if (group && typeof group.render === "function") group.render(pro);
   }
 
-  setupLicence(store, (next) => {
+  setupLicence(store, (next, raw) => {
     pro = next;
     applyPro();
+    renderPlate(raw);
   });
   applyPro();
+  renderPlate(store.proLicence);
 }
 
 function setupLicence(store, onChange) {
@@ -2625,7 +2639,7 @@ function setupLicence(store, onChange) {
     if (area !== "local" || !changes[P.LICENCE_KEY]) return;
     const next = changes[P.LICENCE_KEY].newValue;
     render(next);
-    onChange(P.isProState(next));
+    onChange(P.isProState(next), next);
   });
 
   render(store.proLicence);
