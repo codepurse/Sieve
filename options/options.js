@@ -2457,7 +2457,18 @@ function setupPro(store) {
 
   let pro = P.isProState(store.proLicence);
 
-  for (const el of document.querySelectorAll(".pro-price")) el.textContent = P.CONFIG.priceLabel;
+  // The launch price while it lasts, and when it ends; then the full price.
+  const price = P.price();
+  for (const el of document.querySelectorAll(".pro-price")) el.textContent = price.label;
+  const launch = document.getElementById("pro-launch");
+  if (launch && price.launch) {
+    const day = price.lastDay.toLocaleDateString(undefined, { day: "numeric", month: "long" });
+    launch.textContent = ` (a launch price until ${day}, then ${price.regular})`;
+    launch.hidden = false;
+  }
+  // The button says it too: "$24.99 launch price", then "$34.99 once".
+  const terms = document.getElementById("pro-buy-terms");
+  if (terms && price.launch) terms.textContent = "launch price";
 
   // The section's link appears once Pro is on sale, or once a key is stored,
   // so a build shipped before the shop opens shows nobody a dead end.
@@ -2514,7 +2525,7 @@ function setupLicence(store, onChange) {
   function render(raw) {
     const licence = P.normalizeLicence(raw);
     const on = P.isProState(licence);
-    badge.textContent = on ? "Pro" : "Free";
+    badge.textContent = on ? "Supporter" : "Free";
     badge.classList.toggle("badge-new", on);
     buyField.hidden = on;
     ownedField.hidden = !licence;
@@ -2524,17 +2535,17 @@ function setupLicence(store, onChange) {
       const places = licence.limit
         ? ` It works in up to ${licence.limit} browsers at once; this one is “${P.deviceLabel()}”.`
         : "";
-      ownedText.textContent = `Pro is on, with key ${key}.${places} Thank you for supporting Sieve.`;
+      ownedText.textContent = `You're a Supporter, with key ${key}.${places} Thank you for supporting Sieve.`;
     } else if (licence.status === "removed") {
       ownedText.textContent =
-        `This browser's place on key ${key} was given back, so Pro is off here. ` +
+        `This browser's place on key ${key} was given back, so Supporter is off here. ` +
         "Enter the key again to take a place back, if one is free.";
     } else if (licence.status === "revoked" || licence.status === "disabled") {
       ownedText.textContent =
-        `Key ${key} was refunded or turned off, so Pro is off. ` +
+        `Key ${key} was refunded or turned off, so Supporter is off. ` +
         "A seal you already started still runs to its date.";
     } else {
-      ownedText.textContent = `Key ${key} is not a Sieve Pro key, so Pro is off.`;
+      ownedText.textContent = `Key ${key} is not a Sieve Supporter key, so Supporter is off.`;
     }
     forgetHint.hidden = !(on && licence.activationId);
     checkedEl.textContent = licence.checkedAt ? `Last checked ${proShortDate(licence.checkedAt)}` : "";
@@ -2563,7 +2574,7 @@ function setupLicence(store, onChange) {
     if (result.ok) {
       keyInput.value = ""; // the storage listener below shows the rest
     } else if (result.reason === "not-configured") {
-      errorEl.textContent = "Sieve Pro is not on sale yet.";
+      errorEl.textContent = "Sieve Supporter is not on sale yet.";
     } else if (result.reason === "no-consent") {
       errorEl.textContent = CONSENT_MSG;
     } else if (result.offline) {
