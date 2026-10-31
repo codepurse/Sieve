@@ -24,6 +24,7 @@ test("the stand-ins are the Pro files, and the README names each", () => {
     "designs.js",
     "features.js",
     "insights.js",
+    "popup.js",
     "progress.js",
     "settings.js",
     "streaks.js",
@@ -65,6 +66,9 @@ test("everything that uses Pro checks it is there first", () => {
   const popup = read("popup", "popup.js");
   assert.match(popup, /if \(P && ST && \(await P\.isPro\(now\)\)\) \{/);
   assert.match(popup, /if \(S\) \{\s*const seal = await S\.check\(now\);/);
+  // Your popup: no SieveProPopup (or no Supporter), the popup as Sieve makes it.
+  assert.match(popup, /if \(!P \|\| !PP\) return null;\s*try \{\s*if \(!\(await P\.isPro\(\)\)\) return null;/);
+  assert.match(popup, /leadBox\.hidden = !\(PP && PP\.drawLead\(/);
   // Settings: no features, no section at all.
   const options = read("options", "options.js");
   assert.match(options, /Array\.isArray\(window\.SieveProFeatures\)/);
@@ -73,8 +77,8 @@ test("everything that uses Pro checks it is there first", () => {
 
 test("pages load Pro from pro/, never from anywhere a stand-in cannot replace", () => {
   const pages = {
-    "options/options.html": ["../pro/features.js", "../pro/streaks.js", "../pro/coach.js", "../pro/settings.js"],
-    "popup/popup.html": ["../pro/streaks.js"],
+    "options/options.html": ["../pro/features.js", "../pro/streaks.js", "../pro/coach.js", "../pro/popup.js", "../pro/settings.js"],
+    "popup/popup.html": ["../pro/streaks.js", "../pro/popup.js"],
     "pages/blocked.html": ["../pro/streaks.js", "../pro/coach.js", "../pro/urge.js"],
   };
   for (const [page, scripts] of Object.entries(pages)) {

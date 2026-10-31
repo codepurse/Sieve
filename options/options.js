@@ -607,6 +607,8 @@ function optionsDefaults() {
     proPlans: null,
     proInstead: null,
     proHeadsUp: null,
+    // Your popup: its lead and its arrangement (pro/popup.js).
+    proPopup: null,
   };
   for (const t of DARK_PATTERN_TYPES) {
     d[t.key] = t.default !== undefined ? t.default : true;

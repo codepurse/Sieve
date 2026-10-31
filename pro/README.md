@@ -10,8 +10,9 @@ The files in this folder are empty stand-ins for **Sieve Supporter** (called Pro
 | `designs.js` | The ensō and the river, for the centre of the urge screen |
 | `voice.js` | A message in your own voice, recorded in Settings and played on the urge screen |
 | `coach.js` | Plans for the hard moments, things to try instead and what works for you, and the heads-up before the hardest hours (shown by `background/heads-up.js`, open source) |
+| `popup.js` | Your popup: what the band at the top of the toolbar popup leads with (a streak, money kept, the month, your own words), and the parts under it arranged or tucked away (shown by `popup/popup.js`, open source) |
 | `progress.js` | The Your progress page (`pages/progress.html`) |
-| `settings.js` | The urge screen, voice, plans and streaks groups in Settings › Sieve Supporter |
+| `settings.js` | The urge screen, voice, plans, streaks and Your popup groups in Settings › Sieve Supporter |
 | `features.js` | Which Pro features a build carries (here: none) |
 
 Sieve Supporter is not open source. It lives in a separate, private repository and

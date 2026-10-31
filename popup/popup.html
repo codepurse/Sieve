@@ -32,10 +32,12 @@
     <p class="status-off" id="status-off" hidden>Protection is off. Every filter is switched off.</p>
 
     <!-- The top (popup.js → updateTop): a running seal, which is free
-         (common/seal.js). With Sieve Pro, tonight: where the hardest hours
-         stand against the clock, the plan for them and what tends to help
-         (pro/coach.js), and the streaks. Without it, until dismissed, a word
-         about what Pro would show here. -->
+         (common/seal.js). With Sieve Pro, a lead and the small things under
+         it: tonight, where the hardest hours stand against the clock, the
+         plan for them and what tends to help (pro/coach.js), or the lead
+         chosen in Settings › Supporter › Your popup (pro/popup.js); then the
+         streaks. Without it, until dismissed, a word about what Pro would
+         show here. -->
     <section class="top" id="top" hidden>
       <div class="seal" id="seal" hidden>
         <div class="seal-head"><span class="kicker">Sealed</span><span class="kicker" id="seal-until"></span></div>
@@ -57,9 +59,15 @@
           </dl>
         </div>
         <p class="tonight-works" id="tonight-works" hidden></p>
-        <div class="stamps" id="tonight-stamps"></div>
-        <p class="tonight-kept" id="tonight-kept" hidden></p>
-        <button class="status-pro-link" id="tonight-progress" type="button"></button>
+      </div>
+
+      <!-- Any other lead, drawn by pro/popup.js. -->
+      <div class="lead" id="lead" hidden></div>
+
+      <div class="beneath" id="beneath" hidden>
+        <div class="stamps" id="top-stamps"></div>
+        <p class="top-kept" id="top-kept" hidden></p>
+        <button class="status-pro-link" id="top-progress" type="button" hidden></button>
       </div>
 
       <div class="pro-hint" id="pro-hint" hidden>
@@ -103,7 +111,7 @@
     <section class="block" id="modules" aria-labelledby="modules-title">
       <h2 class="block-title kicker" id="modules-title">Filters</h2>
 
-      <div class="toggle-row">
+      <div class="toggle-row" data-switch="bad-language">
         <div class="toggle-info">
           <label class="toggle-name" for="bad-language-toggle">Bad Language Filter</label>
           <span class="toggle-desc" id="bad-language-desc">Masks profanity on pages</span>
@@ -115,7 +123,7 @@
         </label>
       </div>
 
-      <div class="toggle-row">
+      <div class="toggle-row" data-switch="gambling">
         <div class="toggle-info">
           <label class="toggle-name" for="gambling-toggle">Gambling Blocker</label>
           <span class="toggle-desc" id="gambling-desc">Blocks gambling &amp; betting sites</span>
@@ -127,7 +135,7 @@
         </label>
       </div>
 
-      <div class="toggle-row">
+      <div class="toggle-row" data-switch="doomscroll">
         <div class="toggle-info">
           <label class="toggle-name" for="doomscroll-toggle">Doomscroll Stopper</label>
           <span class="toggle-desc" id="doomscroll-desc">Daily limits on endless feeds</span>
@@ -139,7 +147,7 @@
         </label>
       </div>
 
-      <div class="toggle-row">
+      <div class="toggle-row" data-switch="dark-patterns">
         <div class="toggle-info">
           <label class="toggle-name" for="dark-patterns-toggle">Dark Pattern Blocker</label>
           <span class="toggle-desc" id="dark-patterns-count">No tricks on this page</span>
@@ -151,7 +159,7 @@
         </label>
       </div>
 
-      <div class="toggle-row">
+      <div class="toggle-row" data-switch="toxic-hider">
         <div class="toggle-info">
           <label class="toggle-name" for="toxic-hider-toggle">Toxic Comment Hider</label>
           <span class="toggle-desc" id="toxic-hider-count">No comments hidden on this page</span>
@@ -162,6 +170,11 @@
           <span class="slider"></span>
         </label>
       </div>
+
+      <!-- The switches left out in Your popup, one click away
+           (popup.js → arrangePopup). -->
+      <div class="switches-more" id="switches-more" hidden></div>
+      <button class="link-btn switches-more-btn" id="switches-more-btn" type="button" aria-controls="switches-more" aria-expanded="false" hidden></button>
     </section>
 
     <!-- Popup & Click Hijack Blocker — kept here for per-page recovery, under
@@ -197,6 +210,18 @@
       <div id="popup-hijack-wl-list" class="ph-list" hidden></div>
     </section>
 
+    <!-- Tucked away: the parts set aside in Your popup, under one line that
+         names them, with a count when one has something to say. They open
+         under it for this look only (popup.js → arrangePopup). -->
+    <div class="tuck" id="tuck" hidden>
+      <button class="tuck-line" id="tuck-line" type="button" aria-controls="tucked" aria-expanded="false">
+        <span class="kicker">Tucked away</span>
+        <span class="tuck-names" id="tuck-names"></span>
+        <svg class="tuck-chevron" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 6l4 4 4-4"/></svg>
+      </button>
+      <div class="tucked" id="tucked" hidden></div>
+    </div>
+
     <footer class="foot">
       <button id="open-settings" class="settings-link" type="button">
         <span>All settings</span>
@@ -219,6 +244,7 @@
     <script src="../pro/streaks.js"></script>
     <script src="../pro/insights.js"></script>
     <script src="../pro/coach.js"></script>
+    <script src="../pro/popup.js"></script>
     <script src="popup.js"></script>
   </body>
 </html>

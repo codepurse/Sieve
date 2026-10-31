@@ -1798,8 +1798,9 @@
             <div class="group-head">
               <h2 class="group-title">Your licence <span class="badge" id="pro-badge">Free</span></h2>
               <p class="group-desc">
-                The urge screen, streaks with a savings goal, and your progress (your hardest
-                hours, proof your urges pass, a letter every month) are Sieve Supporter:
+                The urge screen, streaks with a savings goal, your progress (your hardest
+                hours, proof your urges pass, a letter every month) and a popup arranged your
+                way are Sieve Supporter:
                 <span class="pro-price">$34.99</span> once, no subscription<span id="pro-launch" hidden></span>. Every protection, the
                 Seal included, stays free. Bought it? Paste the licence key from your receipt email.
               </p>
@@ -1953,6 +1954,27 @@
             </div>
           </section>
 
+          <section class="group pro-feature" id="popup-card">
+            <div class="group-head">
+              <h2 class="group-title">Your popup</h2>
+              <p class="group-desc">
+                Choose what the band at the top of Sieve&rsquo;s popup leads with, and put what sits
+                under it in your own order. Anything you tuck away waits one click from the foot of
+                the popup, and still says when it catches something.
+              </p>
+              <p class="pro-note" hidden>Part of Sieve Supporter. <a href="#pro-card">Unlock it</a></p>
+              <!-- Filled by pro/settings.js: the real popup in a frame, live. -->
+              <div class="popup-preview" id="popup-preview"></div>
+            </div>
+            <div class="group-body">
+              <!-- Filled by pro/settings.js (pro/popup.js): the lead, what sits
+                   under it, and the order of the parts below the band. -->
+              <div class="field" id="popup-lead-field"></div>
+              <div class="field" id="popup-beneath-field"></div>
+              <div class="field" id="popup-arrange-field"></div>
+            </div>
+          </section>
+
           <section class="group pro-feature" id="progress-card">
             <div class="group-head">
               <h2 class="group-title">Your progress</h2>
@@ -2046,6 +2068,7 @@
     <script src="../pro/designs.js"></script>
     <script src="../pro/voice.js"></script>
     <script src="../pro/coach.js"></script>
+    <script src="../pro/popup.js"></script>
     <script src="../pro/settings.js"></script>
     <script src="../common/keyword-pattern.js"></script>
     <script src="../common/search-filter.js"></script>

@@ -2860,3 +2860,766 @@ html.preload .loading-veil {
     grid-template-columns: minmax(0, 1fr);
   }
 }
+
+/* ==========================================================================
+   Your popup (pro/popup.js, pro/settings.js): what the popup's band leads
+   with, what sits under it, and the order of the parts below it, beside the
+   real popup in a frame that follows every change.
+   ========================================================================== */
+
+/* The preview stands in the margin beside its settings, so here the margin
+   column is as wide as the popup. Too narrow for both, the group stacks and
+   the preview leads. */
+@container (min-width: 800px) {
+  #popup-card {
+    grid-template-columns: 340px minmax(0, 1fr);
+    column-gap: 48px;
+  }
+}
+
+@container (min-width: 740px) and (max-width: 799.98px) {
+  #popup-card {
+    display: block;
+  }
+
+  #popup-card .group-head {
+    position: static;
+    margin-bottom: 20px;
+  }
+}
+
+.popup-preview {
+  margin-top: 28px;
+  max-width: 340px;
+}
+
+.pp {
+  margin: 0;
+}
+
+/* A sketch of the toolbar the popup hangs from: the address bar, then
+   Sieve's own icon, pressed. */
+.pp-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 34px;
+  padding: 0 4px 0 6px;
+  border-bottom: 1px solid var(--rule);
+}
+
+.pp-omnibox {
+  flex: 1;
+  height: 20px;
+  border-radius: var(--r-2);
+  background: var(--wash-strong);
+}
+
+.pp-ext {
+  width: 12px;
+  height: 12px;
+  border: 1.5px solid var(--ink-3);
+  border-radius: 2px;
+  opacity: 0.6;
+}
+
+.pp-icon {
+  box-sizing: content-box;
+  width: 16px;
+  height: 16px;
+  padding: 4px;
+  border-radius: var(--r-1);
+  background: var(--wash-strong);
+}
+
+/* The popup itself: a thing that floats, so the one shadow, and a hairline
+   that does not take space from its 340 pixels. It fades in once it has
+   said how tall it is. */
+.pp-frame {
+  margin-top: 8px;
+  overflow: hidden;
+  border-radius: var(--r-2);
+  outline: 1px solid var(--rule-strong);
+  box-shadow: var(--lift);
+  background: var(--paper);
+}
+
+.pp-popup {
+  display: block;
+  width: 100%;
+  height: 520px;
+  border: 0;
+  opacity: 0;
+  transition: height var(--t-state) var(--ease), opacity var(--t-view) var(--ease);
+}
+
+.pp.is-ready .pp-popup {
+  opacity: 1;
+}
+
+.pp-caption {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  margin-top: 16px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  line-height: 1.4;
+  color: var(--ink-3);
+}
+
+.pp-live {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ink);
+}
+
+.pp-live::before {
+  content: "";
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--ink);
+}
+
+.pp-where {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ---- At the top: each lead as a picture of the band ----------------------- */
+
+#popup-lead-field {
+  container-type: inline-size;
+}
+
+.lead-tiles {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 22px 14px;
+}
+
+@container (min-width: 420px) {
+  .lead-tiles {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+.lead-tile {
+  position: relative;
+  display: block;
+  min-width: 0;
+  cursor: pointer;
+}
+
+.lead-tile:has(input:disabled) {
+  cursor: default;
+}
+
+/* The radio stays in the page for keys and screen readers; the picture
+   shows its state, as Appearance's tiles do. */
+.lead-tile input {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 1px;
+  height: 1px;
+  margin: 0;
+  opacity: 0;
+}
+
+.lead-tile-name {
+  display: block;
+  margin-top: 11px;
+  font-size: 13px;
+  line-height: 1.35;
+  color: var(--ink-2);
+}
+
+.lead-tile:has(input:checked) .lead-tile-name {
+  font-weight: 500;
+  color: var(--ink);
+}
+
+.lead-tile input:focus-visible ~ .lead-tile-name {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.lead-tile-note {
+  display: block;
+  margin-top: 2px;
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  line-height: 1.4;
+  color: var(--ink-3);
+}
+
+/* The picture: the popup's pine band in miniature, then its paper. The
+   band's colours are the popup's own (popup.css .masthead); the stamp is
+   the mint "on" because it is a picture of a stamp that says on. */
+.lead-pic {
+  --lp-band: #0d3b31;
+  --lp-ink: #fbf9f4;
+  --lp-ink-3: #9db3aa;
+  --lp-rule: rgba(255, 255, 255, 0.28);
+  --lp-wash: rgba(255, 255, 255, 0.12);
+  --lp-on: #a3dbbd;
+  display: flex;
+  flex-direction: column;
+  aspect-ratio: 4 / 3;
+  overflow: hidden;
+  border: 1px solid var(--rule-strong);
+  border-radius: var(--r-2);
+  background: var(--raised);
+  outline: 2px solid transparent;
+  outline-offset: 3px;
+  transition: outline-color var(--t-press) var(--ease), border-color var(--t-press) var(--ease);
+}
+
+/* Dark: written twice, as every dark palette is (see sieve-ui.css). */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .lead-pic {
+    --lp-band: #1f3a32;
+    --lp-ink: #f1ede3;
+    --lp-rule: rgba(241, 237, 227, 0.26);
+  }
+}
+
+:root[data-theme="dark"] .lead-pic {
+  --lp-band: #1f3a32;
+  --lp-ink: #f1ede3;
+  --lp-rule: rgba(241, 237, 227, 0.26);
+}
+
+.lead-tile:hover .lead-pic {
+  border-color: var(--ink-3);
+}
+
+.lead-tile input:checked + .lead-pic {
+  outline-color: var(--ink);
+}
+
+.lead-pic i,
+.lead-pic b {
+  display: block;
+}
+
+.lp-band {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 9px 10px 11px;
+  background: var(--lp-band);
+}
+
+.lp-bar {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.lp-mark {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--lp-ink);
+}
+
+.lp-word {
+  width: 24px;
+  height: 4px;
+  border-radius: 1px;
+  background: var(--lp-ink);
+}
+
+.lp-stamp {
+  width: 22px;
+  height: 7px;
+  margin-left: auto;
+  border: 1px solid var(--lp-on);
+  border-radius: 1px;
+}
+
+.lp-body {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.lp-kicker {
+  width: 32px;
+  height: 3px;
+  border-radius: 1px;
+  background: var(--lp-ink-3);
+}
+
+.lp-line {
+  width: 82%;
+  height: 5px;
+  border-radius: 1px;
+  background: var(--lp-ink);
+}
+
+.lp-line.is-short {
+  width: 52%;
+}
+
+.lp-hours {
+  display: grid;
+  grid-template-columns: repeat(24, minmax(0, 1fr));
+  gap: 1px;
+  margin-top: 3px;
+}
+
+.lp-hours i {
+  height: 7px;
+  border-radius: 1px;
+  background: var(--lp-wash);
+}
+
+.lp-hours .is-past {
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.lp-hours .is-now {
+  background: var(--lp-ink);
+}
+
+.lp-hours .is-hard {
+  background: repeating-linear-gradient(135deg, var(--lp-ink) 0 1px, transparent 1px 3px);
+}
+
+.lp-figure {
+  display: flex;
+  align-items: baseline;
+  gap: 4px;
+}
+
+.lead-pic .lp-num {
+  font-family: var(--font-serif);
+  font-size: 22px;
+  font-weight: 400;
+  line-height: 1;
+  letter-spacing: -0.02em;
+  color: var(--lp-ink);
+  white-space: nowrap;
+}
+
+.lp-unit {
+  font-family: var(--font-serif);
+  font-size: 10.5px;
+  color: var(--lp-ink-3);
+}
+
+.lp-ruler,
+.lp-holes {
+  position: relative;
+  display: flex;
+  justify-content: space-between;
+  margin-top: 3px;
+}
+
+.lp-ruler::before {
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: 0;
+  right: 0;
+  height: 1px;
+  background: var(--lp-rule);
+}
+
+.lp-ruler i,
+.lp-holes i,
+.lp-plate i {
+  position: relative;
+  width: 6px;
+  height: 6px;
+  box-sizing: border-box;
+  border: 1px solid var(--lp-rule);
+  border-radius: 50%;
+  background: var(--lp-band);
+}
+
+.lp-holes i,
+.lp-plate i {
+  width: 5px;
+  height: 5px;
+}
+
+.lead-pic .is-on {
+  background: var(--lp-ink);
+  border-color: var(--lp-ink);
+}
+
+.lead-pic .is-next,
+.lead-pic .is-now {
+  border-color: var(--lp-ink);
+  box-shadow: 0 0 0 1px var(--lp-band), 0 0 0 2px var(--lp-ink-3);
+}
+
+.lp-plate {
+  display: grid;
+  grid-template-columns: repeat(7, 5px);
+  gap: 3px;
+}
+
+.lp-plate .is-blank {
+  visibility: hidden;
+}
+
+.lp-plate .is-urge {
+  border-color: var(--lp-ink-3);
+}
+
+.lp-plate .is-ahead {
+  border-style: dotted;
+}
+
+.lead-pic.is-month .lp-body {
+  flex-direction: row;
+  align-items: center;
+  gap: 12px;
+}
+
+.lp-month {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.lp-quote {
+  display: -webkit-box;
+  overflow: hidden;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  font-family: var(--font-serif);
+  font-size: 13px;
+  line-height: 1.2;
+  color: var(--lp-ink);
+  text-indent: -0.4em;
+  overflow-wrap: anywhere;
+}
+
+/* The paper below the band: the parts of the popup, as lines. */
+.lp-rest {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 7px;
+  padding: 10px 10px 0;
+}
+
+.lp-row {
+  width: 72%;
+  height: 4px;
+  border-radius: 1px;
+  background: var(--rule-strong);
+}
+
+.lp-row:nth-child(2) {
+  width: 56%;
+}
+
+.lp-row:nth-child(3) {
+  width: 64%;
+}
+
+/* What the chosen lead needs: a habit, or your line. */
+.lead-detail {
+  margin-top: 22px;
+}
+
+.lead-detail > .hint {
+  max-width: 56ch;
+}
+
+.lead-habit {
+  display: block;
+}
+
+.lead-habit .sub-label {
+  margin-top: 14px;
+}
+
+.lead-words {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  max-width: 34rem;
+  margin-top: 14px;
+}
+
+.lead-words .input {
+  flex: 1;
+  min-width: 0;
+  font-family: var(--font-serif);
+  font-size: 16px;
+}
+
+.lead-words-count {
+  flex-shrink: 0;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--ink-3);
+  font-variant-numeric: tabular-nums;
+}
+
+#popup-lead-field > .switch-row {
+  margin-top: 22px;
+  padding-top: 18px;
+  border-top: 1px solid var(--rule);
+}
+
+/* ---- Under it ------------------------------------------------------------- */
+
+.beneath-checks {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px 24px;
+  transition: opacity var(--t-state) var(--ease);
+}
+
+.beneath-check {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  min-width: 0;
+  cursor: pointer;
+}
+
+.beneath-check .check {
+  margin-top: 2px;
+}
+
+.beneath-text {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+}
+
+.beneath-name {
+  font-size: 13.5px;
+  color: var(--ink);
+}
+
+.beneath-note {
+  font-size: 12px;
+  line-height: 1.4;
+  color: var(--ink-3);
+}
+
+#popup-beneath-field.is-asleep .beneath-checks {
+  opacity: 0.45;
+}
+
+#popup-beneath-field > .hint {
+  margin-top: 14px;
+}
+
+/* ---- Below the band: rows to carry by their handle ----------------------- */
+
+.arrange-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  border-top: 1px solid var(--rule);
+}
+
+.arrange-item {
+  position: relative;
+  border-bottom: 1px solid var(--rule);
+  transition: transform var(--t-state) var(--ease), box-shadow var(--t-state) var(--ease),
+    background-color var(--t-state) var(--ease);
+}
+
+.arrange-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 56px;
+  padding: 8px 0;
+}
+
+/* Six of the sieve's holes, to take hold of. */
+.arrange-grip {
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  width: 28px;
+  height: 38px;
+  margin-left: -6px;
+  padding: 0;
+  color: var(--ink-3);
+  background: none;
+  border: 0;
+  border-radius: var(--r-1);
+  cursor: grab;
+  touch-action: none;
+  transition: color var(--t-press) var(--ease), background-color var(--t-press) var(--ease);
+}
+
+.arrange-grip:hover:not(:disabled) {
+  color: var(--ink);
+  background: var(--wash);
+}
+
+.arrange-grip:disabled {
+  cursor: default;
+}
+
+.arrange-grip-icon {
+  width: 10px;
+  height: 16px;
+  fill: currentColor;
+}
+
+.arrange-text {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+}
+
+.arrange-name {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--ink);
+}
+
+.arrange-note {
+  font-size: 12.5px;
+  line-height: 1.4;
+  color: var(--ink-3);
+}
+
+/* Shown or set aside: an eye, open or shut, and the word. Set aside, the
+   row quietens and the button's line breaks into dashes: still there, out
+   of the way. */
+.arrange-eye {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  flex-shrink: 0;
+  min-width: 104px;
+  height: 30px;
+  padding: 0 11px 0 9px;
+  font-family: var(--font-sans);
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--ink);
+  background: none;
+  border: 1px solid var(--rule-strong);
+  border-radius: var(--r-1);
+  cursor: pointer;
+  transition: color var(--t-press) var(--ease), border-color var(--t-press) var(--ease),
+    background-color var(--t-press) var(--ease);
+}
+
+.arrange-eye:hover:not(:disabled) {
+  border-color: var(--ink);
+  background: var(--wash);
+}
+
+.arrange-eye:disabled {
+  cursor: default;
+}
+
+.arrange-eye-icon {
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
+}
+
+.arrange-eye .eye-shut,
+.arrange-eye[aria-pressed="false"] .eye-open {
+  display: none;
+}
+
+.arrange-eye[aria-pressed="false"] .eye-shut {
+  display: inline;
+}
+
+.arrange-eye[aria-pressed="false"] {
+  color: var(--ink-3);
+  border-style: dashed;
+}
+
+.is-set-aside > .arrange-row .arrange-name {
+  color: var(--ink-3);
+}
+
+/* Carried: lifted off the page, the one shadow, while the rest make room. */
+.arrange-list.is-sorting {
+  user-select: none;
+}
+
+.arrange-item.is-dragging {
+  z-index: 2;
+  background: var(--raised);
+  border-radius: var(--r-2);
+  box-shadow: var(--lift);
+  transition: box-shadow var(--t-state) var(--ease), background-color var(--t-state) var(--ease);
+}
+
+.arrange-item.is-dragging .arrange-grip {
+  color: var(--ink);
+  cursor: grabbing;
+}
+
+/* The quick switches, under Filters, hung from a rule like settings that
+   belong to the one above them. */
+.arrange-sub {
+  margin: 0 0 12px 22px;
+  padding-left: 0;
+  border-top: 0;
+  border-left: 1px solid var(--rule-strong);
+}
+
+.arrange-sub .arrange-item {
+  border-bottom: 0;
+}
+
+.arrange-sub .arrange-row {
+  min-height: 42px;
+  padding: 3px 0 3px 10px;
+}
+
+.arrange-sub .arrange-name {
+  font-size: 13.5px;
+  font-weight: 400;
+}
+
+.arrange-sub .arrange-eye {
+  height: 28px;
+}
+
+#popup-arrange-field > .actions {
+  margin-top: 20px;
+}
+
+@container (max-width: 560px) {
+  .beneath-checks {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .arrange-eye {
+    min-width: 0;
+  }
+  .arrange-eye-word {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+  }
+}
