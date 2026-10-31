@@ -59,9 +59,11 @@
         // The benefit(s) that grant Sieve Pro. Required: every product in the
         // store shares the organisation id, so this is what tells a Sieve Pro
         // key from a BlockNSFW one. Until it is set, Pro cannot be activated.
-        benefitIds: [],
-        // Without it the settings page hides the Buy button.
-        checkoutUrl: "",
+        benefitIds: ["4c41be51-3c05-44a5-ac59-76108b4b8b6c"],
+        // Without it the settings page hides the Buy button. Sieve Pro at
+        // $34.99, with the $10 launch discount preset on the link until
+        // 2 January 2027 (see `launch` below).
+        checkoutUrl: "https://buy.polar.sh/polar_cl_qjDvSCcQ0ADA26pvzsvFIutGFMuX0HVcE4EwI2ZOsU1",
         api: "https://api.polar.sh",
         // Where buyers find their key and see the browsers it is on.
         portal: "https://polar.sh/monolab/portal",
@@ -74,7 +76,12 @@
         portal: "https://sandbox.polar.sh/monolab/portal",
       },
     },
-    priceLabel: "$24.99",
+    priceLabel: "$34.99",
+    // A launch price, quoted until the day `until` begins (in the buyer's
+    // own time zone) and then gone by itself, so Settings never quotes a
+    // price the checkout has stopped charging. It only says what the price
+    // is: the product's price in Polar has to change on the same day.
+    launch: { priceLabel: "$24.99", until: "2027-01-01" },
   };
 
   function store() {
@@ -127,6 +134,21 @@
   function isConfigured() {
     const s = store();
     return !!s.organizationId && s.benefitIds.length > 0;
+  }
+
+  // The price Settings quotes: the launch price until it ends, then the full
+  // one. { label, regular, launch, lastDay }: lastDay is the launch price's
+  // last day, or null when there is no launch price (any more).
+  function price(now = Date.now()) {
+    const regular = CONFIG.priceLabel;
+    const full = { label: regular, regular, launch: false, lastDay: null };
+    const l = CONFIG.launch;
+    const m = l && l.priceLabel && /^(\d{4})-(\d{2})-(\d{2})$/.exec(l.until || "");
+    if (!m) return full;
+    const ends = new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]));
+    if (!(now < ends.getTime())) return full;
+    const lastDay = new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]) - 1);
+    return { label: l.priceLabel, regular, launch: true, lastDay };
   }
 
   function apiBase() {
@@ -411,6 +433,7 @@
     maskKey,
     isProState,
     isConfigured,
+    price,
     apiBase,
     portalUrl,
     checkoutUrl,

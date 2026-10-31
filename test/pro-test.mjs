@@ -435,13 +435,47 @@ test("the shipped config: live mode, Monolab's live store, and a complete sandbo
   assert.equal(live.organizationId, "354a2f6c-8ea7-46a7-87c5-f97645c12e29");
   assert.equal(live.api, "https://api.polar.sh");
   assert.equal(live.portal, "https://polar.sh/monolab/portal");
-  // The live store's benefit and checkout are filled in at launch; a store
-  // package refuses to build until they are (build-pro.mjs).
+  // Sieve Supporter on sale: its licence-key benefit, and the checkout link
+  // with the launch discount preset. A store package refuses to build
+  // without them (build-pro.mjs).
+  assert.deepEqual(live.benefitIds, ["4c41be51-3c05-44a5-ac59-76108b4b8b6c"]);
+  assert.equal(live.checkoutUrl, "https://buy.polar.sh/polar_cl_qjDvSCcQ0ADA26pvzsvFIutGFMuX0HVcE4EwI2ZOsU1");
+  assert.ok(!live.benefitIds.some((id) => sandbox.benefitIds.includes(id)), "a sandbox benefit never sells live");
   assert.notEqual(sandbox.organizationId, live.organizationId, "the sandbox is a separate store");
   assert.match(sandbox.organizationId, /^[0-9a-f-]{36}$/);
   assert.equal(sandbox.benefitIds.length, 1);
   assert.match(sandbox.checkoutUrl, /^https:\/\/sandbox-api\.polar\.sh\/v1\/checkout-links\/polar_cl_\w+\/redirect$/);
   assert.equal(sandbox.api, "https://sandbox-api.polar.sh");
+});
+
+test("the launch price is quoted until its last day, then the full price, with no update needed", () => {
+  assert.equal(SHIPPED.priceLabel, "$34.99");
+  assert.deepEqual(SHIPPED.launch, { priceLabel: "$24.99", until: "2027-01-01" });
+  // Local times, as the buyer's clock reads them.
+  const lastEvening = new Date(2026, 11, 31, 23, 59, 59).getTime();
+  const firstMorning = new Date(2027, 0, 1, 0, 0, 0).getTime();
+
+  const during = P.price(new Date(2026, 10, 20, 12).getTime());
+  assert.equal(during.label, "$24.99");
+  assert.equal(during.regular, "$34.99");
+  assert.equal(during.launch, true);
+  assert.deepEqual([during.lastDay.getFullYear(), during.lastDay.getMonth(), during.lastDay.getDate()], [2026, 11, 31]);
+
+  assert.equal(P.price(lastEvening).label, "$24.99");
+  assert.deepEqual(P.price(firstMorning), { label: "$34.99", regular: "$34.99", launch: false, lastDay: null });
+  assert.equal(P.price(firstMorning + 90 * DAY).label, "$34.99");
+});
+
+test("no launch price, or a broken one, quotes the full price", () => {
+  const saved = P.CONFIG.launch;
+  try {
+    for (const launch of [undefined, null, {}, { priceLabel: "$24.99" }, { priceLabel: "$24.99", until: "next year" }, { until: "2099-01-01" }]) {
+      P.CONFIG.launch = launch;
+      assert.deepEqual(P.price(T0), { label: "$34.99", regular: "$34.99", launch: false, lastDay: null }, JSON.stringify(launch));
+    }
+  } finally {
+    P.CONFIG.launch = saved;
+  }
 });
 
 test("the masked key shows the tail only", () => {
