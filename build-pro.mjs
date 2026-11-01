@@ -19,9 +19,9 @@
 // out at pro-private\ (ignored by this one); pro\ here holds an empty stand-in
 // of the same name for each (pro/README.md). Only those names are copied, so
 // nothing else in the private repository (its tests, its notes) can reach a
-// package.
+// package, and they are copied minified (see below).
 
-import { readFileSync, readdirSync, existsSync, copyFileSync, rmSync, statSync, writeFileSync } from "node:fs";
+import { readFileSync, readdirSync, existsSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 import { execFileSync } from "node:child_process";
@@ -126,8 +126,26 @@ if (kind === "open-source" || !checkPrivate(kind)) {
   console.log("Sieve Pro: not included (the stand-ins stay)");
   process.exit(0);
 }
-for (const name of standInNames()) copyFileSync(join(REAL, name), join(outPro, name));
-console.log(`Sieve Pro: included (${standInNames().join(", ")})`);
+// Minified on the way in, in every build that carries Pro, so what is tried
+// before release is what ships. A store package is a zip anyone can open: the
+// stand-ins and pro/README.md say what Pro does, and the minified files keep
+// how it does it to themselves. The Chrome Web Store allows minified code (it
+// bans obfuscation, which this is not); Firefox Add-ons asks for the source of
+// minified code, which build-firefox.ps1 -Zip packs for its reviewers.
+// Property names are left alone: pages find Pro by them (window.SieveStreaks…).
+const { transformSync } = await import("esbuild");
+for (const name of standInNames()) {
+  const real = join(REAL, name);
+  let code;
+  try {
+    code = transformSync(readFileSync(real, "utf8"), { loader: "js", minify: true, legalComments: "none", charset: "utf8" }).code;
+    new vm.Script(code, { filename: name }); // still a script that parses on its own
+  } catch (err) {
+    fail(`pro-private\\pro\\${name} could not be minified: ${err.message}`);
+  }
+  writeFileSync(join(outPro, name), code);
+}
+console.log(`Sieve Pro: included, minified (${standInNames().join(", ")})`);
 
 // A sandbox build switches its own copy of the licence check to Polar's test
 // store. The source, and every other build, stays live.

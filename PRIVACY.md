@@ -1,6 +1,6 @@
 # Privacy Policy for Sieve
 
-**Last updated: October 29, 2026**
+**Last updated: October 31, 2026**
 
 ## The short version
 
@@ -26,8 +26,9 @@ purchase. If you buy it and type in your licence key, that key is sent to Polar,
 the company that sells Sieve Supporter for us, to check that it is valid, along with a
 plain name for the browser ("Sieve · Edge on Windows") so you can tell your
 browsers apart on your purchases page. That happens when you enter or remove the
-key and about once a week in between, and only from Sieve's settings page. It is
-described [below](#sieve-supporter-licence-check). Without Supporter, nothing changes.
+key, and about once a week in between, on a timer, never because of anything you
+do in the browser. It is described [below](#sieve-supporter-licence-check).
+Without Supporter, nothing changes.
 
 Sieve is open source, so anyone can verify these claims:
 <https://github.com/codepurse/Sieve>. The one exception is Sieve Supporter's
@@ -142,10 +143,14 @@ Sieve's own shop ID** to Polar's licence service (`api.polar.sh`) to ask whether
 it is valid. A key works in a few browsers at once, so entering it also takes
 one of its places for this browser, under a plain name for the browser and
 operating system ("Sieve · Edge on Windows"), never anything that identifies you
-or the machine. Sieve asks again about once a week, only when you open its
-settings page, so a refunded key stops working; that check carries the key, the
-shop ID and this browser's place on the key. **Remove from this browser** gives
-the place back (the same three things) and then deletes the key here.
+or the machine. Sieve asks again about once a week, so a refunded key stops
+working; that check carries the key, the shop ID and this browser's place on the
+key. It runs on a timer in the background (and when you open Sieve's settings),
+never from the popup or a block page, so its timing says nothing about what you
+were doing. If Sieve can't get an answer from Polar for 30 days, Supporter pauses
+until it can; nothing you set up is deleted, and it comes back by itself.
+**Remove from this browser** gives the place back (the same three things) and
+then deletes the key here.
 
 Nothing else is sent: not your browsing, not your settings, not anything the
 Supporter features keep. Polar knows which purchase the key belongs to, because they
@@ -154,7 +159,9 @@ sold it, and may see your IP address, as with any web request.
 **In Firefox**, Sieve asks your permission before it sends the key, the first
 time you press Activate, through Firefox's own question about data an
 extension sends. If you say no, nothing is sent and Supporter stays off. Nobody who
-does not activate Supporter is ever asked.
+does not activate Supporter is ever asked. If you take that permission back later,
+the weekly check stops too, and after 30 days Supporter pauses until you allow it
+again (Settings › Supporter › Check again).
 
 The key is kept on your device so it can be checked again. The Supporter features
 themselves (the urge screen, plans, the heads-up, streaks and Your progress) run

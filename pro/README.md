@@ -10,14 +10,15 @@ The files in this folder are empty stand-ins for **Sieve Supporter** (called Pro
 | `designs.js` | The ensō and the river, for the centre of the urge screen |
 | `voice.js` | A message in your own voice, recorded in Settings and played on the urge screen |
 | `coach.js` | Plans for the hard moments, things to try instead and what works for you, and the heads-up before the hardest hours (shown by `background/heads-up.js`, open source) |
+| `popup.js` | Your popup: what the band at the top of the toolbar popup leads with (a streak, money kept, the month, your own words), and the parts under it arranged or tucked away (shown by `popup/popup.js`, open source) |
 | `progress.js` | The Your progress page (`pages/progress.html`) |
-| `settings.js` | The urge screen, voice, plans and streaks groups in Settings › Sieve Supporter |
+| `settings.js` | The urge screen, voice, plans, streaks and Your popup groups in Settings › Sieve Supporter |
 | `features.js` | Which Pro features a build carries (here: none) |
 
 Sieve Supporter is not open source. It lives in a separate, private repository and
-is copied over these files when a store build is made (`build-chrome.ps1`,
-`build-firefox.ps1`). The versions of Sieve on the Chrome Web Store, Microsoft
-Edge Add-ons and Firefox Add-ons carry it.
+is copied over these files, minified, when a store build is made
+(`build-chrome.ps1`, `build-firefox.ps1`). The versions of Sieve on the Chrome
+Web Store, Microsoft Edge Add-ons and Firefox Add-ons carry it.
 
 **Every protection is open source and here**: every blocker and its lists,
 the filters, the Dark Pattern Blocker, the Doomscroll Stopper, the Guardian
@@ -27,7 +28,9 @@ made from this repository protects exactly as the store version does. Without
 Pro, Settings has no Sieve Supporter section, and the block page is the plain notice.
 
 So is the licence check (`common/pro.js`), the one network request Pro makes,
-so anyone can see exactly what it sends. And so is the half of the heads-up
+so anyone can see exactly what it sends, and the timer that repeats it about
+once a week (`background/licence-check.js`). A key Polar has not confirmed in
+30 days pauses Pro until it does. And so is the half of the heads-up
 that runs in the service worker (`background/heads-up.js`): Pro works out when
 someone's hardest hours begin and stores the words; the open-source code shows
 only those, and only once they have turned the heads-up on and allowed

@@ -5,6 +5,33 @@
 
 const SET_MODULE_STATE = "SET_MODULE_STATE";
 
+// Settings › Supporter › Your popup shows this page in a frame, live, as
+// popup.html?preview. There it speaks about the web page used last, since the
+// tab it is in is the settings page, and it tells the frame its height.
+const PREVIEW = new URLSearchParams(location.search).has("preview");
+
+// The tab this popup speaks about: the one it opened over, or in the preview
+// the web page used last. Asked once.
+let pageTabAsked = null;
+function pageTab() {
+  if (!pageTabAsked) {
+    pageTabAsked = (async () => {
+      try {
+        if (!PREVIEW) {
+          const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+          return tab || null;
+        }
+        const tabs = (await chrome.tabs.query({})).filter((t) => /^https?:/.test(t.url || ""));
+        tabs.sort((a, b) => (b.lastAccessed || 0) - (a.lastAccessed || 0));
+        return tabs[0] || null;
+      } catch {
+        return null;
+      }
+    })();
+  }
+  return pageTabAsked;
+}
+
 // Show "On" / "Off" next to a module name.
 function updateLabel(label, enabled) {
   label.textContent = enabled ? "On" : "Off";
@@ -32,6 +59,12 @@ async function wireToggle(toggle, label, storageKey, moduleName, defaultEnabled 
 
 document.addEventListener("DOMContentLoaded", () => {
   fillVersion();
+  if (PREVIEW) setupPreview();
+
+  // The parts below the band, in the order chosen in Your popup. They wait
+  // unseen until it is known (a storage read), so they never visibly jump.
+  setupArrangement();
+  arrangePopup();
 
   wireToggle(
     document.getElementById("bad-language-toggle"),
@@ -69,6 +102,7 @@ document.addEventListener("DOMContentLoaded", () => {
   chrome.storage.onChanged.addListener((changes, area) => {
     if (area === "local" && MODULE_KEYS.some((k) => changes[k])) updateStatusBanner();
     if (area === "local" && TOP_KEYS.some((k) => changes[k])) updateTop();
+    if (area === "local" && (changes[POPUP_KEY] || changes.proLicence)) arrangePopup();
   });
 });
 
@@ -149,14 +183,18 @@ async function updateStatusBanner() {
   }
 }
 
-// Under the top bar: a running seal (free, common/seal.js). With Sieve Pro,
-// tonight (pro/coach.js): where the hardest hours stand against the clock,
-// the plan for them and what tends to help, then the seal and the streaks as
-// stamps and a way to Your progress (saying so when last month's letter is
-// waiting). Without Pro, until dismissed, a word about what Pro would show
-// here. In an open-source build the Pro files are empty stand-ins, nothing is
-// for sale, and there is only the seal.
+// Under the top bar: a running seal (free, common/seal.js). With Sieve Pro, a
+// lead: tonight (pro/coach.js), where the hardest hours stand against the
+// clock, the plan for them and what tends to help, or whatever was chosen in
+// Your popup (pro/popup.js): a streak, money kept, the month, your own words,
+// the seal, or nothing at all. Under the lead, the seal and the streaks as
+// stamps, money kept and a way to Your progress (saying so when last month's
+// letter is waiting), less whatever the lead already says. Without Pro, until
+// dismissed, a word about what Pro would show here. In an open-source build
+// the Pro files are empty stand-ins, nothing is for sale, and there is only
+// the seal.
 const PRO_HINT_KEY = "popupProHintHidden";
+const POPUP_KEY = "proPopup";
 const TOP_KEYS = [
   "proLicence",
   "proSeal",
@@ -166,6 +204,7 @@ const TOP_KEYS = [
   "sieveAttempts",
   "proPlans",
   "proTries",
+  POPUP_KEY,
   PRO_HINT_KEY,
 ];
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -270,6 +309,32 @@ function drawDay(host, day) {
   host.append(now, hours, scale, hard);
 }
 
+// Tonight, from what Sieve Pro reads in the attempt record.
+async function drawTonight(C, A, now) {
+  const said = C && A ? await readTonight(C, A, now) : null;
+  document.getElementById("tonight-when").hidden = !said;
+  document.getElementById("tonight-title").hidden = !said;
+  const dayEl = document.getElementById("tonight-day");
+  const planEl = document.getElementById("tonight-plan");
+  const worksEl = document.getElementById("tonight-works");
+  dayEl.hidden = !(said && said.day);
+  planEl.hidden = !(said && said.plan);
+  worksEl.hidden = !(said && said.works);
+  if (said) {
+    document.getElementById("tonight-when").textContent = said.when;
+    document.getElementById("tonight-title").textContent = said.title;
+    if (said.day) drawDay(dayEl, said.day);
+    if (said.plan) {
+      document.getElementById("tonight-plan-label").textContent = said.planLabel;
+      document.getElementById("tonight-if").textContent = said.plan.if;
+      document.getElementById("tonight-then").textContent = said.plan.then;
+    }
+    if (said.works) worksEl.textContent = said.works;
+  }
+}
+
+const UNDER_ALL = { streaks: true, seal: true, kept: true, progress: true };
+
 async function updateTop() {
   const top = document.getElementById("top");
   if (!top) return;
@@ -278,12 +343,17 @@ async function updateTop() {
   const ST = window.SieveStreaks;
   const C = window.SieveCoach;
   const A = window.SieveAttempts;
+  const PP = window.SieveProPopup;
   const now = Date.now();
   const sealBox = document.getElementById("seal");
   const tonightBox = document.getElementById("tonight");
+  const leadBox = document.getElementById("lead");
+  const beneath = document.getElementById("beneath");
   const hintBox = document.getElementById("pro-hint");
   let sealed = null;
   let pro = false;
+  let lead = { id: "tonight" };
+  let under = false;
 
   try {
     if (S) {
@@ -293,82 +363,99 @@ async function updateTop() {
 
     if (P && ST && (await P.isPro(now))) {
       pro = true;
-      const stamps = document.getElementById("tonight-stamps");
-      stamps.textContent = "";
-      if (sealed) stamps.appendChild(topEl("span", "stamp", `Sealed → ${S.formatDay(sealed.until)}`));
-      let kept = "";
-      for (const row of (await ST.summary(now)).slice(0, 3)) {
-        const days = row.days === 0 ? "from today" : ST.daysLabel(row.days);
-        stamps.appendChild(topEl("span", "stamp", `${HABIT_SHORT[row.id] || row.label} · ${days}`));
-        if (!kept && row.keptLabel) {
-          kept = `About ${row.keptLabel} kept`;
-          if (row.goalProgress) {
-            kept += row.goalProgress.reached
-              ? `, enough for ${row.goal.name}`
-              : ` · ${Math.floor(row.goalProgress.share * 100)}% of the way to ${row.goal.name}`;
+      const rows = await ST.summary(now);
+
+      // The lead chosen in Your popup, when this build carries it.
+      let show = UNDER_ALL;
+      if (PP) {
+        const stored = await chrome.storage.local.get(A ? [POPUP_KEY, A.KEY] : [POPUP_KEY]);
+        const layout = PP.normalize(stored[POPUP_KEY]);
+        lead = PP.chooseLead(layout, { rows, record: A ? A.normalize(stored[A.KEY]) : null, sealed: !!sealed, now });
+        show = layout.beneath;
+      }
+      if (lead.id === "tonight") await drawTonight(C, A, now);
+      leadBox.hidden = !(PP && PP.drawLead(leadBox, lead, now));
+
+      // Under the lead, what was chosen, less what the lead already says.
+      if (lead.id !== "quiet") {
+        const stamps = document.getElementById("top-stamps");
+        stamps.textContent = "";
+        if (sealed && show.seal && lead.id !== "seal") {
+          stamps.appendChild(topEl("span", "stamp", `Sealed → ${S.formatDay(sealed.until)}`));
+        }
+        if (show.streaks) {
+          const others = rows.filter((row) => !(lead.id === "streak" && row.id === lead.row.id));
+          for (const row of others.slice(0, 3)) {
+            const days = row.days === 0 ? "from today" : ST.daysLabel(row.days);
+            stamps.appendChild(topEl("span", "stamp", `${HABIT_SHORT[row.id] || row.label} · ${days}`));
           }
         }
-      }
-      const keptEl = document.getElementById("tonight-kept");
-      keptEl.textContent = kept;
-      keptEl.hidden = !kept;
-
-      // Tonight, from what Sieve Pro reads in the attempt record.
-      const said = C && A ? await readTonight(C, A, now) : null;
-      document.getElementById("tonight-when").hidden = !said;
-      document.getElementById("tonight-title").hidden = !said;
-      const dayEl = document.getElementById("tonight-day");
-      const planEl = document.getElementById("tonight-plan");
-      const worksEl = document.getElementById("tonight-works");
-      dayEl.hidden = !(said && said.day);
-      planEl.hidden = !(said && said.plan);
-      worksEl.hidden = !(said && said.works);
-      if (said) {
-        document.getElementById("tonight-when").textContent = said.when;
-        document.getElementById("tonight-title").textContent = said.title;
-        if (said.day) drawDay(dayEl, said.day);
-        if (said.plan) {
-          document.getElementById("tonight-plan-label").textContent = said.planLabel;
-          document.getElementById("tonight-if").textContent = said.plan.if;
-          document.getElementById("tonight-then").textContent = said.plan.then;
+        let kept = "";
+        const keeping = show.kept && lead.id !== "kept" ? rows.slice(0, 3).find((row) => row.keptLabel) : null;
+        if (keeping) {
+          kept = `About ${keeping.keptLabel} kept`;
+          if (keeping.goalProgress) {
+            kept += keeping.goalProgress.reached
+              ? `, enough for ${keeping.goal.name}`
+              : ` · ${Math.floor(keeping.goalProgress.share * 100)}% of the way to ${keeping.goal.name}`;
+          }
         }
-        if (said.works) worksEl.textContent = said.works;
-      }
+        const keptEl = document.getElementById("top-kept");
+        keptEl.textContent = kept;
+        keptEl.hidden = !kept;
 
-      const month = await waitingLetter(now);
-      const link = document.getElementById("tonight-progress");
-      link.textContent = month ? `Your ${month} letter is ready →` : "Your progress →";
-      link.dataset.hash = month ? "#month" : "";
+        const link = document.getElementById("top-progress");
+        link.hidden = !show.progress;
+        if (show.progress) {
+          const month = await waitingLetter(now);
+          link.textContent = month ? `Your ${month} letter is ready →` : "Your progress →";
+          link.dataset.hash = month ? "#month" : "";
+        }
+        under = stamps.childElementCount > 0 || !!kept || show.progress;
+      }
     }
   } catch (err) {
     console.warn("[Sieve] popup: could not read the seal, streaks or tonight:", err);
   }
 
-  // With Pro the seal is one of the stamps; without, it has the top to itself.
-  sealBox.hidden = pro || !sealed;
-  if (sealed && !pro) {
+  // Without Pro the seal has the top to itself. With Pro it is one of the
+  // stamps, unless Your popup lets it lead while it runs.
+  const sealLeads = !!sealed && (pro ? lead.id === "seal" : true);
+  sealBox.hidden = !sealLeads;
+  if (sealLeads) {
     const left = Math.max(1, Math.ceil((sealed.until - now) / DAY_MS));
     document.getElementById("seal-until").textContent = `Until ${S.formatDay(sealed.until)}`;
     document.getElementById("seal-days").textContent = left === 1 ? "1 day" : `${left} days`;
     drawSealDays(document.getElementById("seal-holes"), sealed, now);
   }
-  tonightBox.hidden = !pro;
+  tonightBox.hidden = !(pro && lead.id === "tonight");
+  if (!pro) leadBox.hidden = true;
+  beneath.hidden = !(pro && under);
 
   // The hint: only where this build carries Pro, Pro is on sale, and it is
-  // not already on, until dismissed.
+  // not already on, until dismissed. Never to someone who bought it: a key
+  // waiting on Polar, or paused because Polar has not answered in 30 days,
+  // gets a line saying so instead.
   let hint = false;
+  let paused = false;
   const carried = Array.isArray(window.SieveProFeatures) && window.SieveProFeatures.length > 0;
-  if (!pro && carried && P && P.isConfigured()) {
+  if (!pro && carried && P) {
     try {
-      hint = !(await chrome.storage.local.get(PRO_HINT_KEY))[PRO_HINT_KEY];
+      const licence = await P.getLicence();
+      paused = P.isPaused(licence, now);
+      const bought = !!licence && licence.status === "granted";
+      hint = !bought && P.isConfigured() && !(await chrome.storage.local.get(PRO_HINT_KEY))[PRO_HINT_KEY];
     } catch {
       hint = false;
     }
   }
   hintBox.hidden = !hint;
   if (hint) drawDay(document.getElementById("pro-hint-day"), null);
+  const pausedBox = document.getElementById("pro-paused");
+  pausedBox.hidden = !paused;
 
-  top.hidden = sealBox.hidden && tonightBox.hidden && hintBox.hidden;
+  top.hidden =
+    sealBox.hidden && tonightBox.hidden && leadBox.hidden && beneath.hidden && hintBox.hidden && pausedBox.hidden;
 }
 
 async function readTonight(C, A, now) {
@@ -377,16 +464,153 @@ async function readTonight(C, A, now) {
 }
 
 function setupTop() {
-  document.getElementById("tonight-progress").addEventListener("click", (event) => {
+  document.getElementById("top-progress").addEventListener("click", (event) => {
     openProgress(event.currentTarget.dataset.hash || "");
   });
   document.getElementById("pro-hint-open").addEventListener("click", () => {
     chrome.tabs.create({ url: chrome.runtime.getURL("options/options.html#section-pro") });
     window.close();
   });
+  document.getElementById("pro-paused-open").addEventListener("click", () => {
+    chrome.tabs.create({ url: chrome.runtime.getURL("options/options.html#pro-card") });
+    window.close();
+  });
   document.getElementById("pro-hint-close").addEventListener("click", () => {
     document.getElementById("pro-hint").hidden = true;
     chrome.storage.local.set({ [PRO_HINT_KEY]: true }).catch(() => {});
+  });
+}
+
+// ===========================================================================
+// Your popup — with Sieve Supporter, the parts below the band in the order
+// chosen in Settings › Supporter › Your popup (pro/popup.js). A part set aside
+// waits under "Tucked away" at the foot, by name, with a count when it has
+// caught something on this page; a switch left out of Filters waits behind
+// "Show N more". Nothing is taken away: every part still works and is one
+// click from here. Without Supporter, or in a build without it, the popup is
+// as popup.html writes it.
+// ===========================================================================
+
+// The parts below the band, by the names pro/popup.js gives them.
+const PARTS = { receipt: "receipt", reminders: "reminders", modules: "modules", site: "popup-hijack-section" };
+const PART_NAMES = { receipt: "On this page", reminders: "Free-trial reminders", modules: "Filters", site: "This site" };
+
+let tuckOpen = false;
+let switchesOpen = false;
+// What a tucked part has to say: counts the parts below keep up to date.
+const partNews = { receipt: 0, reminders: 0, site: 0 };
+
+async function readArrangement() {
+  const P = window.SievePro;
+  const PP = window.SieveProPopup;
+  if (!P || !PP) return null;
+  try {
+    if (!(await P.isPro())) return null;
+    return PP.normalize((await chrome.storage.local.get(POPUP_KEY))[POPUP_KEY]);
+  } catch {
+    return null;
+  }
+}
+
+async function arrangePopup() {
+  const layout = await readArrangement();
+  const tuck = document.getElementById("tuck");
+  const tucked = document.getElementById("tucked");
+
+  // Each part in turn just above the tuck line, or into it.
+  const order = layout ? layout.sections.order : Object.keys(PARTS);
+  const aside = layout ? layout.sections.tucked : [];
+  for (const id of order) {
+    const part = document.getElementById(PARTS[id]);
+    if (!part) continue;
+    if (aside.includes(id)) tucked.appendChild(part);
+    else tuck.before(part);
+  }
+
+  // The switches likewise, the ones left out behind "Show N more".
+  const modules = document.getElementById("modules");
+  const more = document.getElementById("switches-more");
+  const rows = [...modules.querySelectorAll("[data-switch]")];
+  const switches = layout ? layout.switches.order : rows.map((row) => row.dataset.switch);
+  const left = layout ? layout.switches.hidden : [];
+  for (const id of switches) {
+    const row = rows.find((r) => r.dataset.switch === id);
+    if (!row) continue;
+    if (left.includes(id)) more.appendChild(row);
+    else more.before(row);
+  }
+
+  syncSwitchesMore();
+  refreshTuck();
+  document.documentElement.classList.remove("is-arranging");
+}
+
+function syncSwitchesMore() {
+  const more = document.getElementById("switches-more");
+  const button = document.getElementById("switches-more-btn");
+  const n = more.childElementCount;
+  button.hidden = n === 0;
+  more.hidden = n === 0 || !switchesOpen;
+  button.textContent = switchesOpen ? "Show fewer" : `${n} more ${n === 1 ? "switch" : "switches"}`;
+  button.setAttribute("aria-expanded", String(n > 0 && switchesOpen));
+}
+
+// The line names each tucked part that has anything in it (the reminders only
+// while there is one), with the count of what it has caught here.
+function refreshTuck() {
+  const tuck = document.getElementById("tuck");
+  const tucked = document.getElementById("tucked");
+  const names = document.getElementById("tuck-names");
+  if (!tuck) return;
+  names.textContent = "";
+  for (const part of tucked.children) {
+    if (part.hidden) continue;
+    const id = Object.keys(PARTS).find((k) => PARTS[k] === part.id);
+    const name = topEl("span", "tuck-name", PART_NAMES[id] || "");
+    if (partNews[id]) name.appendChild(topEl("span", `tuck-count${id === "reminders" ? "" : " is-caught"}`, String(partNews[id])));
+    names.appendChild(name);
+  }
+  tuck.hidden = names.childElementCount === 0;
+  if (tuck.hidden) tuckOpen = false;
+  tucked.hidden = !tuckOpen;
+  tuck.classList.toggle("is-open", tuckOpen);
+  document.getElementById("tuck-line").setAttribute("aria-expanded", String(tuckOpen));
+}
+
+function setupArrangement() {
+  document.documentElement.classList.add("is-arranging");
+  // Never left unseen for long, whatever storage does.
+  setTimeout(() => document.documentElement.classList.remove("is-arranging"), 400);
+  document.getElementById("tuck-line").addEventListener("click", () => {
+    tuckOpen = !tuckOpen;
+    refreshTuck();
+  });
+  document.getElementById("switches-more-btn").addEventListener("click", () => {
+    switchesOpen = !switchesOpen;
+    syncSwitchesMore();
+  });
+}
+
+// The preview in Settings is a frame as wide as the popup; it grows to fit
+// whatever this page holds, so it is told the height whenever that changes.
+function setupPreview() {
+  document.documentElement.classList.add("is-preview");
+  let last = 0;
+  const tell = () => {
+    const height = Math.ceil(document.body.getBoundingClientRect().height);
+    if (height === last) return;
+    last = height;
+    parent.postMessage({ type: "sieve:popup-preview", height }, location.origin);
+  };
+  new ResizeObserver(tell).observe(document.body);
+  pageTab().then((tab) => {
+    let host = "";
+    try {
+      host = tab && tab.url ? new URL(tab.url).hostname.replace(/^www\./, "") : "";
+    } catch {
+      host = "";
+    }
+    parent.postMessage({ type: "sieve:popup-preview", host }, location.origin);
   });
 }
 
@@ -536,6 +760,8 @@ function renderReceipt(report, force) {
   else empty.textContent = "No tricks spotted on this page.";
 
   updateDarkPatternsCount(report ? tricks.length : 0);
+  partNews.receipt = tricks.length;
+  refreshTuck();
 }
 
 async function refreshReceipt() {
@@ -564,6 +790,8 @@ async function refreshReminders() {
   const ol = document.getElementById("reminder-list");
   ol.textContent = "";
   section.hidden = list.length === 0;
+  partNews.reminders = list.length;
+  refreshTuck();
 
   for (const r of list) {
     const li = document.createElement("li");
@@ -598,12 +826,8 @@ async function setupReceipt() {
     receiptExpanded = !receiptExpanded;
     renderReceipt(receiptReport, true);
   });
-  try {
-    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-    receiptTabId = tab?.id ?? null;
-  } catch {
-    receiptTabId = null;
-  }
+  const tab = await pageTab();
+  receiptTabId = tab?.id ?? null;
   await refreshReceipt();
   // Some findings wait on the Claim Ledger, so a popup opened the moment a page
   // loads can arrive before they do. Ask once more.
@@ -659,7 +883,7 @@ function updateToxicCount(total) {
 // ask every frame for its count and sum them.
 async function refreshToxicHiderCount() {
   try {
-    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+    const tab = await pageTab();
     if (!tab?.id) return updateToxicCount(0);
 
     let frames = [{ frameId: 0 }];
@@ -758,6 +982,8 @@ const PH_REASONS = {
 };
 
 function updatePopupHijackCount(n) {
+  partNews.site = n;
+  refreshTuck();
   const el = document.getElementById("popup-hijack-count");
   el.textContent =
     n === 0
@@ -939,7 +1165,7 @@ async function refreshWhitelist() {
 
 async function refreshPopupHijack() {
   try {
-    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+    const tab = await pageTab();
     if (!tab?.id) {
       phEntries = [];
       phHost = null;

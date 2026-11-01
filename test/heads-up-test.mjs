@@ -62,7 +62,7 @@ const at = (y, m, d, h = 12, min = 0) => new Date(y, m, d, h, min).getTime();
 // Wednesday 28 October 2026, noon. Friday is the 30th.
 const NOW = at(2026, 9, 28, 12);
 const FRIDAY_945PM = { day: 5, minute: 21 * 60 + 45 };
-const GRANTED = { key: "SIEVE-TEST", status: "granted" };
+const GRANTED = { key: "SIEVE-TEST", status: "granted", checkedAt: NOW - 24 * 3600000 };
 
 function reset(stored) {
   for (const k of Object.keys(local)) delete local[k];
@@ -100,6 +100,12 @@ test("Pro is on for a granted key that has not expired, and only then", () => {
   assert.equal(licensed({ ...GRANTED, status: "revoked" }, NOW), false);
   assert.equal(licensed({ status: "granted" }, NOW), false);
   assert.equal(licensed(null, NOW), false);
+  // Never answered for by Polar, or "checked" next week: written by hand.
+  assert.equal(licensed({ key: "SIEVE-TEST", status: "granted" }, NOW), false);
+  assert.equal(licensed({ ...GRANTED, checkedAt: NOW + 7 * 24 * 3600000 }, NOW), false);
+  // Paused, as in common/pro.js: no answer from Polar for 30 days.
+  assert.equal(licensed({ ...GRANTED, checkedAt: NOW - 29 * 24 * 3600000 }, NOW), true);
+  assert.equal(licensed({ ...GRANTED, checkedAt: NOW - 30 * 24 * 3600000 }, NOW), false);
 });
 
 test("the alarm is set only while it is switched on and Pro is on", async () => {

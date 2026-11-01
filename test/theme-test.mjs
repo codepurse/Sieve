@@ -80,18 +80,20 @@ test("sieve-ui.css: no dark rule is left that ignores the choice", () => {
   assert.ok(count >= 1);
 });
 
-test("options.css: every dark rule steps aside for Light; the Warden band's two match", () => {
+test("options.css: every dark rule steps aside for Light; the pine bands' two match", () => {
   const css = read("options/options.css");
   const re = /@media \(prefers-color-scheme: dark\) \{\s*([^{]+)\{/g;
   let m;
   while ((m = re.exec(css))) {
     assert.match(m[1], /:not\(\[data-theme="light"\]\)/, `dark rule without the Light escape: ${m[1].trim()}`);
   }
-  const media = css.indexOf("@media (prefers-color-scheme: dark)");
-  const underSystem = blockAfter(css, ':root:not([data-theme="light"]) .warden', media);
-  const forced = blockAfter(css, ':root[data-theme="dark"] .warden');
-  assert.deepEqual(declarations(forced), declarations(underSystem));
-  assert.ok(declarations(forced).length >= 5);
+  // The Warden band on the Overview, and the Supporter plate in the index.
+  for (const band of [".warden", ".nav-plate"]) {
+    const underSystem = blockAfter(css, `:root:not([data-theme="light"]) ${band} {`);
+    const forced = blockAfter(css, `:root[data-theme="dark"] ${band} {`);
+    assert.deepEqual(declarations(forced), declarations(underSystem), band);
+    assert.ok(declarations(forced).length >= 5, band);
+  }
 });
 
 test("blocked.html: its two dark palettes are identical", () => {

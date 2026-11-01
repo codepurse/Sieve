@@ -20,9 +20,11 @@
 // Polar, a key simply works wherever it is entered. Decisions that hold it up:
 //
 //   - The only things ever sent are the key, Sieve's organisation id, that
-//     browser name, and this browser's place on the key; only from the
-//     settings page: when a key is entered or removed, then at most once a
-//     week. Never from a website, never from the popup.
+//     browser name, and this browser's place on the key: from the settings
+//     page when a key is entered or removed, and then about once a week,
+//     from there or from the background on a timer (background/licence-check.js),
+//     never tied to anything done in the browser. Never from a website, never
+//     from the popup or the block page.
 //   - Firefox asks before an extension sends anything off the device. The key
 //     is declared as optional "authenticationInfo" (manifest.firefox.json), so
 //     the question is asked of someone who presses Activate, and nobody else.
@@ -30,18 +32,26 @@
 //   - Being offline is not being refunded. A network error, a timeout or a
 //     server error keeps whatever was last known; only a clear answer from
 //     Polar (revoked, disabled, unknown key, this browser's place given back)
-//     turns Pro off.
+//     turns Pro off. But not for ever: 30 days after Polar last answered, Pro
+//     pauses until it answers again, and comes back then with nothing lost.
+//     Otherwise a refunded key on a machine that cannot reach Polar would keep
+//     Pro for as long as Polar stayed out of reach (BlockNSFW's supporter.js
+//     pauses the same way).
 //   - Losing Pro never weakens a protection. Nothing that protects asks this
 //     module anything, and nothing here clears or changes their state.
 //
 // Like the PIN, this lives in this browser's storage. It is not copy
 // protection: anyone can edit an extension's code. The people who pay are the
-// honest ones, and this is built for them.
+// honest ones, and this is built for them. It only refuses to be talked into
+// Pro by one line typed into storage: a licence opens Pro once Polar has
+// answered for it here (isProState), and one that was not is checked again.
 
 (() => {
   "use strict";
 
-  if (window.SievePro) return;
+  // Pages, and the service worker, which has no window (background/licence-check.js).
+  const root = typeof window !== "undefined" ? window : self;
+  if (root.SievePro) return;
 
   const LICENCE_KEY = "proLicence";
 
@@ -90,6 +100,10 @@
 
   const DAY = 24 * 60 * 60 * 1000;
   const REFRESH_EVERY_MS = 7 * DAY;
+  // How long Polar's last yes stands with no answer since. BlockNSFW, which
+  // checks every day, allows 14; Sieve checks weekly, so someone offline for
+  // three weeks after a check still loses nothing.
+  const UNCONFIRMED_MS = 30 * DAY;
   const TIMEOUT_MS = 15000;
 
   // "granted" is the only status that unlocks anything. "invalid" is ours: a
@@ -124,11 +138,44 @@
     return tail ? `****-${tail}` : "****";
   }
 
-  // A pure decision, so it can be tested without storage.
+  // How far ahead of this browser's clock a check may say it happened before
+  // it reads as written by hand: a clock put right after a check is not.
+  const CLOCK_SLACK_MS = DAY;
+
+  // Granted by Polar, for this store's benefit, and unexpired: everything but
+  // how long ago Polar said so.
+  function confirmedOnce(l, now) {
+    if (!l || l.status !== "granted") return false;
+    if (!(l.checkedAt > 0) || l.checkedAt > now + CLOCK_SLACK_MS) return false;
+    if (!store().benefitIds.includes(l.benefitId)) return false;
+    return l.expiresAt === null || now < l.expiresAt;
+  }
+
+  // A pure decision, so it can be tested without storage. Only a licence Polar
+  // answered for opens Pro: activate() and refreshIfDue() write the time of
+  // that answer and the benefit it named. One with no check, a check dated
+  // more than a day ahead, or a benefit this store does not sell was not
+  // written by them, and stays shut until it is checked again (refreshIfDue
+  // checks such a licence at once). So does one Polar has not answered for in
+  // 30 days: paused, not lost.
   function isProState(licence, now = Date.now()) {
     const l = normalizeLicence(licence);
-    if (!l || l.status !== "granted") return false;
-    return l.expiresAt === null || now < l.expiresAt;
+    return confirmedOnce(l, now) && now - l.checkedAt < UNCONFIRMED_MS;
+  }
+
+  // A real licence, paused because Polar has not answered for it in 30 days
+  // (offline, Polar out of reach, or Firefox's consent taken back). It comes
+  // back with the next answer; until then nothing should offer it for sale.
+  function isPaused(licence, now = Date.now()) {
+    const l = normalizeLicence(licence);
+    return confirmedOnce(l, now) && now - l.checkedAt >= UNCONFIRMED_MS;
+  }
+
+  // Granted, but not confirmed by Polar from this browser, or not lately:
+  // what the settings page says while it checks.
+  function awaitsCheck(licence, now = Date.now()) {
+    const l = normalizeLicence(licence);
+    return !!l && l.status === "granted" && !isProState(l, now) && (l.expiresAt === null || now < l.expiresAt);
   }
 
   function isConfigured() {
@@ -372,14 +419,16 @@
     const licence = await getLicence();
     if (!licence || licence.status !== "granted") return { checked: false };
     // A clock moved backwards would otherwise postpone the check for as long
-    // as it was moved; checking early costs nothing.
+    // as it was moved; checking early costs nothing. Nor does checking a
+    // licence that isProState will not trust: Polar's answer settles it.
     const age = now - licence.checkedAt;
-    if (age >= 0 && age < REFRESH_EVERY_MS) return { checked: false };
+    if (age >= 0 && age < REFRESH_EVERY_MS && !awaitsCheck(licence, now)) return { checked: false };
 
     const { key, activationId } = licence;
     const done = async (next) => ({ checked: true, status: (await keep(next)).status });
     const answer = await validate(key, activationId);
-    if (!answer.ok) return { checked: false, offline: true };
+    // "no-consent" (Firefox) is said, so Settings can say what would fix it.
+    if (!answer.ok) return answer.reason ? { checked: false, offline: true, reason: answer.reason } : { checked: false, offline: true };
 
     if (statusOf(answer, now) === "granted") {
       if (answer.limit > 0 && !activationId) {
@@ -425,13 +474,16 @@
     return { ok: true };
   }
 
-  window.SievePro = {
+  root.SievePro = {
     LICENCE_KEY,
     CONFIG,
     REFRESH_EVERY_MS,
+    UNCONFIRMED_MS,
     normalizeLicence,
     maskKey,
     isProState,
+    isPaused,
+    awaitsCheck,
     isConfigured,
     price,
     apiBase,

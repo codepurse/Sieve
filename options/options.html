@@ -71,9 +71,31 @@
           <a class="nav-link" href="#section-security" data-target="section-security"><span class="nav-num">09</span><span class="nav-name">Lock</span></a>
           <a class="nav-link" href="#section-advanced" data-target="section-advanced"><span class="nav-num">10</span><span class="nav-name">Advanced</span></a>
 
-          <!-- Shown once Sieve Pro is on sale, or a licence is stored (setupPro). -->
-          <p class="nav-group" id="nav-pro-group" hidden>Supporter</p>
-          <a class="nav-link" href="#section-pro" data-target="section-pro" id="nav-pro" hidden><span class="nav-num">11</span><span class="nav-name">Supporter</span></a>
+          <!-- Sieve Supporter: a pine plate at the end of the index, in the
+               popup's own pine. Shown once Supporter is on sale, or a licence
+               is stored; until it is yours it says what it is for, then it
+               thanks you, or says it is paused (setupPro → renderPlate). On a narrow window it folds
+               into a pine tab at the end of the strip. -->
+          <a class="nav-link nav-plate" href="#section-pro" data-target="section-pro" id="nav-pro" hidden>
+            <svg class="nav-plate-mark" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M4.75 5.3H21.45a1.05 1.05 0 0 1 0 2.1H4.75a1.05 1.05 0 0 1 0 -2.1zM4.5 6.4H21.7A8.6 8.4 0 0 1 4.5 6.4ZM5.82 9.1a0.78 0.78 0 1 0 1.56 0a0.78 0.78 0 1 0 -1.56 0zM8.42 9.1a0.78 0.78 0 1 0 1.56 0a0.78 0.78 0 1 0 -1.56 0zM11.02 9.1a0.78 0.78 0 1 0 1.56 0a0.78 0.78 0 1 0 -1.56 0zM13.62 9.1a0.78 0.78 0 1 0 1.56 0a0.78 0.78 0 1 0 -1.56 0zM16.22 9.1a0.78 0.78 0 1 0 1.56 0a0.78 0.78 0 1 0 -1.56 0zM18.82 9.1a0.78 0.78 0 1 0 1.56 0a0.78 0.78 0 1 0 -1.56 0zM7.12 11.6a0.78 0.78 0 1 0 1.56 0a0.78 0.78 0 1 0 -1.56 0zM9.72 11.6a0.78 0.78 0 1 0 1.56 0a0.78 0.78 0 1 0 -1.56 0zM12.32 11.6a0.78 0.78 0 1 0 1.56 0a0.78 0.78 0 1 0 -1.56 0zM14.92 11.6a0.78 0.78 0 1 0 1.56 0a0.78 0.78 0 1 0 -1.56 0zM17.52 11.6a0.78 0.78 0 1 0 1.56 0a0.78 0.78 0 1 0 -1.56 0zM11.02 13.9a0.78 0.78 0 1 0 1.56 0a0.78 0.78 0 1 0 -1.56 0zM13.62 13.9a0.78 0.78 0 1 0 1.56 0a0.78 0.78 0 1 0 -1.56 0z"/><path d="M5.1 6.3 2.4 3.6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><path fill="currentColor" d="M10.75 18.2a1.05 1.05 0 1 0 2.1 0a1.05 1.05 0 1 0 -2.1 0zM13.8 20.7a0.8 0.8 0 1 0 1.6 0a0.8 0.8 0 1 0 -1.6 0z"/></svg>
+            <span class="nav-plate-top"><span class="nav-num">11</span><span class="nav-name"><span class="nav-plate-sieve">Sieve </span>Supporter</span></span>
+            <span class="nav-plate-face" id="nav-pro-invite">
+              <span class="nav-plate-title">Stay stopped.</span>
+              <span class="nav-plate-text">The urge screen, streaks, and a popup made yours.</span>
+              <span class="nav-plate-foot"><span><b class="pro-price">$34.99</b> <span id="nav-pro-terms">once</span></span><span class="nav-plate-go" aria-hidden="true">&rarr;</span></span>
+            </span>
+            <span class="nav-plate-face" id="nav-pro-thanks" hidden>
+              <span class="nav-plate-title">Thank you.</span>
+              <span class="nav-plate-text">You keep Sieve free for everyone who needs it.</span>
+              <span class="nav-plate-foot"><span class="nav-pro-no"></span><span>Yours to keep</span></span>
+            </span>
+            <!-- A key Polar has not confirmed in 30 days: paused, never for sale again. -->
+            <span class="nav-plate-face" id="nav-pro-paused" hidden>
+              <span class="nav-plate-title">Paused.</span>
+              <span class="nav-plate-text">Sieve can&rsquo;t reach Polar to confirm your key. It comes back by itself.</span>
+              <span class="nav-plate-foot"><span class="nav-pro-no"></span><span>See why <span class="nav-plate-go" aria-hidden="true">&rarr;</span></span></span>
+            </span>
+          </a>
         </nav>
 
         <div class="sidebar-foot">
@@ -1798,8 +1820,9 @@
             <div class="group-head">
               <h2 class="group-title">Your licence <span class="badge" id="pro-badge">Free</span></h2>
               <p class="group-desc">
-                The urge screen, streaks with a savings goal, and your progress (your hardest
-                hours, proof your urges pass, a letter every month) are Sieve Supporter:
+                The urge screen, streaks with a savings goal, your progress (your hardest
+                hours, proof your urges pass, a letter every month) and a popup arranged your
+                way are Sieve Supporter:
                 <span class="pro-price">$34.99</span> once, no subscription<span id="pro-launch" hidden></span>. Every protection, the
                 Seal included, stays free. Bought it? Paste the licence key from your receipt email.
               </p>
@@ -1817,17 +1840,20 @@
                 <p class="error" id="pro-error" role="alert"></p>
                 <p class="hint">
                   Activating sends the key and a plain name for this browser to Polar, who sell Sieve
-                  Supporter, to check it. Sieve checks again about once a week when you open these
-                  settings. Supporter features run on this device like the rest of Sieve.
+                  Supporter, to check it. Sieve checks it again about once a week, so a refunded key
+                  stops working. Supporter features run on this device like the rest of Sieve.
                 </p>
               </div>
               <div class="field" id="pro-owned-field" hidden>
                 <p class="prose" id="pro-owned-text"></p>
                 <p class="meta" id="pro-checked"></p>
                 <div class="actions">
+                  <!-- Only while Supporter is paused (no answer from Polar in 30 days). -->
+                  <button class="btn" id="pro-recheck" type="button" hidden>Check again</button>
                   <button class="btn btn-quiet" id="pro-forget" type="button">Remove from this browser</button>
                   <a class="btn btn-quiet" id="pro-portal" target="_blank" rel="noopener noreferrer">Your purchases page</a>
                 </div>
+                <p class="error" id="pro-recheck-error" role="alert"></p>
                 <p class="error" id="pro-forget-error" role="alert"></p>
                 <p class="hint" id="pro-forget-hint" hidden>
                   Removing it gives this browser&rsquo;s place on the key back, so the key can be
@@ -1953,6 +1979,27 @@
             </div>
           </section>
 
+          <section class="group pro-feature" id="popup-card">
+            <div class="group-head">
+              <h2 class="group-title">Your popup</h2>
+              <p class="group-desc">
+                Choose what the band at the top of Sieve&rsquo;s popup leads with, and put what sits
+                under it in your own order. Anything you tuck away waits one click from the foot of
+                the popup, and still says when it catches something.
+              </p>
+              <p class="pro-note" hidden>Part of Sieve Supporter. <a href="#pro-card">Unlock it</a></p>
+              <!-- Filled by pro/settings.js: the real popup in a frame, live. -->
+              <div class="popup-preview" id="popup-preview"></div>
+            </div>
+            <div class="group-body">
+              <!-- Filled by pro/settings.js (pro/popup.js): the lead, what sits
+                   under it, and the order of the parts below the band. -->
+              <div class="field" id="popup-lead-field"></div>
+              <div class="field" id="popup-beneath-field"></div>
+              <div class="field" id="popup-arrange-field"></div>
+            </div>
+          </section>
+
           <section class="group pro-feature" id="progress-card">
             <div class="group-head">
               <h2 class="group-title">Your progress</h2>
@@ -2046,6 +2093,7 @@
     <script src="../pro/designs.js"></script>
     <script src="../pro/voice.js"></script>
     <script src="../pro/coach.js"></script>
+    <script src="../pro/popup.js"></script>
     <script src="../pro/settings.js"></script>
     <script src="../common/keyword-pattern.js"></script>
     <script src="../common/search-filter.js"></script>

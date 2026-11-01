@@ -114,15 +114,54 @@ const LIMITED = { ...GRANTED, limit_activations: 3 };
 const stored = () => backing.get(P.LICENCE_KEY);
 const endpoints = () => calls.map((c) => c.endpoint);
 
+// What activate() keeps after Polar grants the key.
+const CHECKED = { key: KEY, status: "granted", benefitId: "benefit-pro", checkedAt: T0 - DAY };
+
 test("only a granted, unexpired licence is Pro", () => {
   assert.equal(P.isProState(null, T0), false);
-  assert.equal(P.isProState({ key: KEY, status: "granted" }, T0), true);
+  assert.equal(P.isProState(CHECKED, T0), true);
   for (const status of ["revoked", "disabled", "invalid", "removed", "something new"]) {
-    assert.equal(P.isProState({ key: KEY, status }, T0), false, status);
+    assert.equal(P.isProState({ ...CHECKED, status }, T0), false, status);
   }
-  assert.equal(P.isProState({ key: "", status: "granted" }, T0), false);
-  assert.equal(P.isProState({ key: KEY, status: "granted", expiresAt: T0 + 1 }, T0), true);
-  assert.equal(P.isProState({ key: KEY, status: "granted", expiresAt: T0 }, T0), false);
+  assert.equal(P.isProState({ ...CHECKED, key: "" }, T0), false);
+  assert.equal(P.isProState({ ...CHECKED, expiresAt: T0 + 1 }, T0), true);
+  assert.equal(P.isProState({ ...CHECKED, expiresAt: T0 }, T0), false);
+});
+
+test("a licence Polar never answered for is not Pro, whatever it says", () => {
+  // The one line someone might paste into a console.
+  assert.equal(P.isProState({ key: KEY, status: "granted" }, T0), false);
+  assert.equal(P.isProState({ ...CHECKED, checkedAt: 0 }, T0), false);
+  assert.equal(P.isProState({ ...CHECKED, checkedAt: "yesterday" }, T0), false);
+  // Checked "next week": written by hand to put the weekly check off.
+  assert.equal(P.isProState({ ...CHECKED, checkedAt: T0 + 7 * DAY }, T0), false);
+  // A clock put right a little after a check still counts.
+  assert.equal(P.isProState({ ...CHECKED, checkedAt: T0 + 2 * 3600000 }, T0), true);
+  // A benefit this store does not sell, or none.
+  assert.equal(P.isProState({ ...CHECKED, benefitId: "" }, T0), false);
+  assert.equal(P.isProState({ ...CHECKED, benefitId: "some-other-product" }, T0), false);
+
+  assert.equal(P.awaitsCheck({ key: KEY, status: "granted" }, T0), true);
+  assert.equal(P.awaitsCheck(CHECKED, T0), false);
+  assert.equal(P.awaitsCheck({ ...CHECKED, status: "revoked", checkedAt: 0 }, T0), false);
+});
+
+test("the settings page checks such a licence at once, and Polar's answer settles it", async () => {
+  reset();
+  backing.set(P.LICENCE_KEY, { key: "FORGED", status: "granted", checkedAt: T0 });
+  answers.validate = reply(404);
+  const out = await P.refreshIfDue(T0 + 60000);
+  assert.deepEqual(endpoints(), ["validate"], "checked although the week is not up");
+  assert.equal(out.status, "invalid");
+  assert.equal(P.isProState(stored(), T0 + 60000), false);
+
+  // A real key that only wanted confirming comes back on.
+  reset();
+  backing.set(P.LICENCE_KEY, { ...CHECKED, checkedAt: T0 + 7 * DAY });
+  answers.validate = reply(200, GRANTED);
+  await P.refreshIfDue(T0);
+  assert.equal(stored().checkedAt, T0);
+  assert.equal(P.isProState(stored(), T0), true);
 });
 
 test("no limit: one check, sending only the key and the organisation, and the key is kept", async () => {
@@ -287,8 +326,59 @@ test("a dropped connection during the weekly check keeps Pro", async () => {
   answers.validate = reply(200, GRANTED);
   await P.activate(KEY, T0);
   answers.validate = offline();
-  assert.deepEqual(await P.refreshIfDue(T0 + 30 * DAY), { checked: false, offline: true });
-  assert.equal(await P.isPro(T0 + 30 * DAY), true);
+  assert.deepEqual(await P.refreshIfDue(T0 + 29 * DAY), { checked: false, offline: true });
+  assert.equal(await P.isPro(T0 + 29 * DAY), true);
+});
+
+test("no answer from Polar for 30 days pauses Pro; the next answer brings it back", async () => {
+  // A refunded key on a machine that cannot reach Polar would otherwise keep
+  // Pro for ever.
+  reset();
+  answers.validate = reply(200, GRANTED);
+  await P.activate(KEY, T0);
+  const edge = T0 + P.UNCONFIRMED_MS;
+  assert.equal(P.isProState(stored(), edge - 1), true);
+  assert.equal(P.isPaused(stored(), edge - 1), false);
+  assert.equal(P.isProState(stored(), edge), false);
+  assert.equal(P.isPaused(stored(), edge), true, "paused, not refused");
+  assert.equal(P.awaitsCheck(stored(), edge), true);
+
+  // Still out of reach: still paused, nothing thrown away.
+  answers.validate = offline();
+  calls = [];
+  assert.deepEqual(await P.refreshIfDue(edge + DAY), { checked: false, offline: true });
+  assert.equal(stored().status, "granted");
+  assert.equal(P.isPaused(stored(), edge + DAY), true);
+
+  // Paused is checked at every chance, not only once a week.
+  assert.equal((await P.refreshIfDue(edge + DAY + 60000)).offline, true);
+  assert.equal(calls.length, 2);
+
+  // Polar answers: back on, as it was.
+  answers.validate = reply(200, GRANTED);
+  assert.deepEqual(await P.refreshIfDue(edge + 2 * DAY), { checked: true, status: "granted" });
+  assert.equal(await P.isPro(edge + 2 * DAY), true);
+  assert.equal(P.isPaused(stored(), edge + 2 * DAY), false);
+});
+
+test("a refund found after a pause closes it for good", async () => {
+  reset();
+  answers.validate = reply(200, GRANTED);
+  await P.activate(KEY, T0);
+  answers.validate = reply(200, { ...GRANTED, status: "revoked" });
+  const later = T0 + 40 * DAY;
+  assert.deepEqual(await P.refreshIfDue(later), { checked: true, status: "revoked" });
+  assert.equal(P.isPaused(stored(), later), false);
+  assert.equal(await P.isPro(later), false);
+});
+
+test("only a licence Polar once granted for this store can be paused", () => {
+  const later = T0 + 40 * DAY;
+  assert.equal(P.isPaused(null, later), false);
+  assert.equal(P.isPaused({ key: KEY, status: "granted" }, later), false, "never checked");
+  assert.equal(P.isPaused({ ...CHECKED, benefitId: "some-other-product" }, later), false);
+  assert.equal(P.isPaused({ ...CHECKED, status: "revoked" }, later), false);
+  assert.equal(P.isPaused({ ...CHECKED, expiresAt: T0 }, later), false, "run out is over, not paused");
 });
 
 test("a key that is no longer granted is not checked again every week", async () => {
@@ -367,16 +457,18 @@ test("Firefox: nothing is sent without its consent, and it is asked from Activat
   assert.deepEqual(await P.activate(KEY, T0), { ok: true });
 });
 
-test("Firefox: consent withdrawn later stops the weekly check, and Pro stays as it was", async () => {
+test("Firefox: consent withdrawn later stops the weekly check, says why, and Pro pauses only at 30 days", async () => {
   reset();
   manifest = FIREFOX;
   answers.validate = reply(200, GRANTED);
   await P.activate(KEY, T0);
   consent.granted = false;
   calls = [];
-  assert.deepEqual(await P.refreshIfDue(T0 + 8 * DAY), { checked: false, offline: true });
+  assert.deepEqual(await P.refreshIfDue(T0 + 8 * DAY), { checked: false, offline: true, reason: "no-consent" });
   assert.equal(calls.length, 0);
   assert.equal(await P.isPro(T0 + 8 * DAY), true);
+  assert.equal(await P.isPro(T0 + 30 * DAY), false);
+  assert.equal(P.isPaused(stored(), T0 + 30 * DAY), true);
 });
 
 test("Chrome and Edge never ask", async () => {
