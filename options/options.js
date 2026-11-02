@@ -604,8 +604,8 @@ function optionsDefaults() {
     guardianPinHash: "",
     // Cool-off — the wait in hours (0 = off); see common/cooloff.js
     cooloffConfig: { hours: 0 },
-    // Appearance — "auto" | "light" | "dark"; see common/theme.js
-    uiTheme: "auto",
+    // Appearance — "auto" | "light" | "dark", dark until chosen; see common/theme.js
+    uiTheme: "dark",
     // Christmas — null follows the calendar (1 December to 1 January), or a
     // choice forced for one Christmas, { on, season }; see common/season.js
     uiChristmas: null,
