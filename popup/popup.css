@@ -118,6 +118,61 @@ body {
   color: var(--ink);
 }
 
+/* ---- Christmas (common/christmas.js), 1 December to 1 January ----------------
+   Lights hang along the top of the pine, so the name sits lower to make room
+   for them, and the season's few words go under it like a dateline. They are
+   a button: they open one line with a way to turn it off. Brass, like the
+   lights' fittings and the Warden band's signal, never green: nothing here is
+   switching on. */
+
+.season {
+  display: none;
+}
+
+.is-christmas .topbar {
+  flex-wrap: wrap;
+  row-gap: 3px;
+  padding-top: 58px;
+}
+
+.is-christmas .season {
+  display: block;
+  flex: 0 0 100%;
+  order: 3;
+  /* under the wordmark, past the mark */
+  padding-left: 31px;
+}
+
+.season-line {
+  padding: 0;
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #c99a3a;
+  background: none;
+  border: 0;
+  cursor: pointer;
+}
+
+.season-line:hover,
+.season-line[aria-expanded="true"] {
+  text-decoration: underline;
+  text-underline-offset: 0.25em;
+}
+
+.season-off {
+  margin: 12px 18px 0;
+  font-size: 12px;
+  line-height: 1.45;
+  color: var(--ink-2);
+}
+
+.season-off .link-btn {
+  margin-left: 6px;
+  color: var(--ink);
+}
+
 /* ---- Status: a stamp in the top bar ------------------------------------------
    Green when anything is on (rule 1), in the danger colour when nothing is. */
 

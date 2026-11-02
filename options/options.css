@@ -543,6 +543,12 @@ html.preload .loading-veil {
   outline: none;
 }
 
+/* Christmas (common/christmas.js), 1 December to 1 January: lights hang
+   across the top of the column, so it starts lower. */
+.is-christmas .main {
+  padding-top: 104px;
+}
+
 /* One section is shown at a time; options.js hides the rest. Arriving at one
    is the only page-level motion: a short rise, no stagger. */
 .section {
@@ -2203,6 +2209,46 @@ html.preload .loading-veil {
   flex: none;
 }
 
+/* Christmas: the dial wears a Santa hat on its ring (options.html), drawn
+   inside the dial so it scales with it, only while it's Christmas. Its
+   colours live in its SVG; the bobble swings unless motion is reduced. */
+.xmas-hat {
+  display: none;
+}
+
+.is-christmas .xmas-hat {
+  display: inline;
+}
+
+.is-christmas .warden-dial {
+  overflow: visible;
+}
+
+.xmas-hat-dial {
+  filter: drop-shadow(0 1px 1.5px rgba(0, 0, 0, 0.4));
+}
+
+.xmas-hat-pom {
+  transform-box: fill-box;
+  transform-origin: 40% 23%;
+  animation: xmas-hat-sway 3.4s ease-in-out infinite alternate;
+}
+
+@keyframes xmas-hat-sway {
+  from {
+    transform: rotate(-8deg);
+  }
+  to {
+    transform: rotate(10deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .xmas-hat-pom {
+    animation: none;
+  }
+}
+
 .warden-clock {
   font-family: var(--font-mono);
   font-size: 15px;
@@ -2487,6 +2533,15 @@ html.preload .loading-veil {
 
   .main {
     padding: 40px 16px 56px;
+  }
+
+  /* With the index on top, the lights hang above it instead. */
+  .is-christmas .main {
+    padding-top: 40px;
+  }
+
+  .is-christmas .sidebar {
+    padding-top: 88px;
   }
 
   .section-title {

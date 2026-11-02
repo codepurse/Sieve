@@ -8,6 +8,8 @@
     <link rel="stylesheet" href="../common/sieve-ui.css" />
     <script src="../common/theme.js"></script>
     <link rel="stylesheet" href="popup.css" />
+    <script src="../common/season.js"></script>
+    <script src="../common/christmas.js"></script>
   </head>
   <body>
     <!-- The masthead: Sieve's name, whether it is on, and the top, on a pine
@@ -26,7 +28,13 @@
         <span class="status-light" aria-hidden="true"></span>
         <span id="status-title">Checking…</span>
       </span>
+      <!-- Christmas (common/christmas.js): the season's few words under the
+           name, from 1 December to 1 January. They open the line below. -->
+      <span class="season">
+        <button type="button" class="season-line" id="season-line" aria-expanded="false" aria-controls="season-off" hidden></button>
+      </span>
     </header>
+    <p class="season-off" id="season-off" aria-live="polite" hidden>Snow and lights until 1 January.<button type="button" class="link-btn" id="season-off-button">Turn off Christmas</button></p>
 
     <!-- With every filter off, that comes first, in words. -->
     <p class="status-off" id="status-off" hidden>Protection is off. Every filter is switched off.</p>
