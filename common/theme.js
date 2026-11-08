@@ -8,6 +8,11 @@
 //   "light" — data-theme="light", which the dark rules are written to skip.
 //   "dark"  — data-theme="dark", which the dark rules also match outright.
 //
+// Dark until you choose: nothing kept, or anything unknown, means "dark", as
+// BlockNSFW does; only a kept "auto" follows the computer. Someone who never
+// chose turns dark on the update that brought this: the first page may paint
+// once from the old copy, then storage answers and the copy says dark.
+//
 // Where the attribute goes depends on whose page it is:
 //
 //   - On Sieve's own pages (settings, popup, blocked page, onboarding, release
@@ -31,20 +36,21 @@
   const KEY = "uiTheme";
   const CACHE_KEY = "sieve.uiTheme";
   const THEMES = ["auto", "light", "dark"];
+  const DEFAULT = "dark";
 
   const ownPage = /^(chrome|moz)-extension:$/.test(location.protocol);
   const listeners = [];
-  let current = "auto";
+  let current = DEFAULT;
 
   function normalize(value) {
-    return THEMES.includes(value) ? value : "auto";
+    return THEMES.includes(value) ? value : DEFAULT;
   }
 
   function readCache() {
     try {
       return normalize(localStorage.getItem(CACHE_KEY));
     } catch {
-      return "auto";
+      return DEFAULT;
     }
   }
 
@@ -99,6 +105,7 @@
   window.SieveTheme = {
     KEY,
     THEMES,
+    DEFAULT,
     normalize,
     get: () => current,
     mark,

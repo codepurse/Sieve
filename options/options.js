@@ -470,6 +470,41 @@ function setupAppearance(store) {
   check(T.normalize(store.uiTheme));
 }
 
+// Christmas: snow and lights, by themselves from 1 December to 1 January
+// (common/season.js; common/christmas.js draws them). The switch shows whether
+// it is on now: off before December unless switched on, on through it unless
+// switched off. Only how pages look, so no Guardian gate, as for the theme.
+// The localStorage copy lets the popup and the blocked page make room for the
+// lights in their first paint, as the theme's copy does.
+function setupChristmas(store) {
+  const S = window.SieveSeason;
+  const toggle = document.getElementById("christmas-toggle");
+  if (!S || !toggle) return;
+  let choice = S.normalize(store[S.KEY]);
+  const show = () => {
+    toggle.checked = S.isOn(choice, new Date());
+  };
+  toggle.addEventListener("change", () => {
+    choice = S.choose(toggle.checked, new Date());
+    try {
+      if (choice) localStorage.setItem(S.CACHE_KEY, JSON.stringify(choice));
+      else localStorage.removeItem(S.CACHE_KEY);
+    } catch {
+      /* storage blocked — each page then waits for chrome.storage */
+    }
+    chrome.storage.local.set({ [S.KEY]: choice });
+  });
+  // Turned off from the popup, or in another settings window: follow it.
+  chrome.storage.onChanged.addListener((changes, area) => {
+    if (area !== "local" || !changes[S.KEY]) return;
+    choice = S.normalize(changes[S.KEY].newValue);
+    show();
+  });
+  // It comes on by itself at midnight on 1 December, page open or not.
+  setInterval(show, 60000);
+  show();
+}
+
 // `actionName`, when given, marks this as a protection switch: turning it OFF
 // goes through the Guardian gate (asks for the PIN when one is set).
 function setupCheckbox(id, storageKey, currentValue, actionName) {
@@ -569,8 +604,11 @@ function optionsDefaults() {
     guardianPinHash: "",
     // Cool-off — the wait in hours (0 = off); see common/cooloff.js
     cooloffConfig: { hours: 0 },
-    // Appearance — "auto" | "light" | "dark"; see common/theme.js
-    uiTheme: "auto",
+    // Appearance — "auto" | "light" | "dark", dark until chosen; see common/theme.js
+    uiTheme: "dark",
+    // Christmas — null follows the calendar (1 December to 1 January), or a
+    // choice forced for one Christmas, { on, season }; see common/season.js
+    uiChristmas: null,
     // Search Result Filter — rules carry their own colour; see setupSearchFilter
     searchFilterEnabled: false,
     searchFilterRules: [],
@@ -734,6 +772,7 @@ async function applyStoredSettings(store) {
   // protection toggles.
   setupCheckbox("url-shortener-resolver-toggle", "urlShortenerResolverEnabled", store.urlShortenerResolverEnabled, "Turn off URL Shortener Resolver");
   setupAppearance(store);          // light / dark / match the system
+  setupChristmas(store);           // snow and lights, 1 December to 1 January
 
   setupSearchFilter(store);        // hide / colour-code search results
   setupWhatsNew(store);            // release notes bundled with the extension

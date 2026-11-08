@@ -307,15 +307,16 @@
   let hideCount = false; // the user chose no count, and so no way back to what is hidden
   let compiled = [];
   let palette = [];
-  // Sieve's Appearance choice: "auto", "light" or "dark". Read here with the
-  // other settings rather than by loading common/theme.js, which would add a
-  // storage read to every page this script is injected into.
-  let uiTheme = "auto";
+  // Sieve's Appearance choice: "auto", "light" or "dark", and dark until one
+  // is made, as in common/theme.js. Read here with the other settings rather
+  // than by loading common/theme.js, which would add a storage read to every
+  // page this script is injected into.
+  let uiTheme = "dark";
 
   function markTheme(el) {
     if (!el) return;
-    if (uiTheme === "light" || uiTheme === "dark") el.setAttribute("data-theme", uiTheme);
-    else el.removeAttribute("data-theme");
+    if (uiTheme === "auto") el.removeAttribute("data-theme");
+    else el.setAttribute("data-theme", uiTheme === "light" ? "light" : "dark");
   }
   // What is hidden on the page now: the total the notice states, and the same
   // results by site for its "By site" list. Changed only through noteHidden(),
@@ -1124,7 +1125,7 @@
       searchFilterHideBlocked: true,
       searchFilterHideCount: false,
       customBlocks: [],
-      uiTheme: "auto",
+      uiTheme: "dark",
     });
     enabled = stored.searchFilterEnabled;
     hideCount = stored.searchFilterHideCount;

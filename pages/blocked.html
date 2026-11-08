@@ -137,6 +137,13 @@
         padding: 28px 32px 0;
       }
 
+      /* Christmas (common/christmas.js), 1 December to 1 January: lights hang
+         along the top, so the letterhead starts lower. Never while the urge
+         screen leads the page; it keeps the page to itself. */
+      .is-christmas .letterhead {
+        padding-top: 96px;
+      }
+
       .lockup {
         display: inline-flex;
         align-items: center;
@@ -1888,6 +1895,8 @@
         }
       }
     </style>
+    <script src="../common/season.js"></script>
+    <script src="../common/christmas.js"></script>
   </head>
   <body>
     <header class="letterhead">

@@ -1,0 +1,1428 @@
+// common/christmas.js
+// Sieve — Christmas, from 1 December to 1 January. Ported from BlockNSFW's
+// ui/christmas.js, so the two read as one family in December too.
+//
+// Snow falls over the popup, the blocked page and Settings and settles on what
+// a real ledge would hold: the hairlines, the tops of switches and buttons, the
+// tops of the letters in the big words, and deep on the Warden band. Past its
+// angle of repose it slides off an edge, and it melts back slowly, so nothing
+// is ever buried. A string of incandescent lights hangs along the top. The
+// wire can be taken hold of and let go; a hand moving through the snow pushes
+// the air.
+//
+// common/season.js says when: by itself from 1 December to 1 January, or
+// sooner or not at all as the switch in Settings › Advanced › Appearance (or
+// the words under the name in the popup) chose. Only Sieve's own pages load this:
+// no content script does, so no website ever runs a frame of it. On the
+// blocked page it is the notice's alone: when Sieve Supporter's urge screen
+// leads the page (data-urge on <html>), it is a moment to breathe, and nothing
+// falls across it.
+//
+// Loaded in <head> after common/theme.js, so <html> carries is-christmas in
+// the first paint (from a localStorage copy, as the theme does) and the page
+// has made room for the lights before anything is drawn. Drawing waits until
+// the page is laid out. With reduced motion it is a still picture.
+//
+// Devtools only: localStorage["sieve.christmasPreview"] = "1" shows it out of
+// season, to check it in November.
+
+(function () {
+  "use strict";
+
+  const Season = window.SieveSeason;
+  if (!Season) return;
+
+  const html = document.documentElement;
+  const PREVIEW = "sieve.christmasPreview";
+  const TAU = Math.PI * 2;
+
+  let store = null;
+  try {
+    store = chrome.storage && chrome.storage.local ? chrome.storage : null;
+  } catch {
+    store = null; // no extension APIs (a test page)
+  }
+
+  // The kept choice ({ on, season } or nothing), copied for the first paint.
+  function readCopy() {
+    try { return Season.normalize(JSON.parse(localStorage.getItem(Season.CACHE_KEY))); } catch { return null; }
+  }
+  function keepCopy(value) {
+    try {
+      if (value) localStorage.setItem(Season.CACHE_KEY, JSON.stringify(value));
+      else localStorage.removeItem(Season.CACHE_KEY);
+    } catch {}
+  }
+  function previewing() {
+    try { return localStorage.getItem(PREVIEW) === "1"; } catch { return false; }
+  }
+  // The urge screen on the blocked page (pro/urge.js marks <html> when it leads).
+  function urging() {
+    return html.dataset.urge === "on";
+  }
+
+  let choice = readCopy();
+  let laidOut = false;
+  let scene = null;
+  let saying = false;   // the popup is saying it was turned off
+
+  function decide() {
+    const on = !urging() && (previewing() || Season.isOn(choice, new Date()));
+    html.classList.toggle("is-christmas", on);
+    const words = document.getElementById("season-line");
+    if (words) {
+      const line = on ? Season.line(new Date()) : "";
+      words.textContent = line;
+      words.hidden = !on;
+      if (on) words.setAttribute("aria-label", line + ". Christmas options");
+    }
+    const off = document.getElementById("season-off");
+    if (off && !on && !saying) off.hidden = true;
+    if (on && laidOut && !scene) scene = start();
+    else if (!on && scene) { scene.stop(); scene = null; }
+  }
+
+  // The popup's quick way out: the countdown words open one line with a
+  // button that turns Christmas off. It is the same setting as the switch in
+  // Settings › Advanced › Appearance, which follows it. Only how pages look,
+  // so no Guardian gate, as for the theme.
+  function wireTurnOff() {
+    const words = document.getElementById("season-line");
+    const off = document.getElementById("season-off");
+    const button = document.getElementById("season-off-button");
+    if (!words || !off || !button) return;
+    words.addEventListener("click", function () {
+      const open = off.hidden;
+      off.hidden = !open;
+      words.setAttribute("aria-expanded", String(open));
+      if (open) button.focus();
+    });
+    button.addEventListener("click", function () {
+      const now = new Date();
+      // Off for this Christmas; turned on early, it simply waits for 1 December.
+      choice = Season.choose(false, now);
+      keepCopy(choice);
+      if (store) {
+        try { Promise.resolve(store.local.set({ [Season.KEY]: choice })).catch(function () {}); } catch {}
+      }
+      saying = true;
+      off.textContent = (Season.inSeason(now) ? "Christmas is off until next December." : "Christmas is off until 1 December.") +
+        " Settings › Advanced › Appearance turns it back on.";
+      decide();
+      setTimeout(function () { saying = false; off.hidden = true; }, 5000);
+    });
+  }
+
+  decide();
+
+  if (store) {
+    try {
+      Promise.resolve(store.local.get(Season.KEY))
+        .then(function (result) {
+          choice = Season.normalize(result && result[Season.KEY]);
+          keepCopy(choice);
+          decide();
+        })
+        .catch(function () {});
+      store.onChanged.addListener(function (changes, area) {
+        if (area !== "local" || !changes[Season.KEY]) return;
+        choice = Season.normalize(changes[Season.KEY].newValue);
+        keepCopy(choice);
+        decide();
+      });
+    } catch {}
+  }
+
+  // Settings hides under its loading veil until the saved state is applied
+  // (the preload class on <html>); wait for that, but not forever.
+  function whenLaidOut() {
+    const began = Date.now();
+    const go = function () {
+      if (html.classList.contains("preload") && Date.now() - began < 3000) {
+        setTimeout(go, 80);
+        return;
+      }
+      if (!laidOut) wireTurnOff();
+      laidOut = true;
+      decide();
+    };
+    if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", go, { once: true });
+    else go();
+  }
+  whenLaidOut();
+  // The season ends at midnight on 1 January even with the page left open.
+  setInterval(decide, 60000);
+  // The urge screen can take over the blocked page after it has drawn.
+  if (typeof MutationObserver === "function") {
+    new MutationObserver(decide).observe(html, { attributes: true, attributeFilter: ["data-urge"] });
+  }
+
+  // --- Where it draws ----------------------------------------------------------
+
+  function pageConfig() {
+    // The popup: the lights hang on the masthead's pine, so they are always
+    // lit against it, whatever the theme.
+    if (document.querySelector(".masthead")) {
+      return {
+        text: ".topbar .wordmark, .status-off, .seal-days",
+        lines: ".top > *, .block-title, .toggle-row, .foot",
+        boxes: ".slider, .status-stamp, .btn",
+        festoon: { span: 92, top: 4, slack: 1.07, seg: 5, every: 4, scale: 0.68, drop: 18 },
+        festoonLit: function () { return true; }
+      };
+    }
+    if (document.querySelector(".notice") && document.getElementById("block-title")) {
+      return {
+        text: "#block-title",
+        lines: ".origin",
+        boxes: ".notice .actions .btn",
+        festoon: { span: 280, top: 2, slack: 1.045, seg: 7, every: 4, scale: 0.95, drop: 30 },
+        festoonLit: function (dark) { return dark; }
+      };
+    }
+    // Settings: the lights hang across the column, from a brass eye on the
+    // sidebar's edge; when a narrow window puts the sidebar on top, across
+    // the whole width above it.
+    const sidebar = document.querySelector(".sidebar");
+    if (sidebar && document.getElementById("section-dashboard")) {
+      return {
+        text: ".section-title, .sidebar-brand .wordmark, .dashboard-hero-num",
+        lines: ".sidebar, .group, .group-body > .field, .switch-row",
+        boxes: ".slider, .btn, .theme-preview, .warden-folded",
+        // The Warden band and the Supporter plate: deep snow on top, folded
+        // over the edge, icicles under it. Warden's dial wears a Santa hat
+        // (options.html), not snow.
+        roofs: "#warden-band, .nav-plate",
+        festoon: {
+          span: 250, top: 2, slack: 1.045, seg: 7, every: 4, scale: 0.85, drop: 26,
+          region: function (W, H) {
+            const r = sidebar.getBoundingClientRect();
+            return r.height >= H * 0.9 && r.right < W / 2 ? [r.right - 4, W + 8] : [-8, W + 8];
+          }
+        },
+        festoonLit: function (dark) { return dark; }
+      };
+    }
+    return null;
+  }
+
+  // --- Snow, lights, and the frame that draws them ------------------------------
+
+  function start() {
+    const cfg = pageConfig();
+    if (!cfg || !document.body) return null;
+    const still = typeof matchMedia === "function" && matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+    // Two layers. The sky is pinned to the window and holds what is falling.
+    // The ground is laid on the page itself and holds what has settled and the
+    // lights, so the browser scrolls it with the page in the same frame; drawn
+    // on the window, settled snow lagged a frame behind a scroll and seemed to
+    // hang in the air while the page moved under it.
+    function layer(name, position) {
+      const c = document.createElement("canvas");
+      c.setAttribute("aria-hidden", "true");
+      c.className = name;
+      const s = c.style;
+      s.position = position;
+      s.left = "0";
+      s.top = "0";
+      s.width = position === "fixed" ? "100%" : "1px";
+      s.height = position === "fixed" ? "100%" : "1px";
+      s.pointerEvents = "none";
+      s.zIndex = "50";
+      document.body.appendChild(c);
+      return c;
+    }
+    // The bulbs flicker every frame, the snow lying on the page changes
+    // slowly, so they are drawn on layers of their own: the lights' only as
+    // tall as the strings hang.
+    const ground = layer("christmas-ground", "absolute");
+    const lamps = layer("christmas-lights", "absolute");
+    const sky = layer("christmas-sky", "fixed");
+    const groundCtx = ground.getContext("2d");
+    const lampsCtx = lamps.getContext("2d");
+    const skyCtx = sky.getContext("2d");
+    // The layer being drawn, and its transform: device pixels per CSS pixel,
+    // and where its corner is in the coordinates drawn in.
+    let ctx = skyCtx;
+    let T = { d: 1, x: 0, y: 0 };
+
+    let W = 1, H = 1, dpr = 1, t = 0, dark = false, scrollY = 0;
+    let GW = 1, GH = 1, gdpr = 1, ox = 0, oy = 0, LH = 1, ldpr = 1;
+    let frameNo = 0, drawnTop = 0, drawnBottom = -1, groundDirty = true;
+    let raf = 0, stopped = false, last = 0, measureAt = 0, measureQueued = false;
+    const timers = [];
+
+    function isDark() {
+      try { return /dark/.test(getComputedStyle(html).colorScheme || ""); } catch { return false; }
+    }
+    function resize() {
+      const w = Math.max(1, html.clientWidth || window.innerWidth);
+      const h = Math.max(1, window.innerHeight);
+      // Big windows draw at a lower density rather than fill a 4K canvas.
+      const d = Math.min(2, window.devicePixelRatio || 1, Math.max(1, Math.sqrt(5e6 / (w * h))));
+      if (w === W && h === H && d === dpr) return false;
+      W = w; H = h; dpr = d;
+      sky.width = Math.round(W * dpr);
+      sky.height = Math.round(H * dpr);
+      return true;
+    }
+    // The ground covers the page from its corner to the end of the body, and
+    // never past it, so it can't make the page any longer than it is.
+    function resizeGround() {
+      const body = document.body;
+      const bottom = Math.max(H, body.getBoundingClientRect().bottom + scrollY + (parseFloat(getComputedStyle(body).marginBottom) || 0));
+      const at = ground.getBoundingClientRect();
+      ox = at.left + window.scrollX;
+      oy = at.top + scrollY;
+      const w = Math.max(1, Math.round(W - ox)), h = Math.max(1, Math.round(bottom - oy));
+      const d = Math.min(2, window.devicePixelRatio || 1, Math.max(0.6, Math.sqrt(8e6 / (w * h))));
+      if (w === GW && h === GH && d === gdpr) return false;
+      GW = w; GH = h; gdpr = d;
+      ground.style.width = w + "px";
+      ground.style.height = h + "px";
+      ground.width = Math.round(w * d);
+      ground.height = Math.round(h * d);
+      groundDirty = true;
+      return true;
+    }
+    // The lights' layer: from the top of the page to just below the lowest
+    // bulb and the light it throws.
+    function resizeLamps() {
+      let low = 0;
+      ropes().forEach(function (r) { for (const p of r.P) if (p.y > low) low = p.y; });
+      const h = Math.max(1, Math.min(GH, Math.round(low + 150 - oy)));
+      const d = Math.min(2, window.devicePixelRatio || 1);
+      if (h === LH && d === ldpr && lamps.width === Math.round(GW * d)) return false;
+      LH = h; ldpr = d;
+      lamps.style.width = GW + "px";
+      lamps.style.height = h + "px";
+      lamps.width = Math.round(GW * d);
+      lamps.height = Math.round(h * d);
+      return true;
+    }
+    function useLayer(c, d, x, y) {
+      ctx = c;
+      T = { d: d, x: x, y: y };
+      ctx.setTransform(d, 0, 0, d, -x * d, -y * d);
+      ctx.globalAlpha = 1;
+    }
+
+    // --- Snow ---------------------------------------------------------------------
+
+    // max depth, edge hold, angle of repose (px per px), chance to settle
+    const KINDS = {
+      line: [4.6, 1.8, 0.45, 0.3], text: [3.6, 1.3, 1.25, 0.55], box: [4.2, 1.8, 0.7, 0.45],
+      roof: [11, 8, 0.55, 0.85], circle: [5, 5, 0.9, 0.7]
+    };
+    const LIP = 2.5;   // how far a roof's snow folds down over its edge
+    const memory = new WeakMap();   // element → the snow on it, kept across measures
+    let ledges = [];
+    let flakes = [];
+    let clumps = [];
+    let sprites = null;
+    const air = { x: -9999, y: -9999, vx: 0, vy: 0, last: 0, in: false };
+    const gust = { v: 0, t: 0, len: 6, amp: 0, wait: 3 + Math.random() * 5 };
+
+    function sprite(size, paint, blur) {
+      const S = 3, pad = Math.ceil(size * 0.35) + 3, full = size + pad * 2, px = Math.ceil(full * S);
+      const a = document.createElement("canvas");
+      a.width = a.height = px;
+      const g = a.getContext("2d");
+      g.setTransform(S, 0, 0, S, px / 2, px / 2);
+      paint(g, size / 2);
+      if (!dark) {
+        // Against a light page snow is seen by its shading, as against a
+        // bright sky: a cool body and a firm soft shadow, not pure white.
+        g.globalCompositeOperation = "source-atop";
+        g.fillStyle = "rgba(196,218,236,0.42)";
+        g.fillRect(-full, -full, full * 2, full * 2);
+        g.globalCompositeOperation = "source-over";
+      }
+      const c = document.createElement("canvas");
+      c.width = c.height = px;
+      const h = c.getContext("2d");
+      if (blur) h.filter = "blur(" + (blur * S) + "px)";
+      if (!dark) { h.shadowColor = "rgba(26,44,62,0.62)"; h.shadowBlur = 2.8 * S; h.shadowOffsetY = 0.9 * S; }
+      h.drawImage(a, 0, 0);
+      return { c: c, size: size, full: full };
+    }
+    function hex(g, r) {
+      g.beginPath();
+      for (let k = 0; k < 6; k++) { const a = k * Math.PI / 3; g.lineTo(Math.cos(a) * r, Math.sin(a) * r); }
+      g.closePath();
+    }
+    // A six-fold crystal: a dendrite most of the time, a sectored plate now and then.
+    function crystal(g, R) {
+      g.fillStyle = "#fff"; g.strokeStyle = "#fff"; g.lineCap = "round"; g.lineJoin = "round";
+      const lw = Math.max(0.55, R * 0.12);
+      if (Math.random() < 0.28) {
+        g.globalAlpha = 0.55; hex(g, R * 0.8); g.fill(); g.globalAlpha = 1;
+        g.lineWidth = lw * 0.8;
+        g.beginPath();
+        for (let k = 0; k < 6; k++) { const a = k * Math.PI / 3 + Math.PI / 6; g.moveTo(0, 0); g.lineTo(Math.cos(a) * R * 0.7, Math.sin(a) * R * 0.7); }
+        g.stroke();
+        return;
+      }
+      const branches = [];
+      const nb = 2 + Math.floor(Math.random() * 3);
+      for (let i = 0; i < nb; i++) { const p = 0.3 + (i + Math.random() * 0.8) * (0.55 / nb); branches.push([p, (0.16 + Math.random() * 0.3) * (1.15 - p)]); }
+      hex(g, R * (0.12 + Math.random() * 0.18)); g.fill();
+      g.lineWidth = lw;
+      for (let k = 0; k < 6; k++) {
+        g.save(); g.rotate(k * Math.PI / 3);
+        g.beginPath(); g.moveTo(0, 0); g.lineTo(R, 0);
+        for (const br of branches) {
+          const x = br[0] * R, l = br[1] * R;
+          g.moveTo(x, 0); g.lineTo(x + l * 0.5, -l * 0.866);
+          g.moveTo(x, 0); g.lineTo(x + l * 0.5, l * 0.866);
+        }
+        g.stroke();
+        g.restore();
+      }
+    }
+    // Rimed aggregates: what most snowflakes are by the time they fall.
+    function fluff(g, R) {
+      g.fillStyle = "#fff";
+      const n = 6 + Math.floor(Math.random() * 5);
+      for (let i = 0; i < n; i++) {
+        const a = Math.random() * TAU, d = Math.random() * R * 0.45, r = R * (0.3 + Math.random() * 0.32);
+        g.beginPath(); g.arc(Math.cos(a) * d, Math.sin(a) * d, r, 0, TAU); g.fill();
+      }
+    }
+    function dot(g, R) {
+      const gr = g.createRadialGradient(0, 0, 0, 0, 0, R);
+      gr.addColorStop(0, "rgba(255,255,255,1)"); gr.addColorStop(0.55, "rgba(255,255,255,0.9)"); gr.addColorStop(1, "rgba(255,255,255,0)");
+      g.fillStyle = gr; g.beginPath(); g.arc(0, 0, R, 0, TAU); g.fill();
+    }
+    function buildSprites() {
+      sprites = [[], [], [], []];
+      for (let i = 0; i < 6; i++) sprites[0].push(sprite(14, crystal, 1.5));
+      for (let i = 0; i < 16; i++) sprites[1].push(sprite(12, crystal, 0));
+      for (let i = 0; i < 10; i++) sprites[2].push(sprite(6, fluff, 0.25));
+      sprites[3].push(sprite(4, dot, 0));
+      flakes.forEach(function (f) { pickSprite(f); f.alpha = alphaFor(f.kind); });
+      clumps.forEach(pickSprite);
+    }
+    function pickSprite(f) { const set = sprites[f.kind]; f.spr = set[(Math.random() * set.length) | 0]; }
+    // near and blurred, crystal, aggregate, far speck; a light page wants them firmer
+    function alphaFor(kind) { return (dark ? [0.5, 0.95, 0.92, 0.8] : [0.62, 1, 1, 0.95])[kind]; }
+
+    function windNow(y) {
+      const base = 10.5 * (0.62 + 0.28 * Math.sin(t * 0.13 + 0.7) + 0.16 * Math.sin(t * 0.047 + 2.1));
+      return (base + gust.v) * (0.88 + 0.12 * Math.sin(y * 0.011 + t * 0.55));
+    }
+    function stepGust(dt) {
+      if (gust.t > 0) {
+        gust.t -= dt;
+        const u = 1 - Math.max(0, gust.t) / gust.len;
+        const e = u < 0.22 ? u / 0.22 : u < 0.38 ? 1 : 1 - (u - 0.38) / 0.62;
+        gust.v = gust.amp * e * e * (3 - 2 * e);
+      } else {
+        gust.v *= Math.exp(-dt * 2);
+        gust.wait -= dt;
+        if (gust.wait <= 0) {
+          gust.len = 4.5 + Math.random() * 3;
+          gust.t = gust.len;
+          gust.amp = (14 + Math.random() * 34) * 0.8 * (Math.random() < 0.18 ? -0.6 : 1);
+          gust.wait = 7 + Math.random() * 11;
+        }
+      }
+    }
+
+    function reset(f, anywhere) {
+      f.par = 0.3 + 0.8 * f.z;
+      f.fall = 11 + 52 * f.z + Math.random() * 8;
+      f.ph = Math.random() * TAU; f.om = 1.4 + Math.random() * 2.4; f.amp = 5 + Math.random() * 13;
+      f.tum = Math.random() * TAU; f.tumV = (Math.random() - 0.5) * 3.4;
+      f.rot = Math.random() * TAU; f.rotV = (Math.random() - 0.5) * 1.8;
+      f.x = Math.random() * (W + 120) - 60 - windNow(0) * 2.2;
+      f.y = anywhere ? Math.random() * H : -12 - Math.random() * 50;
+      f.vx = windNow(f.y) * f.par;
+      f.vy = f.fall;
+    }
+    function makeFlake(z) {
+      const f = { z: z };
+      f.kind = z > 0.88 ? 0 : z > 0.58 ? 1 : z > 0.3 ? 2 : 3;
+      f.size = [11 + Math.random() * 7, 5.5 + Math.random() * 4.5, 3 + Math.random() * 2.6, 1.7 + Math.random() * 1.5][f.kind];
+      f.alpha = alphaFor(f.kind);
+      f.land = z < 0.58;   // the ones nearest the page are the ones that settle on it
+      pickSprite(f);
+      reset(f, true);
+      return f;
+    }
+    // A light fall: about one flake to every 3,600 square pixels of window,
+    // never more than 180.
+    function populate() {
+      const n = Math.round(Math.max(40, Math.min(180, (W * H) / 3600)));
+      if (Math.abs(flakes.length - n) < 6) return;
+      const zs = [];
+      for (let i = 0; i < n; i++) zs.push(Math.pow(Math.random(), 1.55));
+      zs.sort(function (a, b) { return a - b; });
+      flakes = zs.map(makeFlake);
+    }
+    // A clump carries exactly the snow it took, so one that lands again adds
+    // nothing. It leaves ledge L, whose coordinates it starts in, and falls
+    // through the window's.
+    function spill(x, y, dir, vol, from, L) {
+      if (clumps.length > 260) return null;
+      const c = { z: 0.3, kind: 2, size: 1.8 + Math.sqrt(vol) * 1.4 + Math.random() * 0.6, vol: vol, alpha: 0.95, land: true, clump: true, from: from || null };
+      pickSprite(c);
+      c.par = 0.6; c.fall = 70 + Math.random() * 30; c.ph = Math.random() * TAU; c.om = 2; c.amp = 3;
+      c.tum = Math.random() * TAU; c.tumV = (Math.random() - 0.5) * 6; c.rot = 0; c.rotV = (Math.random() - 0.5) * 4;
+      c.x = x; c.y = y - (L && !L.pinned ? scrollY : 0); c.vx = dir * (4 + Math.random() * 8); c.vy = 0;
+      clumps.push(c);
+      return c;
+    }
+
+    // Where the page broke the words into lines: each line's text and where
+    // its first letter starts, from the layout itself.
+    function textLines(el, box) {
+      const out = [];
+      const range = document.createRange();
+      const walk = document.createTreeWalker(el, NodeFilter.SHOW_TEXT);
+      let node, line = null;
+      while ((node = walk.nextNode())) {
+        const s = node.textContent;
+        for (let i = 0; i < s.length; i++) {
+          range.setStart(node, i);
+          range.setEnd(node, i + 1);
+          const r = range.getBoundingClientRect();
+          if (!r.width) { if (line) line.text += s[i]; continue; }
+          if (!line || Math.abs(r.top - line.top) > 2) {
+            line = { text: "", x: r.left - box.left, top: r.top, y: r.top - box.top };
+            out.push(line);
+          }
+          line.text += s[i];
+        }
+      }
+      return out;
+    }
+    // The tops of the letters, column by column, as offsets from the box's top.
+    function skyline(el, style, font, text, w, hgt) {
+      const S = 2;
+      const c = document.createElement("canvas");
+      c.width = Math.ceil(w * S) + 4;
+      c.height = Math.ceil(hgt * S) + 4;
+      const g = c.getContext("2d");
+      g.scale(S, S);
+      g.font = font;
+      if ("letterSpacing" in g && style.letterSpacing && style.letterSpacing !== "normal") g.letterSpacing = style.letterSpacing;
+      const m = g.measureText(text);
+      const asc = m.fontBoundingBoxAscent || parseFloat(style.fontSize) * 0.9;
+      g.fillStyle = "#000";
+      // A letter's own box runs from the font's ascent above the baseline.
+      textLines(el, el.getBoundingClientRect()).forEach(function (line) {
+        g.fillText(line.text.replace(/\s+$/, ""), line.x, line.y + asc);
+      });
+      const d = g.getImageData(0, 0, c.width, c.height).data;
+      const out = new Float32Array(w).fill(NaN);
+      let any = false;
+      for (let x = 0; x < w; x++) {
+        let top = Infinity;
+        for (let sx = 0; sx < S; sx++) {
+          const px = x * S + sx;
+          for (let y = 0; y < c.height && y < top; y++) if (d[(y * c.width + px) * 4 + 3] > 110) { top = y; break; }
+        }
+        if (top !== Infinity) { out[x] = top / S; any = true; }
+      }
+      return any ? out : null;
+    }
+    function settle(L, dt, quiet) {
+      const b = L.b, h = L.h, n = L.n, R = L.repose;
+      for (let it = 0; it < 2; it++) {
+        for (let i = 0; i < n - 1; i++) {
+          const bi = b[i], bj = b[i + 1];
+          if (bi !== bi || bj !== bj || Math.abs(bi - bj) > 2) continue;
+          const d = (bj - h[i + 1]) - (bi - h[i]);
+          // past the angle of repose it slides; below it, it only settles a
+          // little toward an even depth, so a curved top keeps its snow
+          let m = d > R ? (d - R) * 0.3 : d < -R ? (d + R) * 0.3 : 0;
+          m += (h[i] - h[i + 1]) * 0.025;
+          if (m > 0) m = Math.min(m, h[i]); else m = Math.max(m, -h[i + 1]);
+          h[i] -= m;
+          h[i + 1] += m;
+        }
+      }
+      const melt = 0.012 * dt;
+      for (let i = 0; i < n; i++) {
+        const bi = b[i];
+        if (bi !== bi) continue;
+        let hv = h[i];
+        if (!(hv > 0)) { h[i] = 0; continue; }
+        hv -= melt * (0.3 + hv / L.max);
+        const left = i === 0 || b[i - 1] !== b[i - 1] || b[i - 1] - bi > 2;
+        const right = i === n - 1 || b[i + 1] !== b[i + 1] || b[i + 1] - bi > 2;
+        if ((left || right) && hv > L.hold) {
+          if (quiet) hv = L.hold;
+          else if (hv - L.hold > 0.8) { hv -= 0.8; spill(L.x0 + i + (right ? 1.5 : -1.5), bi - hv, right ? 1 : -1, 0.8, null, L); }
+        }
+        const most = L.lim ? L.max * L.lim[i] : L.max;
+        if (hv > most) hv = most;
+        h[i] = hv > 0 ? hv : 0;
+      }
+    }
+    function seed(L, frac) {
+      const ph = Math.random() * 10;
+      for (let i = 0; i < L.n; i++) {
+        if (L.b[i] === L.b[i]) L.h[i] = L.max * frac * (0.72 + 0.28 * Math.sin(i * 0.05 + ph) * Math.sin(i * 0.013 + 1.7) + 0.12 * Math.random());
+      }
+      for (let k = 0; k < 60; k++) settle(L, 0, true);
+    }
+    // Whether what's under a ledge is dark (a band, a banner, the dark theme):
+    // snow there is drawn with a bright edge rather than an inked one.
+    function onDarkGround(el) {
+      for (let n = el; n && n.nodeType === 1; n = n.parentElement) {
+        const m = /rgba?\(([^)]+)\)/.exec(getComputedStyle(n).backgroundColor || "");
+        if (!m) continue;
+        const v = m[1].split(",").map(parseFloat);
+        if (v.length > 3 && v[3] < 0.5) continue;
+        return (0.2126 * v[0] + 0.7152 * v[1] + 0.0722 * v[2]) / 255 < 0.35;
+      }
+      return dark;
+    }
+    // Whether a ledge stays put on the screen when the page scrolls (inside
+    // something fixed or sticky, like Settings' sidebar): its snow is drawn on
+    // the sky then, which stays put with it.
+    function pinnedToWindow(el) {
+      for (let n = el; n && n.nodeType === 1 && n !== document.body; n = n.parentElement) {
+        const p = getComputedStyle(n).position;
+        if (p === "fixed" || p === "sticky") return true;
+      }
+      return false;
+    }
+    function ledge(el, kind, side, rect, style) {
+      const w = Math.round(rect.width);
+      const x0 = Math.round(rect.left);
+      const K = KINDS[kind];
+      let rec = memory.get(el);
+      if (!rec) { rec = {}; memory.set(el, rec); }
+      let key = String(w), rel = null, font = "", text = "";
+      if (kind === "text") {
+        font = style.fontStyle + " " + style.fontWeight + " " + style.fontSize + " " + style.fontFamily;
+        text = el.textContent.trim();
+        if (!text) return null;
+        key = w + "|" + font + "|" + style.letterSpacing + "|" + text;
+      }
+      let st = rec[side];
+      const fresh = !st || st.key !== key;
+      if (fresh) {
+        if (kind === "text") {
+          rel = skyline(el, style, font, text, w, rect.height);
+          if (!rel) return null;
+        } else if (kind === "circle") {
+          // the top of a round thing, column by column, as far down as snow
+          // can lie on it (under about 45 degrees)
+          const R = rect.width / 2;
+          rel = new Float32Array(w);
+          for (let i = 0; i < w; i++) { const dx = i + 0.5 - R; rel[i] = Math.abs(dx) < R * 0.7 ? R - Math.sqrt(R * R - dx * dx) : NaN; }
+        }
+        st = { key: key, rel: rel, h: new Float32Array(w) };
+        if (kind === "circle") {
+          // a mound: deepest at the top, nothing where it turns steep
+          st.lim = new Float32Array(w);
+          for (let i = 0; i < w; i++) { const u = (i + 0.5 - w / 2) / (w * 0.35); st.lim[i] = Math.max(0, 1 - u * u); }
+        }
+        if (kind === "roof") {
+          // where the folded lip sags, and where icicles have grown
+          st.drip = new Float32Array(w);
+          st.icicles = [];
+          for (let i = 6 + Math.random() * 20; i < w - 6; i += 9 + Math.random() * 26) {
+            const c = i | 0, len = 0.8 + Math.random() * 2.2, half = 1.5 + Math.random() * 3;
+            for (let k = Math.max(0, c - 6); k < Math.min(w, c + 7); k++) st.drip[k] = Math.max(st.drip[k], len * Math.exp(-((k - c) * (k - c)) / (half * half)));
+            // none in front of the close button in the corner
+            if (c < w - 48 && Math.random() < 0.45) st.icicles.push({ i: c, len: 4 + Math.random() * Math.random() * 12, w: 1.8 + Math.random() * 2.2 });
+          }
+        }
+        rec[side] = st;
+      }
+      if (fresh || st.theme !== dark) { st.ground = onDarkGround(el); st.theme = dark; }
+      // a narrow window can unstick a sidebar, so this is asked again at a new width
+      if (fresh || st.pinW !== W) { st.pinned = pinnedToWindow(el); st.pinW = W; }
+      // the page's coordinates, unless it stays put on the screen
+      const y = (side === "bottom" ? rect.bottom - (parseFloat(style.borderBottomWidth) || 1) : rect.top) + (st.pinned ? 0 : scrollY);
+      const b = new Float32Array(w);
+      let yMin = Infinity, yMax = -Infinity;
+      for (let i = 0; i < w; i++) {
+        const v = st.rel ? y + st.rel[i] : y;
+        b[i] = v;
+        if (v === v) { if (v < yMin) yMin = v; if (v > yMax) yMax = v; }
+      }
+      if (yMin === Infinity) return null;
+      const L = { el: el, kind: kind, st: st, pinned: st.pinned, lim: st.lim || null, x0: x0, x1: x0 + w, n: w, b: b, h: st.h, max: K[0], hold: K[1], repose: K[2], p: K[3], yMin: yMin, yMax: yMax };
+      // icicles stop short of whatever the banner holds under its top edge
+      if (kind === "roof") L.room = Math.max(0, (parseFloat(style.paddingTop) || 0) - LIP - 6);
+      if (fresh) seed(L, still ? 0.9 : kind === "roof" ? 0.75 : 0.55);
+      return L;
+    }
+    function measureLedges() {
+      const next = [];
+      // what is on screen, and a screen's height either side of it
+      const visible = function (el, r) {
+        return r.width >= 3 && r.bottom > -H && r.top < 2 * H && el.getClientRects().length > 0;
+      };
+      document.querySelectorAll(cfg.text).forEach(function (el) {
+        const r = el.getBoundingClientRect();
+        if (!visible(el, r)) return;
+        const L = ledge(el, "text", "text", r, getComputedStyle(el));
+        if (L) next.push(L);
+      });
+      // A hairline holds snow whether it is drawn along a box's top or its bottom.
+      document.querySelectorAll(cfg.lines).forEach(function (el) {
+        const r = el.getBoundingClientRect();
+        if (!visible(el, r)) return;
+        const style = getComputedStyle(el);
+        if (parseFloat(style.borderTopWidth) > 0) { const L = ledge(el, "line", "top", r, style); if (L) next.push(L); }
+        if (parseFloat(style.borderBottomWidth) > 0) { const L = ledge(el, "line", "bottom", r, style); if (L) next.push(L); }
+      });
+      document.querySelectorAll(cfg.boxes).forEach(function (el) {
+        const r = el.getBoundingClientRect();
+        if (!visible(el, r) || r.height < 4) return;
+        const L = ledge(el, "box", "box", r, getComputedStyle(el));
+        if (L) next.push(L);
+      });
+      [["roofs", "roof"], ["circles", "circle"]].forEach(function (pair) {
+        if (!cfg[pair[0]]) return;
+        document.querySelectorAll(cfg[pair[0]]).forEach(function (el) {
+          const r = el.getBoundingClientRect();
+          if (!visible(el, r) || r.height < 4) return;
+          const L = ledge(el, pair[1], pair[1], r, getComputedStyle(el));
+          if (L) next.push(L);
+        });
+      });
+      ledges = next;
+    }
+
+    // A flake falls through the window; a ledge on the page is scrollY further down.
+    function land(f, py) {
+      for (const L of ledges) {
+        const off = L.pinned ? 0 : scrollY, fy = f.y + off, pfy = py + off;
+        if (L === f.from || f.x < L.x0 || f.x >= L.x1 || fy < L.yMin - L.max - 1 || pfy > L.yMax + 1) continue;
+        const i = (f.x - L.x0) | 0, bi = L.b[i];
+        if (bi !== bi) continue;
+        const top = bi - L.h[i];
+        if (pfy <= top && fy >= top && Math.random() < (f.clump ? 0.75 : L.p)) { deposit(L, i, f); return true; }
+      }
+      return false;
+    }
+    // What a flake leaves where it lands. The fall is light, so each leaves a
+    // little more, and the lines and drifts build up as they did before.
+    function deposit(L, i, f) {
+      const vol = f.clump ? f.vol : (2.4 + f.size * 1.3) * 5;
+      const K = Math.max(2, Math.round(f.size * 1.6));
+      let sum = 0;
+      for (let k = -K; k <= K; k++) sum += K + 1 - Math.abs(k);
+      for (let k = -K; k <= K; k++) {
+        const j = i + k;
+        if (j < 0 || j >= L.n) continue;
+        const bj = L.b[j];
+        if (bj !== bj || Math.abs(bj - L.b[i]) > 2) continue;
+        L.h[j] += vol * (K + 1 - Math.abs(k)) / sum;
+      }
+    }
+    function move(f, dt) {
+      const w = windNow(f.y);
+      let tx = w * f.par + Math.cos(f.ph + t * f.om) * f.amp * (0.5 + 0.5 * f.z);
+      let ty = f.fall * (0.86 + 0.14 * Math.sin(f.ph * 1.7 + t * f.om * 0.6));
+      const sp2 = air.vx * air.vx + air.vy * air.vy;
+      if (sp2 > 25) {
+        // the air a passing hand pushes, and the eddy it leaves behind
+        const dx = f.x - air.x, dy = f.y - air.y, d2 = dx * dx + dy * dy;
+        if (d2 < 14400) {
+          const d = Math.sqrt(d2) + 0.001, k = 1 - d / 120, k2 = k * k, sp = Math.min(700, Math.sqrt(sp2));
+          const m = 0.55 + 0.45 * f.z, sg = (air.vx * dy - air.vy * dx) > 0 ? 1 : -1;
+          tx += (air.vx * 0.75 + (-dy / d) * sp * 0.2 * sg) * k2 * m;
+          ty += (air.vy * 0.75 + (dx / d) * sp * 0.2 * sg) * k2 * m;
+        }
+      }
+      const a = Math.min(1, dt / (f.clump ? 0.3 : 0.5));
+      f.vx += (tx - f.vx) * a;
+      f.vy += (ty - f.vy) * a * (f.clump ? 1 : 0.8);
+      const py = f.y;
+      f.x += f.vx * dt;
+      f.y += f.vy * dt;
+      f.tum += f.tumV * dt;
+      f.rot += f.rotV * dt;
+      if (f.land && f.vy > 0 && land(f, py)) return false;
+      if (f.clump) return f.y < H + 20 && f.x > -40 && f.x < W + 40;
+      if (f.x < -60) f.x += W + 120; else if (f.x > W + 60) f.x -= W + 120;
+      return f.y < H + 24 && f.y > -260;
+    }
+    function stepSnow(dt) {
+      stepGust(dt);
+      const decay = Math.exp(-dt * 5);
+      air.vx *= decay;
+      air.vy *= decay;
+      for (const f of flakes) if (!move(f, dt)) reset(f, false);
+      for (let i = clumps.length - 1; i >= 0; i--) if (!move(clumps[i], dt)) clumps.splice(i, 1);
+      for (const L of ledges) settle(L, dt, false);
+    }
+    // The ledges on one layer: those pinned to the window, or those on the page
+    // between top and bottom.
+    function drawLedges(onWindow, top, bottom) {
+      const paper = dark
+        ? { fill: "#e8edef", shade: "rgba(120,140,155,0.35)", edge: "rgba(255,255,255,0.9)" }
+        : { fill: "#ffffff", shade: "rgba(128,152,175,0.5)", edge: "rgba(46,64,82,0.62)" };
+      const night = { fill: dark ? "#e8edef" : "#ffffff", shade: "rgba(120,140,155,0.35)", edge: "rgba(255,255,255,0.9)" };
+      for (const L of ledges) {
+        if (!!L.pinned !== onWindow) continue;
+        if (!onWindow && (L.yMax < top || L.yMin - L.max > bottom)) continue;
+        // a roof's drift stands above its banner, on the page
+        if (L.kind === "roof") { drawRoof(L, paper); continue; }
+        const P = L.st.ground ? night : paper;
+        const b = L.b, h = L.h, n = L.n, x = L.x0;
+        let i = 0;
+        while (i < n) {
+          if (!(h[i] > 0.15) || b[i] !== b[i]) { i++; continue; }
+          const s = i;
+          i++;
+          while (i < n && h[i] > 0.15 && b[i] === b[i] && Math.abs(b[i] - b[i - 1]) <= 2) i++;
+          const e = i;
+          for (let pass = 0; pass < 2; pass++) {
+            const f = pass === 0 ? 1 : 0.38;
+            ctx.beginPath();
+            ctx.moveTo(x + s, b[s] + 0.4);
+            for (let k = s; k < e; k++) ctx.lineTo(x + k + 0.5, b[k] - h[k] * f);
+            for (let k = e - 1; k >= s; k--) ctx.lineTo(x + k + 0.5, b[k] + 0.4);
+            ctx.closePath();
+            ctx.fillStyle = pass === 0 ? P.fill : P.shade;
+            ctx.fill();
+          }
+          ctx.beginPath();
+          ctx.moveTo(x + s, b[s] - h[s] + Math.min(h[s], 1));
+          for (let k = s; k < e; k++) ctx.lineTo(x + k + 0.5, b[k] - h[k]);
+          ctx.lineTo(x + e, b[e - 1] - h[e - 1] + Math.min(h[e - 1], 1));
+          ctx.strokeStyle = P.edge;
+          ctx.lineWidth = P === paper && !dark ? 0.9 : 0.6;
+          ctx.stroke();
+        }
+      }
+    }
+    // Deep snow on a banner: rounded over both ends, folded down over the top
+    // edge with a sagging lip that shades the band under it, and icicles
+    // where the lip has dripped and frozen.
+    function drawRoof(L, P) {
+      const b = L.b, h = L.h, n = L.n, x = L.x0, st = L.st, ov = 3;
+      let i = 0;
+      while (i < n) {
+        if (!(h[i] > 0.3)) { i++; continue; }
+        const s = i;
+        while (i < n && h[i] > 0.3) i++;
+        const e = i;
+        const sag = function (k) { return LIP + st.drip[k] * Math.min(1, h[k] / 4); };
+        const outline = function (top) {
+          ctx.beginPath();
+          ctx.moveTo(x + s - ov, b[s] + LIP);
+          ctx.quadraticCurveTo(x + s - ov - 1.5, b[s] - h[s] * top * 0.7, x + s + 1, b[s] - h[s] * top);
+          for (let k = s; k < e; k++) ctx.lineTo(x + k + 0.5, b[k] - h[k] * top);
+          ctx.quadraticCurveTo(x + e + ov + 1.5, b[e - 1] - h[e - 1] * top * 0.7, x + e + ov, b[e - 1] + LIP);
+          for (let k = e - 1; k >= s; k--) ctx.lineTo(x + k + 0.5, b[k] + sag(k));
+          ctx.closePath();
+        };
+        // the shade the lip throws on the band
+        ctx.beginPath();
+        ctx.moveTo(x + s - ov, b[s] + LIP + 1);
+        for (let k = s; k < e; k++) ctx.lineTo(x + k + 0.5, b[k] + sag(k) + 1.2);
+        ctx.lineTo(x + e + ov, b[e - 1] + LIP + 1);
+        ctx.strokeStyle = "rgba(0,0,0,0.3)";
+        ctx.lineWidth = 2;
+        ctx.stroke();
+        outline(1);
+        ctx.fillStyle = P.fill;
+        ctx.fill();
+        outline(0.3);
+        ctx.fillStyle = P.shade;
+        ctx.fill();
+        ctx.beginPath();
+        ctx.moveTo(x + s - ov, b[s] + LIP);
+        ctx.quadraticCurveTo(x + s - ov - 1.5, b[s] - h[s] * 0.7, x + s + 1, b[s] - h[s]);
+        for (let k = s; k < e; k++) ctx.lineTo(x + k + 0.5, b[k] - h[k]);
+        ctx.quadraticCurveTo(x + e + ov + 1.5, b[e - 1] - h[e - 1] * 0.7, x + e + ov, b[e - 1] + LIP);
+        ctx.strokeStyle = P.edge;
+        ctx.lineWidth = dark ? 0.6 : 0.75;
+        ctx.stroke();
+        for (const ic of st.icicles) {
+          if (ic.i < s || ic.i >= e || h[ic.i] < 2) continue;
+          const len = Math.min(ic.len * Math.min(1, h[ic.i] / 5), L.room);
+          if (len < 2) continue;
+          const cx = x + ic.i + 0.5, y0 = b[ic.i] + sag(ic.i) - 0.6, hw = ic.w / 2;
+          const g = ctx.createLinearGradient(0, y0, 0, y0 + len);
+          g.addColorStop(0, "rgba(255,255,255,0.95)");
+          g.addColorStop(1, "rgba(205,228,238,0.55)");
+          ctx.beginPath();
+          ctx.moveTo(cx - hw, y0);
+          ctx.quadraticCurveTo(cx - hw * 0.25, y0 + len * 0.55, cx, y0 + len);
+          ctx.quadraticCurveTo(cx + hw * 0.25, y0 + len * 0.55, cx + hw, y0);
+          ctx.closePath();
+          ctx.fillStyle = g;
+          ctx.fill();
+          ctx.beginPath();
+          ctx.moveTo(cx - hw * 0.35, y0 + 1);
+          ctx.lineTo(cx - hw * 0.08, y0 + len * 0.72);
+          ctx.strokeStyle = "rgba(255,255,255,0.9)";
+          ctx.lineWidth = 0.5;
+          ctx.stroke();
+        }
+      }
+    }
+    function drawFlake(f) {
+      const sp = f.spr, w = sp.full * (f.size / sp.size);
+      if (f.kind === 3) {
+        ctx.globalAlpha = f.alpha;
+        ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+        ctx.drawImage(sp.c, f.x - w / 2, f.y - w / 2, w, w);
+        return;
+      }
+      // a flat crystal tumbling: seen edge-on it all but vanishes
+      const sx = Math.max(0.2, Math.abs(Math.cos(f.tum)));
+      const c = Math.cos(f.rot), s = Math.sin(f.rot);
+      ctx.globalAlpha = f.alpha * (0.75 + 0.25 * sx);
+      ctx.setTransform(dpr * c * sx, dpr * s * sx, -dpr * s, dpr * c, dpr * f.x, dpr * f.y);
+      ctx.drawImage(sp.c, -w / 2, -w / 2, w, w);
+    }
+    function drawFlakes(from, to) {
+      for (let i = from; i < to; i++) drawFlake(flakes[i]);
+    }
+
+    // --- Lights ---------------------------------------------------------------------
+    //
+    // The wire is a verlet rope hung from brass eyes, in page coordinates so it
+    // scrolls with the page. Each bulb is a short pendulum on its socket that
+    // feels the wire move, and each filament warms and cools rather than
+    // switching. Some are twinkle bulbs: lit for a few seconds, out for a beat.
+
+    const G = 1400, SUB = 3;
+    const COLOURS = ["#e0412f", "#2f9e5a", "#f29a2e", "#2f6fd6", "#ffd49a"];
+    const bulbSprites = {};
+    const pools = {};
+    let festoon = null;
+    const hand = { x: 0, y: 0, grab: null, gx: 0, gy: 0 };
+
+    function shade(hex6, k) {
+      const n = parseInt(hex6.slice(1), 16);
+      let r = n >> 16, g = (n >> 8) & 255, b = n & 255;
+      if (k >= 0) { r += (255 - r) * k; g += (255 - g) * k; b += (255 - b) * k; } else { r *= 1 + k; g *= 1 + k; b *= 1 + k; }
+      return "rgb(" + (r | 0) + "," + (g | 0) + "," + (b | 0) + ")";
+    }
+    function rgba(hex6, a) {
+      const n = parseInt(hex6.slice(1), 16);
+      return "rgba(" + (n >> 16) + "," + ((n >> 8) & 255) + "," + (n & 255) + "," + a + ")";
+    }
+    function rrect(g, x, y, w, h, r) {
+      g.beginPath();
+      g.moveTo(x + r, y); g.lineTo(x + w - r, y); g.quadraticCurveTo(x + w, y, x + w, y + r);
+      g.lineTo(x + w, y + h - r); g.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
+      g.lineTo(x + r, y + h); g.quadraticCurveTo(x, y + h, x, y + h - r);
+      g.lineTo(x, y + r); g.quadraticCurveTo(x, y, x + r, y);
+      g.closePath();
+    }
+    // A C9 bulb: faceted glass with a pointed tip, the socket at the origin, axis down.
+    function glassPath(g) {
+      g.beginPath();
+      g.moveTo(-3.6, 8);
+      g.bezierCurveTo(-7.4, 11, -7.6, 18.5, -4.7, 25);
+      g.quadraticCurveTo(-2.1, 31, 0, 33.2);
+      g.quadraticCurveTo(2.1, 31, 4.7, 25);
+      g.bezierCurveTo(7.6, 18.5, 7.4, 11, 3.6, 8);
+      g.closePath();
+    }
+    function bulbSprite(colour, lit) {
+      const S = 3, w = 44, h = 64, ox = 22, oy = 12;
+      const c = document.createElement("canvas");
+      c.width = w * S;
+      c.height = h * S;
+      const g = c.getContext("2d");
+      g.setTransform(S, 0, 0, S, ox * S, oy * S);
+      if (lit) {
+        g.save();
+        g.filter = "blur(" + (4 * S) + "px)";
+        g.fillStyle = rgba(colour, 0.6);
+        g.beginPath(); g.ellipse(0, 20, 9, 14, 0, 0, TAU); g.fill();
+        g.restore();
+      }
+      glassPath(g);
+      let gr;
+      if (lit) {
+        gr = g.createRadialGradient(-0.5, 16.5, 0.4, 0, 19, 12);
+        gr.addColorStop(0, "#fffdf6"); gr.addColorStop(0.2, shade(colour, 0.72)); gr.addColorStop(0.62, shade(colour, 0.1)); gr.addColorStop(1, shade(colour, -0.3));
+      } else {
+        gr = g.createLinearGradient(-7, 0, 7, 0);
+        gr.addColorStop(0, shade(colour, -0.74)); gr.addColorStop(0.35, shade(colour, -0.4)); gr.addColorStop(0.7, shade(colour, -0.55)); gr.addColorStop(1, shade(colour, -0.8));
+      }
+      g.fillStyle = gr;
+      g.fill();
+      g.save();
+      glassPath(g);
+      g.clip();
+      g.strokeStyle = lit ? "rgba(255,255,255,0.24)" : "rgba(255,255,255,0.09)";
+      g.lineWidth = 0.5;
+      [-4.6, -1.6, 1.6, 4.6].forEach(function (fx) { g.beginPath(); g.moveTo(fx, 8); g.quadraticCurveTo(fx * 1.25, 19, 0, 33); g.stroke(); });
+      if (!lit) {
+        g.strokeStyle = "rgba(20,20,20,0.55)";
+        g.beginPath(); g.moveTo(-1.4, 12.5); g.lineTo(-1.4, 16); g.lineTo(1.4, 16); g.lineTo(1.4, 12.5); g.stroke();
+      }
+      g.restore();
+      g.fillStyle = lit ? "rgba(255,255,255,0.78)" : "rgba(255,255,255,0.42)";
+      g.beginPath(); g.ellipse(-3.6, 15.5, 0.9, 4.4, 0.16, 0, TAU); g.fill();
+      g.fillStyle = "rgba(255,255,255,0.25)";
+      g.beginPath(); g.ellipse(3, 12.5, 0.6, 1.6, -0.3, 0, TAU); g.fill();
+      g.fillStyle = "#17291f"; rrect(g, -4.2, -1, 8.4, 9.6, 1.4); g.fill();
+      g.fillStyle = "#1f3729"; rrect(g, -4.8, 6.4, 9.6, 2.6, 0.9); g.fill();
+      g.strokeStyle = "rgba(255,255,255,0.13)";
+      g.lineWidth = 0.45;
+      [1.6, 3.4, 5.2].forEach(function (y) { g.beginPath(); g.moveTo(-3.6, y); g.lineTo(3.6, y); g.stroke(); });
+      g.fillStyle = "rgba(255,255,255,0.16)";
+      g.fillRect(-3, -0.4, 0.9, 8.4);
+      return { c: c, w: w, h: h, ox: ox, oy: oy };
+    }
+    function poolSprite(colour) {
+      const c = document.createElement("canvas");
+      c.width = c.height = 128;
+      const g = c.getContext("2d");
+      const gr = g.createRadialGradient(64, 64, 0, 64, 64, 64);
+      gr.addColorStop(0, rgba(colour, 1)); gr.addColorStop(0.35, rgba(colour, 0.42)); gr.addColorStop(1, rgba(colour, 0));
+      g.fillStyle = gr;
+      g.fillRect(0, 0, 128, 128);
+      return c;
+    }
+    function ensureColour(colour) {
+      if (!bulbSprites[colour]) bulbSprites[colour] = { off: bulbSprite(colour, false), on: bulbSprite(colour, true) };
+      if (!pools[colour]) pools[colour] = poolSprite(colour);
+    }
+
+    function makeRope(hooks, o, old) {
+      const P = [];
+      for (let k = 0; k < hooks.length - 1; k++) {
+        const a = hooks[k], b = hooks[k + 1];
+        const D = Math.hypot(b[0] - a[0], b[1] - a[1]), L = D * o.slack;
+        const n = Math.max(2, Math.round(L / o.seg));
+        const sag = Math.sqrt(Math.max(0, 3 * D * (L - D) / 8));
+        for (let i = k === 0 ? 0 : 1; i <= n; i++) {
+          const u = i / n;
+          const lift = old ? 0 : (o.drop || 0) * 4 * u * (1 - u);
+          const x = a[0] + (b[0] - a[0]) * u;
+          const y = a[1] + (b[1] - a[1]) * u + 4 * sag * u * (1 - u) - lift;
+          P.push({ x: x, y: y, px: x, py: y, pin: i === 0 || i === n, rest: L / n, a: 0, b: 0 });
+        }
+      }
+      let pa = 0;
+      P.forEach(function (p, i) { if (p.pin) pa = i; p.a = pa; });
+      let pb = P.length - 1;
+      for (let i = P.length - 1; i >= 0; i--) { if (P[i].pin) pb = i; P[i].b = pb; }
+      const B = [];
+      for (let i = 1; i < P.length - 1; i++) {
+        if (P[i].pin || i % o.every !== (o.every >> 1)) continue;
+        const k = B.length, prev = old && old.B[k];
+        B.push({
+          i: i, th: prev ? prev.th : (Math.random() - 0.5) * 0.3, om: 0,
+          rest: prev ? prev.rest : (Math.random() - 0.5) * 0.36, T: prev ? prev.T : (still ? 1 : 0),
+          at: prev ? prev.at : 0.35 + k * 0.045,
+          twink: prev ? prev.twink : Math.random() < 0.3, flick: false, next: 0,
+          lvx: 0, lvy: 0, ax: 0, ay: 0, fresh: true, colour: COLOURS[k % COLOURS.length]
+        });
+        ensureColour(B[k].colour);
+      }
+      B.forEach(function (b) { b.next = b.at + 1 + Math.random() * 4; });
+      return { P: P, B: B, o: o };
+    }
+    // Where the string hangs, left and right: the whole width unless the page
+    // says otherwise.
+    function festoonRegion() {
+      return cfg.festoon.region ? cfg.festoon.region(W, H) : [-8, W + 8];
+    }
+    function festoonHooks(region) {
+      const f = cfg.festoon;
+      const x0 = region[0], span = region[1] - region[0];
+      const spans = Math.max(2, Math.round(span / f.span));
+      const hooks = [];
+      for (let i = 0; i <= spans; i++) hooks.push([x0 + i * span / spans, f.top + (i % 2 ? 4 : 0)]);
+      return hooks;
+    }
+    function syncFestoon() {
+      const region = festoonRegion();
+      if (festoon && Math.abs(festoon.region[0] - region[0]) <= 2 && Math.abs(festoon.region[1] - region[1]) <= 2) return;
+      const f = cfg.festoon;
+      festoon = makeRope(festoonHooks(region), { kind: "festoon", slack: f.slack, seg: f.seg, every: f.every, scale: f.scale, drop: f.drop, iters: 18 }, festoon);
+      festoon.region = region;
+    }
+
+    function stepRope(r, dt) {
+      const P = r.P, h = dt / SUB, damp = 0.994;
+      const g = hand.grab && hand.grab.r === r ? P[hand.grab.i] : null;
+      for (let s = 0; s < SUB; s++) {
+        for (let i = 0; i < P.length; i++) {
+          const p = P[i];
+          if (p.pin) continue;
+          if (p === g) {
+            p.px = p.x; p.py = p.y;
+            p.x += (hand.x - p.x) * 0.5;
+            p.y += (hand.y - p.y) * 0.5;
+            continue;
+          }
+          const vx = (p.x - p.px) * damp, vy = (p.y - p.py) * damp;
+          p.px = p.x; p.py = p.y;
+          // a breath of air, so the string never hangs dead still
+          p.x += vx + Math.sin(t * 0.8 + i * 0.21) * 0.0016;
+          p.y += vy + G * h * h;
+        }
+        for (let it = 0; it < r.o.iters; it++) {
+          for (let i = 1; i < P.length; i++) {
+            const a = P[i - 1], b = P[i];
+            const ia = a.pin || a === g, ib = b.pin || b === g;
+            if (ia && ib) continue;
+            const dx = b.x - a.x, dy = b.y - a.y, d = Math.sqrt(dx * dx + dy * dy) || 0.001;
+            const diff = (d - b.rest) / d;
+            const fa = ia ? 0 : ib ? 1 : 0.5, fb = ib ? 0 : ia ? 1 : 0.5;
+            a.x += dx * diff * fa; a.y += dy * diff * fa;
+            b.x -= dx * diff * fb; b.y -= dy * diff * fb;
+          }
+        }
+        // wire doesn't stretch: no point may sit farther from either hook than
+        // the wire between them is long
+        for (let i = 0; i < P.length; i++) {
+          const p = P[i];
+          if (p.pin || p === g) continue;
+          const A = P[p.a], B = P[p.b];
+          let dx = p.x - A.x, dy = p.y - A.y, d = Math.sqrt(dx * dx + dy * dy), m = (i - p.a) * p.rest;
+          if (d > m) { p.x = A.x + dx / d * m; p.y = A.y + dy / d * m; }
+          dx = p.x - B.x; dy = p.y - B.y; d = Math.sqrt(dx * dx + dy * dy); m = (p.b - i) * p.rest;
+          if (d > m) { p.x = B.x + dx / d * m; p.y = B.y + dy / d * m; }
+        }
+      }
+    }
+    function stepBulbs(r, dt) {
+      if (!(dt > 0)) return;
+      const P = r.P, L = 16 * r.o.scale, h = dt / SUB;
+      for (const b of r.B) {
+        if (!isFinite(b.th) || !isFinite(b.om)) { b.th = 0; b.om = 0; b.ax = 0; b.ay = 0; b.fresh = true; }
+        const p = P[b.i], q0 = P[b.i - 1], q1 = P[b.i + 1];
+        const vx = (p.x - p.px) / h, vy = (p.y - p.py) / h;
+        if (b.fresh) { b.lvx = vx; b.lvy = vy; b.fresh = false; }
+        const ax = Math.max(-9000, Math.min(9000, (vx - b.lvx) / dt));
+        const ay = Math.max(-9000, Math.min(9000, (vy - b.lvy) / dt));
+        b.lvx = vx; b.lvy = vy;
+        b.ax += (ax - b.ax) * 0.5;
+        b.ay += (ay - b.ay) * 0.5;
+        // the socket clips on square to the wire; gravity pulls the glass down
+        const target = -Math.atan2(q1.y - q0.y, q1.x - q0.x) * 0.8 + b.rest;
+        const acc = (-b.ax * Math.cos(b.th) - (G - b.ay) * Math.sin(b.th)) / L - 70 * (b.th - target) - 4.2 * b.om;
+        b.om += acc * dt;
+        b.th = Math.max(-1.3, Math.min(1.3, b.th + b.om * dt));
+      }
+    }
+    function stepLamps(r, dt) {
+      for (const b of r.B) {
+        let want = t >= b.at;
+        if (want && b.twink) {
+          if (t >= b.next) { b.flick = !b.flick; b.next = t + (b.flick ? 0.22 + Math.random() * 0.6 : 1.6 + Math.random() * 5); }
+          want = !b.flick;
+        }
+        const target = want ? 1 : 0;
+        b.T += (target - b.T) * (1 - Math.exp(-dt / (target > b.T ? 0.07 : 0.17)));
+      }
+    }
+    function ropes() {
+      return [festoon];
+    }
+    function stepLights(dt) {
+      if (hand.grab && Math.hypot(hand.x - hand.gx, hand.y - hand.gy) > 90) hand.grab = null; // it slips out of the fingers
+      const sp = Math.hypot(air.vx, air.vy);
+      if (!hand.grab && air.in && sp > 60) {
+        // brushing a hand through the string
+        const hx = air.x, hy = air.y + scrollY;
+        ropes().forEach(function (r) {
+          for (const p of r.P) {
+            if (p.pin) continue;
+            const dx = p.x - hx, dy = p.y - hy, d2 = dx * dx + dy * dy;
+            if (d2 < 484) { const k = (1 - Math.sqrt(d2) / 22) * 0.35; p.x += air.vx * dt * k; p.y += air.vy * dt * k; }
+          }
+          for (const b of r.B) {
+            const c = centre(r, b), dx = c[0] - hx, dy = c[1] - hy;
+            if (dx * dx + dy * dy < 400) b.om += air.vx * 0.012;
+          }
+        });
+      }
+      ropes().forEach(function (r) { stepRope(r, dt); stepBulbs(r, dt); stepLamps(r, dt); });
+    }
+    function centre(r, b) {
+      const p = r.P[b.i], k = 20 * r.o.scale;
+      return [p.x + Math.sin(b.th) * k, p.y + Math.cos(b.th) * k];
+    }
+    function drawRope(r, lit) {
+      const P = r.P, s = r.o.scale;
+      // the light each lit bulb throws on what is behind it: added to a dark
+      // ground, laid over a light one, where it has to be wider and stronger
+      // to read as light at all
+      const R = (lit ? 58 : 64) * s;
+      ctx.globalCompositeOperation = lit ? "lighter" : "source-over";
+      for (const b of r.B) {
+        if (b.T < 0.02) continue;
+        const c = centre(r, b);
+        ctx.globalAlpha = Math.pow(b.T, 1.8) * (lit ? 0.3 : 0.24);
+        ctx.drawImage(pools[b.colour], c[0] - R, c[1] - R, R * 2, R * 2);
+      }
+      ctx.globalCompositeOperation = "source-over";
+      ctx.globalAlpha = 1;
+      // In daylight a string hung in front of a wall casts a soft shadow on it.
+      const shadow = function (on) {
+        ctx.shadowColor = on ? "rgba(18,22,26,0.26)" : "rgba(0,0,0,0)";
+        ctx.shadowBlur = on ? 5 * T.d : 0;
+        ctx.shadowOffsetX = on ? 2 * T.d : 0;
+        ctx.shadowOffsetY = on ? 6 * T.d : 0;
+      };
+      if (!lit) shadow(true);
+      ctx.beginPath();
+      ctx.moveTo(P[0].x, P[0].y);
+      for (let i = 1; i < P.length - 1; i++) ctx.quadraticCurveTo(P[i].x, P[i].y, (P[i].x + P[i + 1].x) / 2, (P[i].y + P[i + 1].y) / 2);
+      ctx.lineTo(P[P.length - 1].x, P[P.length - 1].y);
+      ctx.lineCap = "round";
+      ctx.lineJoin = "round";
+      ctx.strokeStyle = lit ? "#08140f" : "#1d3326";
+      ctx.lineWidth = 1.9 * s + 0.4;
+      ctx.stroke();
+      if (!lit) shadow(false);
+      // the twist of the two strands catching the light
+      ctx.setLineDash([2.2, 2.6]);
+      ctx.strokeStyle = lit ? "rgba(170,210,190,0.26)" : "rgba(210,230,215,0.5)";
+      ctx.lineWidth = 0.7;
+      ctx.stroke();
+      ctx.setLineDash([]);
+      for (const b of r.B) {
+        const p = P[b.i], sp = bulbSprites[b.colour];
+        const c = Math.cos(b.th), sn = -Math.sin(b.th);
+        const d = T.d;
+        ctx.setTransform(d * c * s, d * sn * s, -d * sn * s, d * c * s, d * (p.x - T.x), d * (p.y - T.y));
+        ctx.globalAlpha = 1;
+        // the dark glass casts the shadow; its light on top casts none
+        if (!lit) shadow(true);
+        ctx.drawImage(sp.off.c, -sp.off.ox, -sp.off.oy, sp.off.w, sp.off.h);
+        if (!lit) shadow(false);
+        if (b.T > 0.01) {
+          ctx.globalAlpha = Math.min(1, Math.pow(b.T, 1.3));
+          ctx.drawImage(sp.on.c, -sp.on.ox, -sp.on.oy, sp.on.w, sp.on.h);
+        }
+      }
+      ctx.setTransform(T.d, 0, 0, T.d, -T.x * T.d, -T.y * T.d);
+      ctx.globalAlpha = 1;
+      // the brass eyes it hangs from
+      for (const p of P) {
+        if (!p.pin || p.x < 2 || p.x > W - 2) continue;
+        ctx.strokeStyle = "#b8892f";
+        ctx.lineWidth = 1.2;
+        ctx.beginPath(); ctx.arc(p.x, p.y - 2.2, 2.4, 0, TAU); ctx.stroke();
+        ctx.fillStyle = "#8a6218";
+        ctx.fillRect(p.x - 0.6, p.y - 8, 1.2, 3.6);
+      }
+    }
+
+    // --- Hands ----------------------------------------------------------------------
+
+    function onMove(e) {
+      const now = performance.now();
+      if (air.in && now - air.last < 120) {
+        const d = Math.max(0.008, (now - air.last) / 1000);
+        air.vx = air.vx * 0.4 + ((e.clientX - air.x) / d) * 0.6;
+        air.vy = air.vy * 0.4 + ((e.clientY - air.y) / d) * 0.6;
+      }
+      air.x = e.clientX;
+      air.y = e.clientY;
+      air.last = now;
+      air.in = true;
+      hand.x = e.clientX;
+      hand.y = e.clientY + scrollY;
+    }
+    function onLeave(e) { if (!e.relatedTarget) air.in = false; }
+    function onDown(e) {
+      onMove(e);
+      // A tap on a line knocks its snow off, the way a finger flicks a sill.
+      for (const L of ledges) {
+        const ay = air.y + (L.pinned ? 0 : scrollY);
+        if (air.x < L.x0 - 24 || air.x > L.x1 + 24 || ay < L.yMin - 30 || ay > L.yMax + 22) continue;
+        const c = air.x - L.x0;
+        const i0 = Math.max(0, Math.floor(c - 80)), i1 = Math.min(L.n, Math.ceil(c + 80));
+        let acc = 0;
+        for (let i = i0; i < i1; i++) {
+          const hv = L.h[i];
+          if (!(hv > 0.2) || L.b[i] !== L.b[i]) continue;
+          const take = hv * (0.5 + 0.5 * (1 - Math.abs(c - i) / 80));
+          L.h[i] = hv - take;
+          acc += take;
+          if (acc > 3) {
+            const side = (i - c) / 80;
+            const k = spill(L.x0 + i, L.b[i] - hv, side, acc, L, L);
+            if (k) { k.vx = side * 50 + (Math.random() - 0.5) * 30; k.vy = -40 - Math.random() * 70; }
+            acc = 0;
+          }
+        }
+      }
+      groundDirty = true;
+      // Take hold of the wire, unless the press was meant for a control.
+      if (e.button !== 0 || (e.target && e.target.closest && e.target.closest("a, button, input, label, select, textarea, summary, [role=switch]"))) return;
+      let best = null, bd = 324;
+      ropes().forEach(function (r) {
+        r.P.forEach(function (p, i) {
+          if (p.pin) return;
+          const dx = p.x - hand.x, dy = p.y - hand.y, d = dx * dx + dy * dy;
+          if (d < bd) { bd = d; best = { r: r, i: i }; }
+        });
+        for (const b of r.B) {
+          const c = centre(r, b), dx = c[0] - hand.x, dy = c[1] - hand.y, d = dx * dx + dy * dy;
+          if (d < bd) { bd = d; best = { r: r, i: b.i }; }
+        }
+      });
+      if (!best) return;
+      hand.grab = best;
+      hand.gx = hand.x;
+      hand.gy = hand.y;
+      e.preventDefault();
+    }
+    function onUp() { hand.grab = null; }
+
+    // --- The frame ------------------------------------------------------------------
+
+    // The settled snow is drawn over what's on screen and most of a screen
+    // either side, so a quick scroll never brings bare page into view, and
+    // only every third frame: it changes slowly. A scroll that nears the edge
+    // of what was drawn, or a tap that knocks snow off, draws it at once.
+    // What lies further off keeps the picture it last had.
+    function drawGround(force) {
+      frameNo++;
+      const nearEdge = scrollY - H * 0.25 < drawnTop || scrollY + H * 1.25 > drawnBottom;
+      if (!force && !groundDirty && !nearEdge && frameNo % 3) return;
+      groundDirty = false;
+      useLayer(groundCtx, gdpr, ox, oy);
+      const top = scrollY - H * 0.75, bottom = scrollY + H * 1.75;
+      ctx.clearRect(ox, top, GW, bottom - top);
+      drawLedges(false, top, bottom);
+      drawnTop = top;
+      drawnBottom = bottom;
+    }
+    function drawLamps() {
+      useLayer(lampsCtx, ldpr, ox, oy);
+      ctx.clearRect(ox, oy, GW, LH);
+      ropes().forEach(function (r) { drawRope(r, cfg.festoonLit(dark)); });
+    }
+    function drawSky() {
+      useLayer(skyCtx, dpr, 0, 0);
+      ctx.clearRect(0, 0, W, H);
+      drawLedges(true, 0, 0);
+      for (const c of clumps) drawFlake(c);
+      drawFlakes(0, flakes.length);
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      ctx.globalAlpha = 1;
+    }
+    function draw(force) {
+      drawGround(force);
+      drawLamps();
+      drawSky();
+    }
+    function measure() {
+      measureQueued = false;
+      measureAt = performance.now();
+      scrollY = window.scrollY || 0;
+      const sized = resize();
+      const d = isDark();
+      if (d !== dark || !sprites) { dark = d; buildSprites(); }
+      if (sized || !flakes.length) populate();
+      syncFestoon();
+      measureLedges();
+      // a resized layer is blank until drawn, and this may run after the frame's draw
+      const grounded = resizeGround();
+      const lit = resizeLamps();
+      if (still) draw(true);
+      else {
+        if (grounded) drawGround(true);
+        if (lit) drawLamps();
+      }
+    }
+    function queueMeasure() {
+      if (measureQueued || stopped) return;
+      measureQueued = true;
+      requestAnimationFrame(function () { if (!stopped) measure(); });
+    }
+    function frame(now) {
+      if (stopped) return;
+      raf = requestAnimationFrame(frame);
+      const dt = Math.min(0.04, (now - last) / 1000);
+      last = now;
+      // A frame can arrive stamped no later than the last one; nothing moves in it.
+      if (document.hidden || !(dt > 0)) return;
+      scrollY = window.scrollY || 0;
+      // The page moves under the snow: things open, text arrives, sections fold.
+      if (now - measureAt > 1000) measure();
+      t += dt;
+      stepSnow(dt);
+      stepLights(dt);
+      draw();
+    }
+
+    measure();
+    if (still) {
+      // A still picture: the lights on and steady, the snow already lying.
+      for (let k = 0; k < 240; k++) ropes().forEach(function (r) { stepRope(r, 1 / 60); stepBulbs(r, 1 / 60); });
+      t = 1000;
+      draw();
+    } else {
+      window.addEventListener("pointermove", onMove, { passive: true });
+      window.addEventListener("pointerdown", onDown);
+      window.addEventListener("pointerup", onUp);
+      window.addEventListener("pointercancel", onUp);
+      window.addEventListener("pointerout", onLeave);
+      last = performance.now();
+      raf = requestAnimationFrame(frame);
+    }
+    // The page's scroll, and any box scrolling inside it (Settings' sidebar).
+    document.addEventListener("scroll", queueMeasure, { passive: true, capture: true });
+    window.addEventListener("resize", queueMeasure);
+    if (document.fonts && document.fonts.ready) document.fonts.ready.then(queueMeasure);
+    timers.push(setTimeout(queueMeasure, 600));
+
+    // When the page changes under the snow (Settings opens another section, a
+    // banner folds, part of the popup appears), the snow is measured again and
+    // the page's layer wiped and redrawn at once, before that frame is
+    // painted. Otherwise the old section's lines showed over the new one until
+    // the next look, up to a second later.
+    function relayout() {
+      if (stopped) return;
+      measure();
+      groundCtx.setTransform(1, 0, 0, 1, 0, 0);
+      groundCtx.clearRect(0, 0, ground.width, ground.height);
+      drawnTop = 0;
+      drawnBottom = -1;
+      draw(true);
+    }
+    const watchers = [];
+    if (typeof MutationObserver === "function") {
+      // Settings shows one section at a time by hiding the rest, the Warden
+      // band folds the same way, and parts of the popup appear as they learn
+      // what to say; the theme and the loading veil are marked on <html>.
+      const changes = new MutationObserver(relayout);
+      changes.observe(html, { attributes: true });
+      changes.observe(document.body, { attributes: true, attributeFilter: ["hidden"], subtree: true });
+      watchers.push(changes);
+    }
+    if (typeof ResizeObserver === "function") {
+      // and anything that moves the page's lines also changes its height
+      const sizes = new ResizeObserver(relayout);
+      sizes.observe(document.body);
+      watchers.push(sizes);
+    }
+
+    return {
+      stop: function () {
+        stopped = true;
+        cancelAnimationFrame(raf);
+        timers.forEach(clearTimeout);
+        window.removeEventListener("pointermove", onMove);
+        window.removeEventListener("pointerdown", onDown);
+        window.removeEventListener("pointerup", onUp);
+        window.removeEventListener("pointercancel", onUp);
+        window.removeEventListener("pointerout", onLeave);
+        document.removeEventListener("scroll", queueMeasure, { capture: true });
+        window.removeEventListener("resize", queueMeasure);
+        watchers.forEach(function (w) { w.disconnect(); });
+        [ground, lamps, sky].forEach(function (c) { if (c.parentNode) c.parentNode.removeChild(c); });
+      }
+    };
+  }
+})();

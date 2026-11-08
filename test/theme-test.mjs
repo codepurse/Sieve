@@ -205,13 +205,45 @@ async function loadTheme({ protocol, cached = null, stored }) {
   return { T: globalThis.SieveTheme, root, rootAtLoad, cache, written, change };
 }
 
-test("normalize: anything but the three choices is 'auto'", async () => {
+test("normalize: anything but the three choices is 'dark', the default", async () => {
   const { T } = await loadTheme({ protocol: "chrome-extension:", stored: undefined });
+  assert.equal(T.DEFAULT, "dark");
   assert.equal(T.normalize("dark"), "dark");
   assert.equal(T.normalize("light"), "light");
   assert.equal(T.normalize("auto"), "auto");
-  assert.equal(T.normalize("Dark"), "auto");
-  assert.equal(T.normalize(undefined), "auto");
+  assert.equal(T.normalize("Dark"), "dark");
+  assert.equal(T.normalize(undefined), "dark");
+});
+
+test("dark until you choose: nothing kept paints dark from the first frame", async () => {
+  const { root, rootAtLoad, cache, T } = await loadTheme({ protocol: "chrome-extension:", stored: undefined });
+  assert.equal(rootAtLoad, "dark", "no copy yet still paints dark");
+  assert.equal(root.getAttribute("data-theme"), "dark");
+  assert.equal(cache.get("sieve.uiTheme"), "dark");
+  assert.equal(T.get(), "dark");
+});
+
+test("dark until you choose: someone who never chose turns dark once storage answers", async () => {
+  // The copy an earlier version wrote when nothing was kept said "auto".
+  const { root, rootAtLoad, cache } = await loadTheme({ protocol: "chrome-extension:", cached: "auto", stored: undefined });
+  assert.equal(rootAtLoad, null, "the first paint follows the old copy");
+  assert.equal(root.getAttribute("data-theme"), "dark");
+  assert.equal(cache.get("sieve.uiTheme"), "dark", "and the copy says dark from then on");
+});
+
+test("dark until you choose: a kept choice is untouched, 'Match my system' included", async () => {
+  for (const kept of ["auto", "light", "dark"]) {
+    const { T, root } = await loadTheme({ protocol: "chrome-extension:", cached: kept, stored: kept });
+    assert.equal(T.get(), kept);
+    assert.equal(root.getAttribute("data-theme"), kept === "auto" ? null : kept);
+  }
+});
+
+test("Settings and the search filter assume the same default", () => {
+  assert.match(read("options/options.js"), /uiTheme: "dark",/, "Settings' batched read shows Dark selected when nothing is kept");
+  const filter = read("content/search-filter.js");
+  assert.match(filter, /let uiTheme = "dark";/);
+  assert.match(filter, /uiTheme: "dark",/, "the search filter's own read of the choice");
 });
 
 test("Sieve's page: the cached choice is on <html> before storage answers", async () => {
@@ -239,10 +271,10 @@ test("a choice made elsewhere arrives, and listeners hear it once", async () => 
   const { T, root, change } = await loadTheme({ protocol: "chrome-extension:", stored: undefined });
   const heard = [];
   T.onChange((t) => heard.push(t));
-  change("dark");
-  change("dark");
-  assert.equal(root.getAttribute("data-theme"), "dark");
-  assert.deepEqual(heard, ["dark"]);
+  change("light");
+  change("light");
+  assert.equal(root.getAttribute("data-theme"), "light");
+  assert.deepEqual(heard, ["light"]);
 });
 
 test("save applies at once and stores the normalised value", async () => {
@@ -250,8 +282,10 @@ test("save applies at once and stores the normalised value", async () => {
   await T.save("light");
   assert.equal(root.getAttribute("data-theme"), "light");
   await T.save("nonsense");
+  assert.equal(root.getAttribute("data-theme"), "dark");
+  await T.save("auto");
   assert.equal(root.getAttribute("data-theme"), null);
-  assert.deepEqual(written, [{ uiTheme: "light" }, { uiTheme: "auto" }]);
+  assert.deepEqual(written, [{ uiTheme: "light" }, { uiTheme: "dark" }, { uiTheme: "auto" }]);
 });
 
 test("a website: theme.js never writes on the site's <html> or its storage", async () => {
